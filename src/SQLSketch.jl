@@ -35,10 +35,12 @@ export PlaceholderField, Placeholder, p_
 export col, literal, param, func
 export is_null, is_not_null
 
-# Query AST (Phase 2)
+# Query AST (Phase 2 + DML)
 include("Core/query.jl")
 export Query, From, Where, Select, OrderBy, Limit, Offset, Distinct, GroupBy, Having, Join
+export InsertInto, InsertValues, Update, UpdateSet, UpdateWhere, DeleteFrom, DeleteWhere
 export from, where, select, order_by, limit, offset, distinct, group_by, having, join
+export insert_into, values, update, set, delete_from
 
 # Dialect abstraction (Phase 3)
 include("Core/dialect.jl")
@@ -64,7 +66,7 @@ export DateCodec, DateTimeCodec, UUIDCodec
 # Query Execution (Phase 6)
 include("Core/execute.jl")
 export fetch_all, fetch_one, fetch_maybe
-export sql, explain
+export sql, explain, execute_dml
 end
 
 # Dialect implementations
@@ -84,7 +86,9 @@ export PlaceholderField, Placeholder, p_
 export col, literal, param, func
 export is_null, is_not_null
 export Query, From, Where, Select, OrderBy, Limit, Offset, Distinct, GroupBy, Having, Join
+export InsertInto, InsertValues, Update, UpdateSet, UpdateWhere, DeleteFrom, DeleteWhere
 export from, where, select, order_by, limit, offset, distinct, group_by, having, join
+export insert_into, values, update, set, delete_from
 export Dialect, Capability
 export CAP_CTE, CAP_RETURNING, CAP_UPSERT, CAP_WINDOW, CAP_LATERAL, CAP_BULK_COPY,
        CAP_SAVEPOINT, CAP_ADVISORY_LOCK
@@ -100,7 +104,7 @@ export DateCodec, DateTimeCodec, UUIDCodec
 
 # Query execution (Phase 6)
 export fetch_all, fetch_one, fetch_maybe
-export sql, explain
+export sql, explain, execute_dml
 
 # Export Dialect implementations
 export SQLiteDialect

@@ -20,7 +20,7 @@ using Dates
 using UUIDs
 
 # Import execution functions with new names
-import SQLSketch.Core: fetch_all, fetch_one, fetch_maybe, sql, explain
+import SQLSketch.Core: fetch_all, fetch_one, fetch_maybe, sql, explain, execute_dml
 
 @testset "End-to-End Integration Tests" begin
     # Setup: Create in-memory database
@@ -352,6 +352,113 @@ import SQLSketch.Core: fetch_all, fetch_one, fetch_maybe, sql, explain
 
         @test length(results) == 0
         @test results isa Vector
+    end
+
+    # DML Operations Tests
+    @testset "DML Operations" begin
+        # Setup: Create a test table for DML operations
+        execute(db, "CREATE TABLE dml_test (id INTEGER PRIMARY KEY, name TEXT, value INTEGER)", [])
+
+        @testset "INSERT with literals" begin
+            q = insert_into(:dml_test, [:name, :value]) |>
+                values([[literal("test1"), literal(100)]])
+
+            execute_dml(db, dialect, q)
+
+            # Verify insertion
+            verify_q = from(:dml_test) |>
+                where(col(:dml_test, :name) == literal("test1")) |>
+                select(NamedTuple, col(:dml_test, :name), col(:dml_test, :value))
+
+            results = fetch_all(db, dialect, registry, verify_q)
+            @test length(results) == 1
+            @test results[1][:name] == "test1"
+            @test results[1][:value] == 100
+        end
+
+        @testset "INSERT with parameters" begin
+            q = insert_into(:dml_test, [:name, :value]) |>
+                values([[param(String, :name), param(Int, :value)]])
+
+            execute_dml(db, dialect, q, (name="test2", value=200))
+
+            # Verify insertion
+            verify_q = from(:dml_test) |>
+                where(col(:dml_test, :name) == param(String, :name)) |>
+                select(NamedTuple, col(:dml_test, :name), col(:dml_test, :value))
+
+            results = fetch_all(db, dialect, registry, verify_q, (name="test2",))
+            @test length(results) == 1
+            @test results[1][:value] == 200
+        end
+
+        @testset "INSERT multiple rows" begin
+            q = insert_into(:dml_test, [:name, :value]) |>
+                values([
+                    [literal("test3"), literal(300)],
+                    [literal("test4"), literal(400)]
+                ])
+
+            execute_dml(db, dialect, q)
+
+            # Verify insertions
+            verify_q = from(:dml_test) |>
+                where(col(:dml_test, :value) >= literal(300)) |>
+                select(NamedTuple, col(:dml_test, :name), col(:dml_test, :value))
+
+            results = fetch_all(db, dialect, registry, verify_q)
+            @test length(results) == 2
+        end
+
+        @testset "UPDATE with WHERE" begin
+            q = update(:dml_test) |>
+                set(:value => param(Int, :new_value)) |>
+                where(col(:dml_test, :name) == param(String, :name))
+
+            execute_dml(db, dialect, q, (new_value=999, name="test1"))
+
+            # Verify update
+            verify_q = from(:dml_test) |>
+                where(col(:dml_test, :name) == literal("test1")) |>
+                select(NamedTuple, col(:dml_test, :value))
+
+            results = fetch_all(db, dialect, registry, verify_q)
+            @test length(results) == 1
+            @test results[1][:value] == 999
+        end
+
+        @testset "DELETE with WHERE" begin
+            q = delete_from(:dml_test) |>
+                where(col(:dml_test, :name) == param(String, :name))
+
+            execute_dml(db, dialect, q, (name="test2",))
+
+            # Verify deletion
+            verify_q = from(:dml_test) |>
+                where(col(:dml_test, :name) == literal("test2")) |>
+                select(NamedTuple, col(:dml_test, :name))
+
+            results = fetch_all(db, dialect, registry, verify_q)
+            @test length(results) == 0
+        end
+
+        @testset "DELETE with complex WHERE" begin
+            q = delete_from(:dml_test) |>
+                where(col(:dml_test, :value) < literal(500))
+
+            execute_dml(db, dialect, q)
+
+            # Verify remaining rows
+            verify_q = from(:dml_test) |> select(NamedTuple, col(:dml_test, :name))
+            results = fetch_all(db, dialect, registry, verify_q)
+
+            # Only test1 (999) should remain
+            @test length(results) == 1
+            @test results[1][:name] == "test1"
+        end
+
+        # Cleanup DML test table
+        execute(db, "DROP TABLE dml_test", [])
     end
 
     # Cleanup

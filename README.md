@@ -86,27 +86,30 @@ SQLSketch is designed as a two-layer system:
 
 ## Current Implementation Status
 
-**Completed Phases:** 6/10 | **Total Tests:** 544 passing ✅
+**Completed Phases:** 6/10 | **Total Tests:** 636 passing ✅
 
 - ✅ **Phase 1: Expression AST** (135 tests)
   - Column references, literals, parameters
   - Binary/unary operators with auto-wrapping
   - Function calls
   - Type-safe composition
+  - Placeholder syntax (p_)
 
-- ✅ **Phase 2: Query AST** (85 tests)
+- ✅ **Phase 2: Query AST** (151 tests)
   - FROM, WHERE, SELECT, JOIN, ORDER BY
   - LIMIT, OFFSET, DISTINCT, GROUP BY, HAVING
+  - **INSERT, UPDATE, DELETE** (DML operations)
   - Pipeline composition with `|>`
   - Shape-preserving and shape-changing semantics
   - Type-safe query transformations
 
-- ✅ **Phase 3: Dialect Abstraction** (102 tests)
+- ✅ **Phase 3: Dialect Abstraction** (129 tests)
   - Dialect interface (compile, quote_identifier, placeholder, supports)
   - Capability system for feature detection
   - SQLite dialect implementation
   - Full SQL generation from query ASTs
   - Expression and query compilation
+  - **DML compilation (INSERT, UPDATE, DELETE)**
 
 - ✅ **Phase 4: Driver Abstraction** (41 tests)
   - Driver interface (connect, execute, close)
@@ -115,18 +118,20 @@ SQLSketch is designed as a two-layer system:
   - Parameter binding with `?` placeholders
   - Query execution returning raw SQLite results
 
-- ✅ **Phase 5: CodecRegistry** (112 tests)
+- ✅ **Phase 5: CodecRegistry** (115 tests)
   - Type-safe encoding/decoding between Julia and SQL
   - Built-in codecs (Int, Float64, String, Bool, Date, DateTime, UUID)
   - NULL/Missing handling
   - Row mapping to NamedTuples and structs
 
-- ✅ **Phase 6: End-to-End Integration** (54 tests)
-  - Query execution API (`all`, `one`, `maybeone`)
+- ✅ **Phase 6: End-to-End Integration** (65 tests)
+  - Query execution API (`fetch_all`, `fetch_one`, `fetch_maybe`)
+  - **DML execution API (`execute_dml`)**
   - Type-safe parameter binding
   - Full pipeline: Query AST → Dialect → Driver → CodecRegistry
   - Observability API (`sql`, `explain`)
   - Comprehensive integration tests
+  - **Full CRUD operations** (SELECT, INSERT, UPDATE, DELETE)
 
 - ⏳ **Phase 7-10:** See [`docs/roadmap.md`](docs/roadmap.md) and [`docs/TODO.md`](docs/TODO.md)
 
@@ -179,6 +184,30 @@ user = fetch_one(db, dialect, registry, q)  # Returns NamedTuple (errors if not 
 # Or maybe get one result
 maybe_user = fetch_maybe(db, dialect, registry, q)  # Returns Union{NamedTuple, Nothing}
 
+# DML Operations (INSERT, UPDATE, DELETE)
+import SQLSketch.Core: execute_dml
+
+# INSERT with literals
+insert_q = insert_into(:users, [:email, :active]) |>
+    values([[literal("alice@example.com"), literal(1)]])
+execute_dml(db, dialect, insert_q)
+
+# INSERT with parameters
+insert_q = insert_into(:users, [:email, :active]) |>
+    values([[param(String, :email), param(Int, :active)]])
+execute_dml(db, dialect, insert_q, (email="bob@example.com", active=1))
+
+# UPDATE with WHERE
+update_q = update(:users) |>
+    set(:active => param(Int, :active)) |>
+    where(col(:users, :email) == param(String, :email))
+execute_dml(db, dialect, update_q, (active=0, email="alice@example.com"))
+
+# DELETE with WHERE
+delete_q = delete_from(:users) |>
+    where(col(:users, :active) == literal(0))
+execute_dml(db, dialect, delete_q)
+
 close(db)
 ```
 
@@ -202,17 +231,17 @@ src/
   Drivers/           # Driver implementations
     sqlite.jl        # SQLite execution ✅
 
-test/                # Test suite (544 tests)
+test/                # Test suite (636 tests)
   core/
     expr_test.jl     # Expression tests ✅ (135)
-    query_test.jl    # Query tests ✅ (85)
+    query_test.jl    # Query tests ✅ (151)
     codec_test.jl    # Codec tests ✅ (115)
   dialects/
-    sqlite_test.jl   # SQLite dialect tests ✅ (102)
+    sqlite_test.jl   # SQLite dialect tests ✅ (129)
   drivers/
     sqlite_test.jl   # SQLite driver tests ✅ (41)
   integration/
-    end_to_end_test.jl  # Integration tests ✅ (54)
+    end_to_end_test.jl  # Integration tests ✅ (65)
 
 docs/                # Documentation
   design.md          # Design document
@@ -244,14 +273,14 @@ julia --project
 ### Current Test Status
 
 ```
-Total: 544 tests passing ✅
+Total: 636 tests passing ✅
 
 Phase 1 (Expression AST):        135 tests
-Phase 2 (Query AST):              85 tests
-Phase 3 (Dialect Abstraction):   102 tests
+Phase 2 (Query AST):             151 tests (includes DML: INSERT/UPDATE/DELETE)
+Phase 3 (Dialect Abstraction):   129 tests (includes DML compilation)
 Phase 4 (Driver Abstraction):     41 tests
-Phase 5 (CodecRegistry):         115 tests (includes 112 codec + 3 map_row)
-Phase 6 (End-to-End Integration): 54 tests
+Phase 5 (CodecRegistry):         115 tests
+Phase 6 (End-to-End Integration): 65 tests (includes DML execution)
 Phase 7 (Transactions):           ⏳ Not yet implemented
 Phase 8 (Migrations):             ⏳ Not yet implemented
 ```

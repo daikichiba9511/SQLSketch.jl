@@ -3,8 +3,11 @@ using SQLSketch.Core: Dialect, Capability, CAP_CTE, CAP_RETURNING, CAP_UPSERT, C
                       CAP_LATERAL
 using SQLSketch.Core: Query, From, Where, Select, Join, OrderBy, Limit, Offset, Distinct,
                       GroupBy, Having
+using SQLSketch.Core: InsertInto, InsertValues, Update, UpdateSet, UpdateWhere,
+                      DeleteFrom, DeleteWhere
 using SQLSketch.Core: from, where, select, join, order_by, limit, offset, distinct,
                       group_by, having
+using SQLSketch.Core: insert_into, values, update, set, delete_from
 using SQLSketch.Core: SQLExpr, col, literal, param, func, is_null, is_not_null
 using SQLSketch.Core: compile, compile_expr, quote_identifier, placeholder, supports
 using SQLSketch: SQLiteDialect
@@ -480,5 +483,120 @@ end
         # Single quote should be escaped
         @test occursin("'O''Brien'", sql)
         @test isempty(params)
+    end
+
+    # DML (INSERT, UPDATE, DELETE) Tests
+    @testset "DML Operations" begin
+        @testset "INSERT INTO basic" begin
+            q = insert_into(:users, [:name, :email])
+            sql, params = compile(dialect, q)
+
+            @test sql == "INSERT INTO `users` (`name`, `email`)"
+            @test isempty(params)
+        end
+
+        @testset "INSERT...VALUES with literals" begin
+            q = insert_into(:users, [:name, :email]) |>
+                values([[literal("Alice"), literal("alice@example.com")]])
+            sql, params = compile(dialect, q)
+
+            @test sql == "INSERT INTO `users` (`name`, `email`) VALUES ('Alice', 'alice@example.com')"
+            @test isempty(params)
+        end
+
+        @testset "INSERT...VALUES with parameters" begin
+            q = insert_into(:users, [:name, :email]) |>
+                values([[param(String, :name), param(String, :email)]])
+            sql, params = compile(dialect, q)
+
+            @test sql == "INSERT INTO `users` (`name`, `email`) VALUES (?, ?)"
+            @test params == [:name, :email]
+        end
+
+        @testset "INSERT...VALUES multiple rows" begin
+            q = insert_into(:users, [:name, :email]) |>
+                values([
+                    [literal("Alice"), literal("alice@example.com")],
+                    [literal("Bob"), literal("bob@example.com")]
+                ])
+            sql, params = compile(dialect, q)
+
+            @test sql == "INSERT INTO `users` (`name`, `email`) VALUES ('Alice', 'alice@example.com'), ('Bob', 'bob@example.com')"
+            @test isempty(params)
+        end
+
+        @testset "UPDATE basic" begin
+            q = update(:users)
+            sql, params = compile(dialect, q)
+
+            @test sql == "UPDATE `users`"
+            @test isempty(params)
+        end
+
+        @testset "UPDATE...SET with literals" begin
+            q = update(:users) |>
+                set(:name => literal("Alice"), :email => literal("alice@example.com"))
+            sql, params = compile(dialect, q)
+
+            @test sql == "UPDATE `users` SET `name` = 'Alice', `email` = 'alice@example.com'"
+            @test isempty(params)
+        end
+
+        @testset "UPDATE...SET with parameters" begin
+            q = update(:users) |>
+                set(:name => param(String, :name), :email => param(String, :email))
+            sql, params = compile(dialect, q)
+
+            @test sql == "UPDATE `users` SET `name` = ?, `email` = ?"
+            @test params == [:name, :email]
+        end
+
+        @testset "UPDATE...SET...WHERE" begin
+            q = update(:users) |>
+                set(:name => param(String, :name)) |>
+                where(col(:users, :id) == param(Int, :id))
+            sql, params = compile(dialect, q)
+
+            @test sql == "UPDATE `users` SET `name` = ? WHERE (`users`.`id` = ?)"
+            @test params == [:name, :id]
+        end
+
+        @testset "DELETE FROM basic" begin
+            q = delete_from(:users)
+            sql, params = compile(dialect, q)
+
+            @test sql == "DELETE FROM `users`"
+            @test isempty(params)
+        end
+
+        @testset "DELETE FROM...WHERE with parameter" begin
+            q = delete_from(:users) |>
+                where(col(:users, :id) == param(Int, :id))
+            sql, params = compile(dialect, q)
+
+            @test sql == "DELETE FROM `users` WHERE (`users`.`id` = ?)"
+            @test params == [:id]
+        end
+
+        @testset "DELETE FROM...WHERE with literal" begin
+            q = delete_from(:users) |>
+                where(col(:users, :active) == literal(false))
+            sql, params = compile(dialect, q)
+
+            @test sql == "DELETE FROM `users` WHERE (`users`.`active` = 0)"
+            @test isempty(params)
+        end
+
+        @testset "DELETE FROM...WHERE with complex condition" begin
+            q = delete_from(:users) |>
+                where((col(:users, :created_at) < param(String, :date)) & (col(:users, :active) == literal(false)))
+            sql, params = compile(dialect, q)
+
+            @test occursin("DELETE FROM `users` WHERE", sql)
+            @test occursin("`created_at`", sql)
+            @test occursin("`active`", sql)
+            @test occursin("AND", sql)
+            @test params == [:date]
+        end
     end
 end

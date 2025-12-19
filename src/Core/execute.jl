@@ -320,3 +320,59 @@ function explain(conn::Connection, dialect::Dialect, query::Query)::String
 
     return Base.join(lines, "\n")
 end
+
+"""
+    execute_dml(conn::Connection, dialect::Dialect, query::Query,
+                params::NamedTuple = NamedTuple()) -> Nothing
+
+Execute a DML statement (INSERT, UPDATE, DELETE) without fetching results.
+
+This function is for DML operations that don't use RETURNING clauses.
+For DML with RETURNING, use `fetch_all`, `fetch_one`, or `fetch_maybe` instead.
+
+# Arguments
+
+  - `conn`: Database connection
+  - `dialect`: SQL dialect for compilation
+  - `query`: DML query AST (InsertValues, UpdateWhere, UpdateSet, DeleteFrom, DeleteWhere)
+  - `params`: Named parameters for the query (default: empty NamedTuple)
+
+# Returns
+
+Nothing
+
+# Example
+
+```julia
+# INSERT
+q = insert_into(:users, [:name, :email]) |>
+    values([[literal("Alice"), literal("alice@example.com")]])
+execute_dml(db, dialect, q)
+
+# UPDATE
+q = update(:users) |>
+    set(:name => param(String, :name)) |>
+    where(col(:users, :id) == param(Int, :id))
+execute_dml(db, dialect, q, (name="Bob", id=1))
+
+# DELETE
+q = delete_from(:users) |>
+    where(col(:users, :id) == param(Int, :id))
+execute_dml(db, dialect, q, (id=1))
+```
+"""
+function execute_dml(conn::Connection,
+                     dialect::Dialect,
+                     query::Query,
+                     params::NamedTuple=NamedTuple())::Nothing
+    # Compile query to SQL
+    sql, param_names = compile(dialect, query)
+
+    # Bind parameters
+    param_values = bind_params(param_names, params)
+
+    # Execute DML (no result to process)
+    execute(conn, sql, param_values)
+
+    return nothing
+end

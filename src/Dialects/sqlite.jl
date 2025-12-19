@@ -28,7 +28,8 @@ See `docs/design.md` Section 10 for detailed design rationale.
 using .Core: Dialect, Capability, CAP_CTE, CAP_RETURNING, CAP_UPSERT, CAP_WINDOW,
              CAP_LATERAL, CAP_BULK_COPY, CAP_SAVEPOINT, CAP_ADVISORY_LOCK
 using .Core: Query, From, Where, Select, Join, OrderBy, Limit, Offset, Distinct, GroupBy,
-             Having
+             Having, InsertInto, InsertValues, Update, UpdateSet, UpdateWhere,
+             DeleteFrom, DeleteWhere
 using .Core: SQLExpr, ColRef, Literal, Param, BinaryOp, UnaryOp, FuncCall, PlaceholderField
 import .Core: compile, compile_expr, quote_identifier, placeholder, supports
 
@@ -578,5 +579,197 @@ function compile(dialect::SQLiteDialect,
 
     # Append HAVING clause
     sql = "$source_sql HAVING $condition_sql"
+    return (sql, params)
+end
+
+#
+# DML Compilation (INSERT, UPDATE, DELETE)
+#
+
+"""
+    compile(dialect::SQLiteDialect, query::InsertInto{T}) -> (String, Vector{Symbol})
+
+Compile an INSERT INTO statement.
+
+# Example
+
+```julia
+q = insert_into(:users, [:name, :email])
+sql, params = compile(SQLiteDialect(), q)
+# sql → "INSERT INTO `users` (`name`, `email`) VALUES"
+# Note: Incomplete without VALUES clause
+```
+"""
+function compile(dialect::SQLiteDialect,
+                 query::InsertInto{T})::Tuple{String, Vector{Symbol}} where {T}
+    params = Symbol[]
+    table = quote_identifier(dialect, query.table)
+    columns = [quote_identifier(dialect, col) for col in query.columns]
+    columns_str = Base.join(columns, ", ")
+    sql = "INSERT INTO $table ($columns_str)"
+    return (sql, params)
+end
+
+"""
+    compile(dialect::SQLiteDialect, query::InsertValues{T}) -> (String, Vector{Symbol})
+
+Compile an INSERT...VALUES statement.
+
+# Example
+
+```julia
+q = insert_into(:users, [:name, :email]) |>
+    values([[literal("Alice"), literal("alice@example.com")]])
+sql, params = compile(SQLiteDialect(), q)
+# sql → "INSERT INTO `users` (`name`, `email`) VALUES ('Alice', 'alice@example.com')"
+```
+"""
+function compile(dialect::SQLiteDialect,
+                 query::InsertValues{T})::Tuple{String, Vector{Symbol}} where {T}
+    # Compile the INSERT INTO part
+    source_sql, params = compile(dialect, query.source)
+
+    # Compile each row
+    rows_sql = String[]
+    for row in query.rows
+        values_sql = [compile_expr(dialect, expr, params) for expr in row]
+        values_str = Base.join(values_sql, ", ")
+        push!(rows_sql, "($values_str)")
+    end
+
+    rows_str = Base.join(rows_sql, ", ")
+    sql = "$source_sql VALUES $rows_str"
+    return (sql, params)
+end
+
+"""
+    compile(dialect::SQLiteDialect, query::Update{T}) -> (String, Vector{Symbol})
+
+Compile an UPDATE statement (without SET clause).
+
+# Example
+
+```julia
+q = update(:users)
+sql, params = compile(SQLiteDialect(), q)
+# sql → "UPDATE `users`"
+# Note: Incomplete without SET clause
+```
+"""
+function compile(dialect::SQLiteDialect,
+                 query::Update{T})::Tuple{String, Vector{Symbol}} where {T}
+    params = Symbol[]
+    table = quote_identifier(dialect, query.table)
+    sql = "UPDATE $table"
+    return (sql, params)
+end
+
+"""
+    compile(dialect::SQLiteDialect, query::UpdateSet{T}) -> (String, Vector{Symbol})
+
+Compile an UPDATE...SET statement.
+
+# Example
+
+```julia
+q = update(:users) |>
+    set(:name => param(String, :name), :email => param(String, :email))
+sql, params = compile(SQLiteDialect(), q)
+# sql → "UPDATE `users` SET `name` = ?, `email` = ?"
+# params → [:name, :email]
+```
+"""
+function compile(dialect::SQLiteDialect,
+                 query::UpdateSet{T})::Tuple{String, Vector{Symbol}} where {T}
+    # Compile the UPDATE part
+    source_sql, params = compile(dialect, query.source)
+
+    # Compile SET assignments
+    assignments_sql = String[]
+    for (column, expr) in query.assignments
+        column_name = quote_identifier(dialect, column)
+        value_sql = compile_expr(dialect, expr, params)
+        push!(assignments_sql, "$column_name = $value_sql")
+    end
+
+    assignments_str = Base.join(assignments_sql, ", ")
+    sql = "$source_sql SET $assignments_str"
+    return (sql, params)
+end
+
+"""
+    compile(dialect::SQLiteDialect, query::UpdateWhere{T}) -> (String, Vector{Symbol})
+
+Compile an UPDATE...SET...WHERE statement.
+
+# Example
+
+```julia
+q = update(:users) |>
+    set(:name => param(String, :name)) |>
+    where(col(:users, :id) == param(Int, :id))
+sql, params = compile(SQLiteDialect(), q)
+# sql → "UPDATE `users` SET `name` = ? WHERE (`users`.`id` = ?)"
+# params → [:name, :id]
+```
+"""
+function compile(dialect::SQLiteDialect,
+                 query::UpdateWhere{T})::Tuple{String, Vector{Symbol}} where {T}
+    # Compile the UPDATE...SET part
+    source_sql, params = compile(dialect, query.source)
+
+    # Compile the WHERE condition
+    condition_sql = compile_expr(dialect, query.condition, params)
+
+    sql = "$source_sql WHERE $condition_sql"
+    return (sql, params)
+end
+
+"""
+    compile(dialect::SQLiteDialect, query::DeleteFrom{T}) -> (String, Vector{Symbol})
+
+Compile a DELETE FROM statement (without WHERE clause).
+
+# Example
+
+```julia
+q = delete_from(:users)
+sql, params = compile(SQLiteDialect(), q)
+# sql → "DELETE FROM `users`"
+# WARNING: This will delete all rows!
+```
+"""
+function compile(dialect::SQLiteDialect,
+                 query::DeleteFrom{T})::Tuple{String, Vector{Symbol}} where {T}
+    params = Symbol[]
+    table = quote_identifier(dialect, query.table)
+    sql = "DELETE FROM $table"
+    return (sql, params)
+end
+
+"""
+    compile(dialect::SQLiteDialect, query::DeleteWhere{T}) -> (String, Vector{Symbol})
+
+Compile a DELETE FROM...WHERE statement.
+
+# Example
+
+```julia
+q = delete_from(:users) |>
+    where(col(:users, :id) == param(Int, :id))
+sql, params = compile(SQLiteDialect(), q)
+# sql → "DELETE FROM `users` WHERE (`users`.`id` = ?)"
+# params → [:id]
+```
+"""
+function compile(dialect::SQLiteDialect,
+                 query::DeleteWhere{T})::Tuple{String, Vector{Symbol}} where {T}
+    # Compile the DELETE FROM part
+    source_sql, params = compile(dialect, query.source)
+
+    # Compile the WHERE condition
+    condition_sql = compile_expr(dialect, query.condition, params)
+
+    sql = "$source_sql WHERE $condition_sql"
     return (sql, params)
 end

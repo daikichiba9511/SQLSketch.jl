@@ -599,3 +599,318 @@ Base.hash(a::Distinct{T}, h::UInt) where {T} = hash(a.source, h)
 Base.hash(a::GroupBy{T}, h::UInt) where {T} = hash((a.source, a.fields), h)
 Base.hash(a::Having{T}, h::UInt) where {T} = hash((a.source, a.condition), h)
 Base.hash(a::Join{T}, h::UInt) where {T} = hash((a.source, a.table, a.on, a.kind), h)
+
+#
+# DML (Data Manipulation Language) Query Types
+#
+
+"""
+    InsertInto{T}(table::Symbol, columns::Vector{Symbol})
+
+Represents an INSERT INTO statement.
+
+# Type Parameter
+
+  - `T`: The output type (typically the inserted row type)
+
+# Fields
+
+  - `table::Symbol` – target table name
+  - `columns::Vector{Symbol}` – column names to insert into
+
+# Example
+
+```julia
+insert_into(:users, [:name, :email])
+```
+"""
+struct InsertInto{T} <: Query{T}
+    table::Symbol
+    columns::Vector{Symbol}
+end
+
+"""
+    InsertValues{T}(source::InsertInto{T}, rows::Vector{Vector{SQLExpr}})
+
+Represents VALUES clause for INSERT.
+
+# Type Parameter
+
+  - `T`: The output type
+
+# Fields
+
+  - `source::InsertInto{T}` – the INSERT INTO clause
+  - `rows::Vector{Vector{SQLExpr}}` – rows to insert (each row is a vector of expressions)
+
+# Example
+
+```julia
+insert_into(:users, [:name, :email]) |>
+    values([[literal("Alice"), literal("alice@example.com")]])
+```
+"""
+struct InsertValues{T} <: Query{T}
+    source::InsertInto{T}
+    rows::Vector{Vector{SQLExpr}}
+end
+
+"""
+    Update{T}(table::Symbol)
+
+Represents an UPDATE statement.
+
+# Type Parameter
+
+  - `T`: The output type
+
+# Fields
+
+  - `table::Symbol` – target table name
+
+# Example
+
+```julia
+update(:users)
+```
+"""
+struct Update{T} <: Query{T}
+    table::Symbol
+end
+
+"""
+    UpdateSet{T}(source::Update{T}, assignments::Vector{Pair{Symbol, SQLExpr}})
+
+Represents SET clause for UPDATE.
+
+# Type Parameter
+
+  - `T`: The output type
+
+# Fields
+
+  - `source::Update{T}` – the UPDATE clause
+  - `assignments::Vector{Pair{Symbol, SQLExpr}}` – column assignments (column => value)
+
+# Example
+
+```julia
+update(:users) |>
+    set(:name => param(String, :name), :email => param(String, :email))
+```
+"""
+struct UpdateSet{T} <: Query{T}
+    source::Update{T}
+    assignments::Vector{Pair{Symbol, SQLExpr}}
+end
+
+"""
+    UpdateWhere{T}(source::UpdateSet{T}, condition::SQLExpr)
+
+Represents WHERE clause for UPDATE.
+
+# Type Parameter
+
+  - `T`: The output type
+
+# Fields
+
+  - `source::UpdateSet{T}` – the UPDATE SET clause
+  - `condition::SQLExpr` – filter condition
+
+# Example
+
+```julia
+update(:users) |>
+    set(:name => param(String, :name)) |>
+    where(col(:users, :id) == param(Int, :id))
+```
+"""
+struct UpdateWhere{T} <: Query{T}
+    source::UpdateSet{T}
+    condition::SQLExpr
+end
+
+"""
+    DeleteFrom{T}(table::Symbol)
+
+Represents a DELETE FROM statement.
+
+# Type Parameter
+
+  - `T`: The output type
+
+# Fields
+
+  - `table::Symbol` – target table name
+
+# Example
+
+```julia
+delete_from(:users)
+```
+"""
+struct DeleteFrom{T} <: Query{T}
+    table::Symbol
+end
+
+"""
+    DeleteWhere{T}(source::DeleteFrom{T}, condition::SQLExpr)
+
+Represents WHERE clause for DELETE.
+
+# Type Parameter
+
+  - `T`: The output type
+
+# Fields
+
+  - `source::DeleteFrom{T}` – the DELETE FROM clause
+  - `condition::SQLExpr` – filter condition
+
+# Example
+
+```julia
+delete_from(:users) |>
+    where(col(:users, :id) == param(Int, :id))
+```
+"""
+struct DeleteWhere{T} <: Query{T}
+    source::DeleteFrom{T}
+    condition::SQLExpr
+end
+
+#
+# DML Pipeline API
+#
+
+"""
+    insert_into(table::Symbol, columns::Vector{Symbol}) -> InsertInto{NamedTuple}
+
+Create an INSERT INTO clause.
+
+# Example
+
+```julia
+q = insert_into(:users, [:name, :email]) |>
+    values([[literal("Alice"), literal("alice@example.com")]])
+```
+"""
+insert_into(table::Symbol, columns::Vector{Symbol})::InsertInto{NamedTuple} =
+    InsertInto{NamedTuple}(table, columns)
+
+"""
+    values(rows) -> Function
+
+Create a VALUES clause (curried for pipeline).
+
+# Example
+
+```julia
+insert_into(:users, [:name, :email]) |>
+    values([[literal("Alice"), literal("alice@example.com")]])
+```
+"""
+values(rows) = source -> values(source, rows)
+
+"""
+    values(source::InsertInto{T}, rows) -> InsertValues{T}
+
+Create a VALUES clause (explicit version).
+
+Accepts rows as any iterable of iterables containing SQLExpr elements.
+Converts to Vector{Vector{SQLExpr}} internally.
+"""
+function values(source::InsertInto{T}, rows)::InsertValues{T} where {T}
+    # Convert rows to Vector{Vector{SQLExpr}}
+    converted_rows = Vector{Vector{SQLExpr}}()
+    for row in rows
+        converted_row = SQLExpr[expr for expr in row]
+        push!(converted_rows, converted_row)
+    end
+    return InsertValues{T}(source, converted_rows)
+end
+
+"""
+    update(table::Symbol) -> Update{NamedTuple}
+
+Create an UPDATE statement.
+
+# Example
+
+```julia
+q = update(:users) |>
+    set(:name => param(String, :name)) |>
+    where(col(:users, :id) == param(Int, :id))
+```
+"""
+update(table::Symbol)::Update{NamedTuple} = Update{NamedTuple}(table)
+
+"""
+    set(assignments::Pair...) -> Function
+
+Create a SET clause (curried for pipeline).
+
+# Example
+
+```julia
+update(:users) |>
+    set(:name => param(String, :name), :email => param(String, :email))
+```
+"""
+set(assignments::Pair...) = source -> set(source, assignments...)
+
+"""
+    set(source::Update{T}, assignments::Pair...) -> UpdateSet{T}
+
+Create a SET clause (explicit version).
+
+Accepts pairs of Symbol => SQLExpr (or any subtype).
+Converts to Vector{Pair{Symbol, SQLExpr}} internally.
+"""
+function set(source::Update{T}, assignments::Pair...)::UpdateSet{T} where {T}
+    # Convert assignments to Vector{Pair{Symbol, SQLExpr}}
+    converted = Pair{Symbol, SQLExpr}[k => v for (k, v) in assignments]
+    return UpdateSet{T}(source, converted)
+end
+
+"""
+    where(source::UpdateSet{T}, condition::SQLExpr) -> UpdateWhere{T}
+
+Add WHERE clause to UPDATE (explicit version).
+"""
+function where(source::UpdateSet{T}, condition::SQLExpr)::UpdateWhere{T} where {T}
+    return UpdateWhere{T}(source, condition)
+end
+
+"""
+    delete_from(table::Symbol) -> DeleteFrom{NamedTuple}
+
+Create a DELETE FROM statement.
+
+# Example
+
+```julia
+q = delete_from(:users) |>
+    where(col(:users, :id) == param(Int, :id))
+```
+"""
+delete_from(table::Symbol)::DeleteFrom{NamedTuple} = DeleteFrom{NamedTuple}(table)
+
+"""
+    where(source::DeleteFrom{T}, condition::SQLExpr) -> DeleteWhere{T}
+
+Add WHERE clause to DELETE (explicit version).
+"""
+function where(source::DeleteFrom{T}, condition::SQLExpr)::DeleteWhere{T} where {T}
+    return DeleteWhere{T}(source, condition)
+end
+
+# Hash functions for DML
+Base.hash(a::InsertInto{T}, h::UInt) where {T} = hash((a.table, a.columns), h)
+Base.hash(a::InsertValues{T}, h::UInt) where {T} = hash((a.source, a.rows), h)
+Base.hash(a::Update{T}, h::UInt) where {T} = hash(a.table, h)
+Base.hash(a::UpdateSet{T}, h::UInt) where {T} = hash((a.source, a.assignments), h)
+Base.hash(a::UpdateWhere{T}, h::UInt) where {T} = hash((a.source, a.condition), h)
+Base.hash(a::DeleteFrom{T}, h::UInt) where {T} = hash(a.table, h)
+Base.hash(a::DeleteWhere{T}, h::UInt) where {T} = hash((a.source, a.condition), h)
