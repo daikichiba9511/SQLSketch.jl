@@ -18,9 +18,9 @@ using SQLSketch.Core
 using SQLSketch.Drivers
 using Dates
 
-println("=" ^ 60)
+println("="^60)
 println("Manual Integration Test - Phase 1-5 Verification")
-println("=" ^ 60)
+println("="^60)
 
 # Step 1: Setup database
 println("\n[1] Setting up SQLite database...")
@@ -76,7 +76,7 @@ println("\n[5] Decoding results via CodecRegistry...")
 registry = CodecRegistry()
 
 println("\nResults:")
-println("-" ^ 60)
+println("-"^60)
 results_list = []
 for row in result
     # Convert SQLite.Row to NamedTuple manually
@@ -88,7 +88,7 @@ for row in result
     push!(results_list, nt)
     println("Row $(length(results_list)): $nt")
 end
-println("-" ^ 60)
+println("-"^60)
 println("Total rows: $(length(results_list))")
 
 # Step 6: Test with a struct
@@ -135,9 +135,9 @@ println("\n[8] Cleanup...")
 SQLSketch.Core.close(db)
 println("✓ Database connection closed")
 
-println("\n" * "=" ^ 60)
+println("\n" * "="^60)
 println("✅ All integration tests passed!")
-println("=" ^ 60)
+println("="^60)
 println("\nConclusion:")
 println("  All Phase 1-5 components are working correctly.")
 println("  Ready to implement Phase 6 (all, one, maybeone APIs).")

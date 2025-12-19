@@ -123,7 +123,7 @@ execute(db, "INSERT INTO users (email) VALUES (?)", ["test@example.com"])
 
 # Query
 result = execute(db, "SELECT * FROM users WHERE id = ?", [1])
-```    # Use DBInterface.execute for parameter binding
+```
 """
 function execute(conn::SQLiteConnection, sql::String, params::Vector = Any[])
     # Use DBInterface.execute for parameter binding

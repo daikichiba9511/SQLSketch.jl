@@ -72,7 +72,7 @@ Vector of parameter values in the correct order for SQL execution
 
 ```julia
 param_names = [:email, :age]
-params = (email="test@example.com", age=30)
+params = (email = "test@example.com", age = 30)
 values = bind_params(param_names, params)
 # → ["test@example.com", 30]
 ```
@@ -117,7 +117,7 @@ q = from(:users) |>
     where(col(:users, :age) > param(Int, :min_age)) |>
     select(NamedTuple, col(:users, :id), col(:users, :name))
 
-results = fetch_all(db, dialect, registry, q, (min_age=25,))
+results = fetch_all(db, dialect, registry, q, (min_age = 25,))
 # → Vector{NamedTuple}
 ```
 """
@@ -125,7 +125,7 @@ function fetch_all(conn::Connection,
                    dialect::Dialect,
                    registry::CodecRegistry,
                    query::Query{T},
-                   params::NamedTuple=NamedTuple())::Vector{T} where {T}
+                   params::NamedTuple = NamedTuple())::Vector{T} where {T}
     # Compile query to SQL
     sql, param_names = compile(dialect, query)
 
@@ -150,7 +150,7 @@ function fetch_all(tx::TransactionHandle,
                    dialect::Dialect,
                    registry::CodecRegistry,
                    query::Query{T},
-                   params::NamedTuple=NamedTuple())::Vector{T} where {T}
+                   params::NamedTuple = NamedTuple())::Vector{T} where {T}
     # Compile query to SQL
     sql, param_names = compile(dialect, query)
 
@@ -200,7 +200,7 @@ q = from(:users) |>
     where(col(:users, :id) == param(Int, :id)) |>
     select(NamedTuple, col(:users, :id), col(:users, :email))
 
-user = fetch_one(db, dialect, registry, q, (id=1,))
+user = fetch_one(db, dialect, registry, q, (id = 1,))
 # → NamedTuple (exactly one row)
 ```
 """
@@ -208,7 +208,7 @@ function fetch_one(conn::Connection,
                    dialect::Dialect,
                    registry::CodecRegistry,
                    query::Query{T},
-                   params::NamedTuple=NamedTuple())::T where {T}
+                   params::NamedTuple = NamedTuple())::T where {T}
     results = fetch_all(conn, dialect, registry, query, params)
 
     if length(results) == 0
@@ -225,7 +225,7 @@ function fetch_one(tx::TransactionHandle,
                    dialect::Dialect,
                    registry::CodecRegistry,
                    query::Query{T},
-                   params::NamedTuple=NamedTuple())::T where {T}
+                   params::NamedTuple = NamedTuple())::T where {T}
     results = fetch_all(tx, dialect, registry, query, params)
 
     if length(results) == 0
@@ -267,7 +267,7 @@ q = from(:users) |>
     where(col(:users, :email) == param(String, :email)) |>
     select(NamedTuple, col(:users, :id), col(:users, :email))
 
-user = fetch_maybe(db, dialect, registry, q, (email="test@example.com",))
+user = fetch_maybe(db, dialect, registry, q, (email = "test@example.com",))
 # → NamedTuple or Nothing
 ```
 """
@@ -275,7 +275,7 @@ function fetch_maybe(conn::Connection,
                      dialect::Dialect,
                      registry::CodecRegistry,
                      query::Query{T},
-                     params::NamedTuple=NamedTuple())::Union{T, Nothing} where {T}
+                     params::NamedTuple = NamedTuple())::Union{T, Nothing} where {T}
     results = fetch_all(conn, dialect, registry, query, params)
 
     if length(results) == 0
@@ -292,7 +292,7 @@ function fetch_maybe(tx::TransactionHandle,
                      dialect::Dialect,
                      registry::CodecRegistry,
                      query::Query{T},
-                     params::NamedTuple=NamedTuple())::Union{T, Nothing} where {T}
+                     params::NamedTuple = NamedTuple())::Union{T, Nothing} where {T}
     results = fetch_all(tx, dialect, registry, query, params)
 
     if length(results) == 0
@@ -412,7 +412,7 @@ execute_dml(db, dialect, q)
 q = update(:users) |>
     set(:name => param(String, :name)) |>
     where(col(:users, :id) == param(Int, :id))
-execute_dml(db, dialect, q, (name="Bob", id=1))
+execute_dml(db, dialect, q, (name = "Bob", id = 1))
 
 # DELETE
 q = delete_from(:users) |>
@@ -423,7 +423,7 @@ execute_dml(db, dialect, q, (id=1))
 function execute_dml(conn::Connection,
                      dialect::Dialect,
                      query::Query,
-                     params::NamedTuple=NamedTuple())::Nothing
+                     params::NamedTuple = NamedTuple())::Nothing
     # Compile query to SQL
     sql, param_names = compile(dialect, query)
 
@@ -440,7 +440,7 @@ end
 function execute_dml(tx::TransactionHandle,
                      dialect::Dialect,
                      query::Query,
-                     params::NamedTuple=NamedTuple())::Nothing
+                     params::NamedTuple = NamedTuple())::Nothing
     # Compile query to SQL
     sql, param_names = compile(dialect, query)
 

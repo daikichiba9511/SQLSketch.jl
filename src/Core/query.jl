@@ -399,7 +399,7 @@ function order_by(q::Query{T}, field::SQLExpr; desc::Bool = false) where {T}
 end
 
 # Curried version for pipeline composition
-order_by(field::SQLExpr; desc::Bool = false) = q -> order_by(q, field, desc = desc)
+order_by(field::SQLExpr; desc::Bool = false) = q -> order_by(q, field; desc = desc)
 
 """
     limit(q::Query{T}, n::Int)::Limit{T}
@@ -559,7 +559,7 @@ function join(q::Query{T}, table::Symbol, on::SQLExpr; kind::Symbol = :inner) wh
 end
 
 # Curried version for pipeline composition
-join(table::Symbol, on::SQLExpr; kind::Symbol = :inner) = q -> join(q, table, on,
+join(table::Symbol, on::SQLExpr; kind::Symbol = :inner) = q -> join(q, table, on;
                                                                     kind = kind)
 
 #
@@ -578,7 +578,8 @@ Avoids naming conflict with Base.join.
 q = from(:users) |> innerjoin(:orders, col(:users, :id) == col(:orders, :user_id))
 ```
 """
-innerjoin(q::Query{T}, table::Symbol, on::SQLExpr) where {T} = join(q, table, on, kind=:inner)
+innerjoin(q::Query{T}, table::Symbol, on::SQLExpr) where {T} = join(q, table, on;
+                                                                    kind = :inner)
 innerjoin(table::Symbol, on::SQLExpr) = q -> innerjoin(q, table, on)
 
 """
@@ -592,7 +593,8 @@ Alias for `join(q, table, on, kind=:left)`.
 q = from(:users) |> leftjoin(:orders, col(:users, :id) == col(:orders, :user_id))
 ```
 """
-leftjoin(q::Query{T}, table::Symbol, on::SQLExpr) where {T} = join(q, table, on, kind=:left)
+leftjoin(q::Query{T}, table::Symbol, on::SQLExpr) where {T} = join(q, table, on;
+                                                                   kind = :left)
 leftjoin(table::Symbol, on::SQLExpr) = q -> leftjoin(q, table, on)
 
 """
@@ -606,7 +608,8 @@ Alias for `join(q, table, on, kind=:right)`.
 q = from(:users) |> rightjoin(:orders, col(:users, :id) == col(:orders, :user_id))
 ```
 """
-rightjoin(q::Query{T}, table::Symbol, on::SQLExpr) where {T} = join(q, table, on, kind=:right)
+rightjoin(q::Query{T}, table::Symbol, on::SQLExpr) where {T} = join(q, table, on;
+                                                                    kind = :right)
 rightjoin(table::Symbol, on::SQLExpr) = q -> rightjoin(q, table, on)
 
 """
@@ -620,7 +623,8 @@ Alias for `join(q, table, on, kind=:full)`.
 q = from(:users) |> fulljoin(:orders, col(:users, :id) == col(:orders, :user_id))
 ```
 """
-fulljoin(q::Query{T}, table::Symbol, on::SQLExpr) where {T} = join(q, table, on, kind=:full)
+fulljoin(q::Query{T}, table::Symbol, on::SQLExpr) where {T} = join(q, table, on;
+                                                                   kind = :full)
 fulljoin(table::Symbol, on::SQLExpr) = q -> fulljoin(q, table, on)
 
 #
@@ -708,7 +712,7 @@ Represents VALUES clause for INSERT.
 
 ```julia
 insert_into(:users, [:name, :email]) |>
-    values([[literal("Alice"), literal("alice@example.com")]])
+values([[literal("Alice"), literal("alice@example.com")]])
 ```
 """
 struct InsertValues{T} <: Query{T}
@@ -757,7 +761,7 @@ Represents SET clause for UPDATE.
 
 ```julia
 update(:users) |>
-    set(:name => param(String, :name), :email => param(String, :email))
+set(:name => param(String, :name), :email => param(String, :email))
 ```
 """
 struct UpdateSet{T} <: Query{T}
@@ -783,8 +787,8 @@ Represents WHERE clause for UPDATE.
 
 ```julia
 update(:users) |>
-    set(:name => param(String, :name)) |>
-    where(col(:users, :id) == param(Int, :id))
+set(:name => param(String, :name)) |>
+where(col(:users, :id) == param(Int, :id))
 ```
 """
 struct UpdateWhere{T} <: Query{T}
@@ -833,7 +837,7 @@ Represents WHERE clause for DELETE.
 
 ```julia
 delete_from(:users) |>
-    where(col(:users, :id) == param(Int, :id))
+where(col(:users, :id) == param(Int, :id))
 ```
 """
 struct DeleteWhere{T} <: Query{T}
@@ -857,8 +861,8 @@ q = insert_into(:users, [:name, :email]) |>
     values([[literal("Alice"), literal("alice@example.com")]])
 ```
 """
-insert_into(table::Symbol, columns::Vector{Symbol})::InsertInto{NamedTuple} =
-    InsertInto{NamedTuple}(table, columns)
+insert_into(table::Symbol, columns::Vector{Symbol})::InsertInto{NamedTuple} = InsertInto{NamedTuple}(table,
+                                                                                                     columns)
 
 """
     values(rows) -> Function
@@ -869,7 +873,7 @@ Create a VALUES clause (curried for pipeline).
 
 ```julia
 insert_into(:users, [:name, :email]) |>
-    values([[literal("Alice"), literal("alice@example.com")]])
+values([[literal("Alice"), literal("alice@example.com")]])
 ```
 """
 values(rows) = source -> values(source, rows)
@@ -907,7 +911,7 @@ Avoids naming conflict with Base.values.
 
 ```julia
 insert_into(:users, [:name, :email]) |>
-    insert_values([[literal("Alice"), literal("alice@example.com")]])
+insert_values([[literal("Alice"), literal("alice@example.com")]])
 ```
 """
 const insert_values = values
@@ -936,7 +940,7 @@ Create a SET clause (curried for pipeline).
 
 ```julia
 update(:users) |>
-    set(:name => param(String, :name), :email => param(String, :email))
+set(:name => param(String, :name), :email => param(String, :email))
 ```
 """
 set(assignments::Pair...) = source -> set(source, assignments...)
@@ -1036,7 +1040,7 @@ end
 Base.isequal(a::CTE, b::CTE) = a.name == b.name && a.columns == b.columns &&
                                isequal(a.query, b.query)
 Base.isequal(a::With{T}, b::With{T}) where {T} = isequal(a.ctes, b.ctes) &&
-                                                  isequal(a.main_query, b.main_query)
+                                                 isequal(a.main_query, b.main_query)
 
 # Hash functions for CTE
 Base.hash(a::CTE, h::UInt) = hash((a.name, a.columns, a.query), h)

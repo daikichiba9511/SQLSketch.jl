@@ -200,8 +200,8 @@ identifiers for write-only variables.
 
 ```julia
 from(:users) |>
-    where(p_.age > literal(18)) |>
-    select(NamedTuple, p_.id, p_.email)
+where(p_.age > literal(18)) |>
+select(NamedTuple, p_.id, p_.email)
 ```
 
 Internally, `p_.column` creates a `PlaceholderField(:column)` which is resolved
@@ -456,8 +456,9 @@ is_not_null(expr::SQLExpr)::UnaryOp = UnaryOp(:IS_NOT_NULL, expr)
 Pattern matching with LIKE operator.
 
 Supports SQL wildcards:
-- `%` matches any sequence of characters
-- `_` matches any single character
+
+  - `%` matches any sequence of characters
+  - `_` matches any single character
 
 # Example
 
@@ -532,12 +533,12 @@ between(col(:products, :price), param(Float64, :min), param(Float64, :max))
 # → WHERE products.price BETWEEN ? AND ?
 ```
 """
-between(expr::SQLExpr, low::SQLExpr, high::SQLExpr)::BetweenOp =
-    BetweenOp(expr, low, high, false)
+between(expr::SQLExpr, low::SQLExpr, high::SQLExpr)::BetweenOp = BetweenOp(expr, low, high,
+                                                                           false)
 
 # Auto-wrapping for literals
-between(expr::SQLExpr, low, high)::BetweenOp =
-    BetweenOp(expr, literal(low), literal(high), false)
+between(expr::SQLExpr, low, high)::BetweenOp = BetweenOp(expr, literal(low), literal(high),
+                                                         false)
 
 """
     not_between(expr::SQLExpr, low::SQLExpr, high::SQLExpr) -> BetweenOp
@@ -551,12 +552,12 @@ not_between(col(:users, :age), literal(0), literal(17))
 # → WHERE users.age NOT BETWEEN 0 AND 17
 ```
 """
-not_between(expr::SQLExpr, low::SQLExpr, high::SQLExpr)::BetweenOp =
-    BetweenOp(expr, low, high, true)
+not_between(expr::SQLExpr, low::SQLExpr, high::SQLExpr)::BetweenOp = BetweenOp(expr, low,
+                                                                               high, true)
 
 # Auto-wrapping for literals
-not_between(expr::SQLExpr, low, high)::BetweenOp =
-    BetweenOp(expr, literal(low), literal(high), true)
+not_between(expr::SQLExpr, low, high)::BetweenOp = BetweenOp(expr, literal(low),
+                                                             literal(high), true)
 
 # List membership operators (IN)
 """
@@ -657,9 +658,10 @@ cast(literal("42"), :INTEGER)
 # Note
 
 The available types depend on the SQL dialect:
-- SQLite: INTEGER, TEXT, REAL, BLOB
-- PostgreSQL: INTEGER, TEXT, REAL, BOOLEAN, TIMESTAMP, etc.
-- MySQL: SIGNED, UNSIGNED, CHAR, DATE, DATETIME, etc.
+
+  - SQLite: INTEGER, TEXT, REAL, BLOB
+  - PostgreSQL: INTEGER, TEXT, REAL, BOOLEAN, TIMESTAMP, etc.
+  - MySQL: SIGNED, UNSIGNED, CHAR, DATE, DATETIME, etc.
 """
 struct Cast <: SQLExpr
     expr::SQLExpr
@@ -687,10 +689,11 @@ cast(expr::SQLExpr, target_type::Symbol)::Cast = Cast(expr, target_type)
 Represents a subquery expression that can be used in SQL expressions.
 
 Subqueries can be used in various contexts:
-- `WHERE column IN (SELECT ...)` – membership test
-- `WHERE EXISTS (SELECT ...)` – existence test
-- `SELECT (SELECT ...) AS field` – scalar subquery
-- `FROM (SELECT ...) AS alias` – derived table (future)
+
+  - `WHERE column IN (SELECT ...)` – membership test
+  - `WHERE EXISTS (SELECT ...)` – existence test
+  - `SELECT (SELECT ...) AS field` – scalar subquery
+  - `FROM (SELECT ...) AS alias` – derived table (future)
 
 # Fields
 
@@ -812,6 +815,7 @@ not_in_subquery(expr::SQLExpr, sq::Subquery)::BinaryOp = BinaryOp(:NOT_IN, expr,
 Represents a CASE expression in SQL.
 
 This implements the "searched CASE" form:
+
 ```sql
 CASE
   WHEN condition1 THEN result1
@@ -829,18 +833,14 @@ END
 
 ```julia
 # Age category
-case_expr([
-    (col(:users, :age) < literal(18), literal("minor")),
-    (col(:users, :age) < literal(65), literal("adult"))
-], literal("senior"))
+case_expr([(col(:users, :age) < literal(18), literal("minor")),
+           (col(:users, :age) < literal(65), literal("adult"))], literal("senior"))
 # → CASE WHEN age < 18 THEN 'minor' WHEN age < 65 THEN 'adult' ELSE 'senior' END
 
 # Grade calculation
-case_expr([
-    (col(:scores, :value) >= literal(90), literal("A")),
-    (col(:scores, :value) >= literal(80), literal("B")),
-    (col(:scores, :value) >= literal(70), literal("C"))
-], literal("F"))
+case_expr([(col(:scores, :value) >= literal(90), literal("A")),
+           (col(:scores, :value) >= literal(80), literal("B")),
+           (col(:scores, :value) >= literal(70), literal("C"))], literal("F"))
 # → CASE WHEN value >= 90 THEN 'A' WHEN value >= 80 THEN 'B' WHEN value >= 70 THEN 'C' ELSE 'F' END
 ```
 
@@ -864,23 +864,18 @@ Convenience constructor for CASE expressions.
 
 ```julia
 # With ELSE clause
-case_expr([
-    (col(:users, :status) == literal("active"), literal(1)),
-    (col(:users, :status) == literal("pending"), literal(0))
-], literal(-1))
+case_expr([(col(:users, :status) == literal("active"), literal(1)),
+           (col(:users, :status) == literal("pending"), literal(0))], literal(-1))
 
 # Without ELSE clause (returns NULL if no condition matches)
-case_expr([
-    (col(:users, :verified) == literal(true), literal("✓")),
-    (col(:users, :verified) == literal(false), literal("✗"))
-])
+case_expr([(col(:users, :verified) == literal(true), literal("✓")),
+           (col(:users, :verified) == literal(false), literal("✗"))])
 ```
 """
-case_expr(whens::Vector{Tuple{SQLExpr, SQLExpr}}, else_result::SQLExpr)::CaseExpr =
-    CaseExpr(whens, else_result)
+case_expr(whens::Vector{Tuple{SQLExpr, SQLExpr}}, else_result::SQLExpr)::CaseExpr = CaseExpr(whens,
+                                                                                             else_result)
 
-case_expr(whens::Vector{Tuple{SQLExpr, SQLExpr}})::CaseExpr =
-    CaseExpr(whens, nothing)
+case_expr(whens::Vector{Tuple{SQLExpr, SQLExpr}})::CaseExpr = CaseExpr(whens, nothing)
 
 """
     case_expr(whens::Vector, else_result) -> CaseExpr
@@ -892,28 +887,26 @@ Convenience constructor with auto-wrapping for else_result.
 
 ```julia
 # else_result as plain value (auto-wrapped in literal)
-case_expr([
-    (col(:users, :age) < 18, "minor"),
-    (col(:users, :age) < 65, "adult")
-], "senior")
+case_expr([(col(:users, :age) < 18, "minor"),
+           (col(:users, :age) < 65, "adult")], "senior")
 ```
 """
 function case_expr(whens::Vector, else_result)::CaseExpr
     # Convert tuples with non-SQLExpr results to SQLExpr
-    converted_whens = Tuple{SQLExpr, SQLExpr}[
-        (cond, result isa SQLExpr ? result : literal(result))
-        for (cond, result) in whens
-    ]
+    converted_whens = Tuple{SQLExpr, SQLExpr}[(cond,
+                                               result isa SQLExpr ? result :
+                                               literal(result))
+                                              for (cond, result) in whens]
     else_wrapped = else_result isa SQLExpr ? else_result : literal(else_result)
     return CaseExpr(converted_whens, else_wrapped)
 end
 
 function case_expr(whens::Vector)::CaseExpr
     # Convert tuples with non-SQLExpr results to SQLExpr
-    converted_whens = Tuple{SQLExpr, SQLExpr}[
-        (cond, result isa SQLExpr ? result : literal(result))
-        for (cond, result) in whens
-    ]
+    converted_whens = Tuple{SQLExpr, SQLExpr}[(cond,
+                                               result isa SQLExpr ? result :
+                                               literal(result))
+                                              for (cond, result) in whens]
     return CaseExpr(converted_whens, nothing)
 end
 
@@ -927,11 +920,15 @@ Base.isequal(a::BinaryOp, b::BinaryOp)::Bool = a.op == b.op && isequal(a.left, b
                                                isequal(a.right, b.right)
 Base.isequal(a::UnaryOp, b::UnaryOp)::Bool = a.op == b.op && isequal(a.expr, b.expr)
 Base.isequal(a::FuncCall, b::FuncCall)::Bool = a.name == b.name && isequal(a.args, b.args)
-Base.isequal(a::BetweenOp, b::BetweenOp)::Bool = isequal(a.expr, b.expr) && isequal(a.low, b.low) &&
-                                                  isequal(a.high, b.high) && a.negated == b.negated
-Base.isequal(a::InOp, b::InOp)::Bool = isequal(a.expr, b.expr) && isequal(a.values, b.values) &&
+Base.isequal(a::BetweenOp, b::BetweenOp)::Bool = isequal(a.expr, b.expr) &&
+                                                 isequal(a.low, b.low) &&
+                                                 isequal(a.high, b.high) &&
+                                                 a.negated == b.negated
+Base.isequal(a::InOp, b::InOp)::Bool = isequal(a.expr, b.expr) &&
+                                       isequal(a.values, b.values) &&
                                        a.negated == b.negated
-Base.isequal(a::Cast, b::Cast)::Bool = isequal(a.expr, b.expr) && a.target_type == b.target_type
+Base.isequal(a::Cast, b::Cast)::Bool = isequal(a.expr, b.expr) &&
+                                       a.target_type == b.target_type
 Base.isequal(a::Subquery, b::Subquery)::Bool = isequal(a.query, b.query)
 function Base.isequal(a::CaseExpr, b::CaseExpr)::Bool
     # Check WHEN clauses

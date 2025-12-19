@@ -21,7 +21,8 @@ using UUIDs
 import SQLSketch
 import SQLSketch.Core
 import SQLSketch.Core: fetch_all, fetch_one, fetch_maybe, sql, explain, execute_dml
-import SQLSketch.Core: from, where, select, order_by, limit, offset, distinct, group_by, having
+import SQLSketch.Core: from, where, select, order_by, limit, offset, distinct, group_by,
+                       having
 import SQLSketch.Core: col, literal, param, func
 import SQLSketch.Core: insert_into, update, set, delete_from
 import SQLSketch.Core: cte
@@ -78,11 +79,14 @@ import SQLSketch.Core: innerjoin, insert_values, with
     execute(db, "INSERT INTO users (name, email, age, is_active) VALUES (?, ?, ?, ?)",
             ["Charlie", "charlie@example.com", 35, 0])
 
-    execute(db, "INSERT INTO posts (user_id, title, content, published) VALUES (?, ?, ?, ?)",
+    execute(db,
+            "INSERT INTO posts (user_id, title, content, published) VALUES (?, ?, ?, ?)",
             [1, "First Post", "Hello World", 1])
-    execute(db, "INSERT INTO posts (user_id, title, content, published) VALUES (?, ?, ?, ?)",
+    execute(db,
+            "INSERT INTO posts (user_id, title, content, published) VALUES (?, ?, ?, ?)",
             [1, "Second Post", "More content", 0])
-    execute(db, "INSERT INTO posts (user_id, title, content, published) VALUES (?, ?, ?, ?)",
+    execute(db,
+            "INSERT INTO posts (user_id, title, content, published) VALUES (?, ?, ?, ?)",
             [2, "Bob's Post", "Bob's content", 1])
 
     @testset "Basic Query Execution - fetch_all()" begin
@@ -114,7 +118,7 @@ import SQLSketch.Core: innerjoin, insert_values, with
     @testset "Query with ORDER BY" begin
         q = from(:users) |>
             select(NamedTuple, col(:users, :name), col(:users, :age)) |>
-            order_by(col(:users, :age); desc=true)
+            order_by(col(:users, :age); desc = true)
 
         results = fetch_all(db, dialect, registry, q)
 
@@ -181,7 +185,7 @@ import SQLSketch.Core: innerjoin, insert_values, with
             where(col(:users, :email) == param(String, :email)) |>
             select(NamedTuple, col(:users, :id), col(:users, :name), col(:users, :email))
 
-        user = fetch_one(db, dialect, registry, q, (email="alice@example.com",))
+        user = fetch_one(db, dialect, registry, q, (email = "alice@example.com",))
 
         @test user.name == "Alice"
         @test user.email == "alice@example.com"
@@ -193,7 +197,7 @@ import SQLSketch.Core: innerjoin, insert_values, with
             select(NamedTuple, col(:users, :id), col(:users, :name))
 
         @test_throws ErrorException fetch_one(db, dialect, registry, q,
-                                              (email="nonexistent@example.com",))
+                                              (email = "nonexistent@example.com",))
     end
 
     @testset "fetch_one() - Error on multiple rows" begin
@@ -210,7 +214,7 @@ import SQLSketch.Core: innerjoin, insert_values, with
             where(col(:users, :email) == param(String, :email)) |>
             select(NamedTuple, col(:users, :name), col(:users, :email))
 
-        user = fetch_maybe(db, dialect, registry, q, (email="bob@example.com",))
+        user = fetch_maybe(db, dialect, registry, q, (email = "bob@example.com",))
 
         @test user !== nothing
         @test user.name == "Bob"
@@ -221,7 +225,7 @@ import SQLSketch.Core: innerjoin, insert_values, with
             where(col(:users, :email) == param(String, :email)) |>
             select(NamedTuple, col(:users, :name))
 
-        user = fetch_maybe(db, dialect, registry, q, (email="nonexistent@example.com",))
+        user = fetch_maybe(db, dialect, registry, q, (email = "nonexistent@example.com",))
 
         @test user === nothing
     end
@@ -240,7 +244,7 @@ import SQLSketch.Core: innerjoin, insert_values, with
             where(col(:users, :age) == param(Int, :min_age)) |>
             select(NamedTuple, col(:users, :name), col(:users, :age))
 
-        results = fetch_all(db, dialect, registry, q, (min_age=30,))
+        results = fetch_all(db, dialect, registry, q, (min_age = 30,))
 
         @test length(results) == 1  # Alice (30)
         @test Base.all(r -> r.age == 30, results)
@@ -252,7 +256,7 @@ import SQLSketch.Core: innerjoin, insert_values, with
                   (col(:users, :age) <= param(Int, :max_age))) |>
             select(NamedTuple, col(:users, :name), col(:users, :age))
 
-        results = fetch_all(db, dialect, registry, q, (min_age=25, max_age=30))
+        results = fetch_all(db, dialect, registry, q, (min_age = 25, max_age = 30))
 
         @test length(results) == 2  # Bob (25), Alice (30)
     end
@@ -307,7 +311,7 @@ import SQLSketch.Core: innerjoin, insert_values, with
             where(col(:users, :id) == param(Int, :id)) |>
             select(User, col(:users, :id), col(:users, :name), col(:users, :email))
 
-        user = fetch_one(db, dialect, registry, q, (id=1,))
+        user = fetch_one(db, dialect, registry, q, (id = 1,))
 
         @test user isa User
         @test user.id == 1
@@ -375,7 +379,9 @@ import SQLSketch.Core: innerjoin, insert_values, with
     # DML Operations Tests
     @testset "DML Operations" begin
         # Setup: Create a test table for DML operations
-        execute(db, "CREATE TABLE dml_test (id INTEGER PRIMARY KEY, name TEXT, value INTEGER)", [])
+        execute(db,
+                "CREATE TABLE dml_test (id INTEGER PRIMARY KEY, name TEXT, value INTEGER)",
+                [])
 
         @testset "INSERT with literals" begin
             q = insert_into(:dml_test, [:name, :value]) |>
@@ -385,8 +391,8 @@ import SQLSketch.Core: innerjoin, insert_values, with
 
             # Verify insertion
             verify_q = from(:dml_test) |>
-                where(col(:dml_test, :name) == literal("test1")) |>
-                select(NamedTuple, col(:dml_test, :name), col(:dml_test, :value))
+                       where(col(:dml_test, :name) == literal("test1")) |>
+                       select(NamedTuple, col(:dml_test, :name), col(:dml_test, :value))
 
             results = fetch_all(db, dialect, registry, verify_q)
             @test length(results) == 1
@@ -398,31 +404,29 @@ import SQLSketch.Core: innerjoin, insert_values, with
             q = insert_into(:dml_test, [:name, :value]) |>
                 insert_values([[param(String, :name), param(Int, :value)]])
 
-            execute_dml(db, dialect, q, (name="test2", value=200))
+            execute_dml(db, dialect, q, (name = "test2", value = 200))
 
             # Verify insertion
             verify_q = from(:dml_test) |>
-                where(col(:dml_test, :name) == param(String, :name)) |>
-                select(NamedTuple, col(:dml_test, :name), col(:dml_test, :value))
+                       where(col(:dml_test, :name) == param(String, :name)) |>
+                       select(NamedTuple, col(:dml_test, :name), col(:dml_test, :value))
 
-            results = fetch_all(db, dialect, registry, verify_q, (name="test2",))
+            results = fetch_all(db, dialect, registry, verify_q, (name = "test2",))
             @test length(results) == 1
             @test results[1][:value] == 200
         end
 
         @testset "INSERT multiple rows" begin
             q = insert_into(:dml_test, [:name, :value]) |>
-                insert_values([
-                    [literal("test3"), literal(300)],
-                    [literal("test4"), literal(400)]
-                ])
+                insert_values([[literal("test3"), literal(300)],
+                               [literal("test4"), literal(400)]])
 
             execute_dml(db, dialect, q)
 
             # Verify insertions
             verify_q = from(:dml_test) |>
-                where(col(:dml_test, :value) >= literal(300)) |>
-                select(NamedTuple, col(:dml_test, :name), col(:dml_test, :value))
+                       where(col(:dml_test, :value) >= literal(300)) |>
+                       select(NamedTuple, col(:dml_test, :name), col(:dml_test, :value))
 
             results = fetch_all(db, dialect, registry, verify_q)
             @test length(results) == 2
@@ -433,12 +437,12 @@ import SQLSketch.Core: innerjoin, insert_values, with
                 set(:value => param(Int, :new_value)) |>
                 where(col(:dml_test, :name) == param(String, :name))
 
-            execute_dml(db, dialect, q, (new_value=999, name="test1"))
+            execute_dml(db, dialect, q, (new_value = 999, name = "test1"))
 
             # Verify update
             verify_q = from(:dml_test) |>
-                where(col(:dml_test, :name) == literal("test1")) |>
-                select(NamedTuple, col(:dml_test, :value))
+                       where(col(:dml_test, :name) == literal("test1")) |>
+                       select(NamedTuple, col(:dml_test, :value))
 
             results = fetch_all(db, dialect, registry, verify_q)
             @test length(results) == 1
@@ -449,12 +453,12 @@ import SQLSketch.Core: innerjoin, insert_values, with
             q = delete_from(:dml_test) |>
                 where(col(:dml_test, :name) == param(String, :name))
 
-            execute_dml(db, dialect, q, (name="test2",))
+            execute_dml(db, dialect, q, (name = "test2",))
 
             # Verify deletion
             verify_q = from(:dml_test) |>
-                where(col(:dml_test, :name) == literal("test2")) |>
-                select(NamedTuple, col(:dml_test, :name))
+                       where(col(:dml_test, :name) == literal("test2")) |>
+                       select(NamedTuple, col(:dml_test, :name))
 
             results = fetch_all(db, dialect, registry, verify_q)
             @test length(results) == 0
@@ -517,9 +521,15 @@ import SQLSketch.Core: innerjoin, insert_values, with
             )
         """, [])
 
-        execute(db, "INSERT INTO users (name, email, age, is_active) VALUES ('Alice', 'alice@example.com', 30, 1)", [])
-        execute(db, "INSERT INTO users (name, email, age, is_active) VALUES ('Bob', 'bob@example.com', 25, 0)", [])
-        execute(db, "INSERT INTO users (name, email, age, is_active) VALUES ('Charlie', 'charlie@example.com', 35, 1)", [])
+        execute(db,
+                "INSERT INTO users (name, email, age, is_active) VALUES ('Alice', 'alice@example.com', 30, 1)",
+                [])
+        execute(db,
+                "INSERT INTO users (name, email, age, is_active) VALUES ('Bob', 'bob@example.com', 25, 0)",
+                [])
+        execute(db,
+                "INSERT INTO users (name, email, age, is_active) VALUES ('Charlie', 'charlie@example.com', 35, 1)",
+                [])
 
         @testset "Simple CTE execution" begin
 
@@ -529,7 +539,8 @@ import SQLSketch.Core: innerjoin, insert_values, with
 
             # Main query: select from CTE
             main_query = from(:active_users) |>
-                         select(NamedTuple, col(:active_users, :name), col(:active_users, :age)) |>
+                         select(NamedTuple, col(:active_users, :name),
+                                col(:active_users, :age)) |>
                          order_by(col(:active_users, :age))
 
             q = with(c, main_query)
@@ -576,14 +587,17 @@ import SQLSketch.Core: innerjoin, insert_values, with
             c1 = cte(:active_users, cte1_query)
 
             # CTE2: completed orders
-            cte2_query = from(:orders) |> where(col(:orders, :status) == literal("completed"))
+            cte2_query = from(:orders) |>
+                         where(col(:orders, :status) == literal("completed"))
             c2 = cte(:completed_orders, cte2_query)
 
             # Main query: JOIN both CTEs
             main_query = from(:active_users) |>
                          innerjoin(:completed_orders,
-                              col(:active_users, :id) == col(:completed_orders, :user_id)) |>
-                         select(NamedTuple, col(:active_users, :name), col(:completed_orders, :total)) |>
+                                   col(:active_users, :id) ==
+                                   col(:completed_orders, :user_id)) |>
+                         select(NamedTuple, col(:active_users, :name),
+                                col(:completed_orders, :total)) |>
                          order_by(col(:active_users, :name))
 
             q = with([c1, c2], main_query)
@@ -606,7 +620,8 @@ import SQLSketch.Core: innerjoin, insert_values, with
                                func(:SUM, [col(:orders, :total)]),
                                func(:COUNT, [col(:orders, :id)]))
 
-            c = cte(:user_stats, cte_query, columns = [:user_id, :total_spent, :order_count])
+            c = cte(:user_stats, cte_query,
+                    columns = [:user_id, :total_spent, :order_count])
 
             # Main query: filter and order
             main_query = from(:user_stats) |>
@@ -654,7 +669,7 @@ import SQLSketch.Core: innerjoin, insert_values, with
             # CTE2: orders from active users
             cte2_query = from(:orders) |>
                          innerjoin(:active_users,
-                              col(:orders, :user_id) == col(:active_users, :id)) |>
+                                   col(:orders, :user_id) == col(:active_users, :id)) |>
                          select(NamedTuple, col(:orders, :id), col(:orders, :user_id),
                                 col(:orders, :total), col(:active_users, :name))
 
@@ -662,7 +677,8 @@ import SQLSketch.Core: innerjoin, insert_values, with
 
             # Main query: select from CTE2
             main_query = from(:active_orders) |>
-                         select(NamedTuple, col(:active_orders, :name), col(:active_orders, :total)) |>
+                         select(NamedTuple, col(:active_orders, :name),
+                                col(:active_orders, :total)) |>
                          order_by(col(:active_orders, :total))
 
             q = with([c1, c2], main_query)
@@ -703,7 +719,8 @@ import SQLSketch.Core: innerjoin, insert_values, with
         @testset "CTE observability - sql() function" begin
             cte_query = from(:users) |> where(col(:users, :is_active) == literal(1))
             c = cte(:active_users, cte_query)
-            main_query = from(:active_users) |> select(NamedTuple, col(:active_users, :name))
+            main_query = from(:active_users) |>
+                         select(NamedTuple, col(:active_users, :name))
             q = with(c, main_query)
 
             sql_str = sql(dialect, q)

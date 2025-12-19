@@ -502,7 +502,8 @@ end
                 values([[literal("Alice"), literal("alice@example.com")]])
             sql, params = compile(dialect, q)
 
-            @test sql == "INSERT INTO `users` (`name`, `email`) VALUES ('Alice', 'alice@example.com')"
+            @test sql ==
+                  "INSERT INTO `users` (`name`, `email`) VALUES ('Alice', 'alice@example.com')"
             @test isempty(params)
         end
 
@@ -517,13 +518,12 @@ end
 
         @testset "INSERT...VALUES multiple rows" begin
             q = insert_into(:users, [:name, :email]) |>
-                values([
-                    [literal("Alice"), literal("alice@example.com")],
-                    [literal("Bob"), literal("bob@example.com")]
-                ])
+                values([[literal("Alice"), literal("alice@example.com")],
+                        [literal("Bob"), literal("bob@example.com")]])
             sql, params = compile(dialect, q)
 
-            @test sql == "INSERT INTO `users` (`name`, `email`) VALUES ('Alice', 'alice@example.com'), ('Bob', 'bob@example.com')"
+            @test sql ==
+                  "INSERT INTO `users` (`name`, `email`) VALUES ('Alice', 'alice@example.com'), ('Bob', 'bob@example.com')"
             @test isempty(params)
         end
 
@@ -540,7 +540,8 @@ end
                 set(:name => literal("Alice"), :email => literal("alice@example.com"))
             sql, params = compile(dialect, q)
 
-            @test sql == "UPDATE `users` SET `name` = 'Alice', `email` = 'alice@example.com'"
+            @test sql ==
+                  "UPDATE `users` SET `name` = 'Alice', `email` = 'alice@example.com'"
             @test isempty(params)
         end
 
@@ -591,7 +592,8 @@ end
 
         @testset "DELETE FROM...WHERE with complex condition" begin
             q = delete_from(:users) |>
-                where((col(:users, :created_at) < param(String, :date)) & (col(:users, :active) == literal(false)))
+                where((col(:users, :created_at) < param(String, :date)) &
+                      (col(:users, :active) == literal(false)))
             sql, params = compile(dialect, q)
 
             @test occursin("DELETE FROM `users` WHERE", sql)
@@ -700,7 +702,8 @@ end
 
         @testset "BETWEEN with parameters" begin
             q = from(:products) |>
-                where(between(col(:products, :price), param(Float64, :min), param(Float64, :max)))
+                where(between(col(:products, :price), param(Float64, :min),
+                              param(Float64, :max)))
             sql, params = compile(dialect, q)
 
             @test occursin("WHERE", sql)
@@ -718,10 +721,12 @@ end
 
         @testset "BETWEEN with dates (as strings)" begin
             q = from(:orders) |>
-                where(between(col(:orders, :created_at), literal("2024-01-01"), literal("2024-12-31")))
+                where(between(col(:orders, :created_at), literal("2024-01-01"),
+                              literal("2024-12-31")))
             sql, params = compile(dialect, q)
 
-            @test occursin("`orders`.`created_at` BETWEEN '2024-01-01' AND '2024-12-31'", sql)
+            @test occursin("`orders`.`created_at` BETWEEN '2024-01-01' AND '2024-12-31'",
+                           sql)
         end
     end
 
@@ -768,7 +773,8 @@ end
 
         @testset "IN with parameters" begin
             q = from(:users) |>
-                where(in_list(col(:users, :id), [param(Int, :id1), param(Int, :id2), param(Int, :id3)]))
+                where(in_list(col(:users, :id),
+                              [param(Int, :id1), param(Int, :id2), param(Int, :id3)]))
             sql, params = compile(dialect, q)
 
             @test occursin("WHERE", sql)
@@ -821,16 +827,18 @@ end
             @test occursin("WITH `active_users` AS (", sql)
             @test occursin("SELECT * FROM `users`", sql)
             @test occursin("WHERE (`users`.`active` = 1)", sql)
-            @test occursin(
-                          ") SELECT `active_users`.`id`, `active_users`.`email` FROM `active_users`",
-                          sql)
+            @test occursin(") SELECT `active_users`.`id`, `active_users`.`email` FROM `active_users`",
+                           sql)
             @test isempty(params)
         end
 
         @testset "Single CTE with column aliases" begin
-            cte_query = from(:users) |> select(NamedTuple, col(:users, :id), col(:users, :email))
-            main_query = from(:user_summary) |> select(NamedTuple, col(:user_summary, :user_id))
-            q = with(:user_summary, cte_query, main_query, columns = [:user_id, :user_email])
+            cte_query = from(:users) |>
+                        select(NamedTuple, col(:users, :id), col(:users, :email))
+            main_query = from(:user_summary) |>
+                         select(NamedTuple, col(:user_summary, :user_id))
+            q = with(:user_summary, cte_query, main_query,
+                     columns = [:user_id, :user_email])
 
             sql, params = compile(dialect, q)
 
@@ -842,7 +850,8 @@ end
 
         @testset "Multiple CTEs" begin
             cte1_query = from(:users) |> where(col(:users, :active) == literal(true))
-            cte2_query = from(:orders) |> where(col(:orders, :status) == literal("completed"))
+            cte2_query = from(:orders) |>
+                         where(col(:orders, :status) == literal("completed"))
 
             c1 = cte(:active_users, cte1_query)
             c2 = cte(:completed_orders, cte2_query)
@@ -867,7 +876,8 @@ end
         end
 
         @testset "CTE with parameters" begin
-            cte_query = from(:users) |> where(col(:users, :active) == param(Bool, :is_active))
+            cte_query = from(:users) |>
+                        where(col(:users, :active) == param(Bool, :is_active))
             c = cte(:active_users, cte_query)
             main_query = from(:active_users) |>
                          where(col(:active_users, :created_at) >
@@ -879,9 +889,8 @@ end
 
             @test occursin("WITH `active_users` AS (", sql)
             @test occursin("WHERE (`users`.`active` = ?)", sql)
-            @test occursin(
-                          ") SELECT `active_users`.`id` FROM `active_users` WHERE (`active_users`.`created_at` > ?)",
-                          sql)
+            @test occursin(") SELECT `active_users`.`id` FROM `active_users` WHERE (`active_users`.`created_at` > ?)",
+                           sql)
             @test params == [:is_active, :min_date]
         end
 
@@ -926,9 +935,8 @@ end
 
             @test occursin("WITH `unique_emails` AS (", sql)
             @test occursin("SELECT DISTINCT `users`.`email` FROM `users`", sql)
-            @test occursin(
-                          ") SELECT `unique_emails`.`email` FROM `unique_emails` ORDER BY `unique_emails`.`email` ASC LIMIT 10",
-                          sql)
+            @test occursin(") SELECT `unique_emails`.`email` FROM `unique_emails` ORDER BY `unique_emails`.`email` ASC LIMIT 10",
+                           sql)
         end
 
         @testset "Nested CTE references" begin
@@ -946,7 +954,8 @@ end
 
             # Main query: use active_orders
             main_query = from(:active_orders) |>
-                         select(NamedTuple, col(:active_orders, :id), col(:active_orders, :total))
+                         select(NamedTuple, col(:active_orders, :id),
+                                col(:active_orders, :total))
 
             q = with([c1, c2], main_query)
             sql, params = compile(dialect, q)

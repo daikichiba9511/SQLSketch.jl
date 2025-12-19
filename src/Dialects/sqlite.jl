@@ -206,10 +206,9 @@ end
 
 function resolve_placeholders(expr::CaseExpr, table::Symbol)::CaseExpr
     # Resolve placeholders in all WHEN conditions and results
-    resolved_whens = Tuple{SQLExpr, SQLExpr}[
-        (resolve_placeholders(cond, table), resolve_placeholders(result, table))
-        for (cond, result) in expr.whens
-    ]
+    resolved_whens = Tuple{SQLExpr, SQLExpr}[(resolve_placeholders(cond, table),
+                                              resolve_placeholders(result, table))
+                                             for (cond, result) in expr.whens]
 
     # Resolve placeholders in ELSE clause if present
     resolved_else = if expr.else_expr === nothing
@@ -255,11 +254,13 @@ function contains_placeholder(expr::FuncCall)::Bool
 end
 
 function contains_placeholder(expr::BetweenOp)::Bool
-    return contains_placeholder(expr.expr) || contains_placeholder(expr.low) || contains_placeholder(expr.high)
+    return contains_placeholder(expr.expr) || contains_placeholder(expr.low) ||
+           contains_placeholder(expr.high)
 end
 
 function contains_placeholder(expr::InOp)::Bool
-    return contains_placeholder(expr.expr) || any(contains_placeholder(v) for v in expr.values)
+    return contains_placeholder(expr.expr) ||
+           any(contains_placeholder(v) for v in expr.values)
 end
 
 function contains_placeholder(expr::Cast)::Bool
@@ -950,8 +951,9 @@ function compile(dialect::SQLiteDialect,
 
         # Add column aliases if specified
         if !isempty(cte_def.columns)
-            column_list = Base.join([quote_identifier(dialect, col) for col in cte_def.columns],
-                               ", ")
+            column_list = Base.join([quote_identifier(dialect, col)
+                                     for col in cte_def.columns],
+                                    ", ")
             cte_name = "$cte_name ($column_list)"
         end
 

@@ -276,11 +276,13 @@ import Tables
 
             transaction(db) do tx
                 savepoint(tx, :outer) do sp_outer
-                    execute(sp_outer, "UPDATE users SET balance = balance + 50 WHERE email = ?",
+                    execute(sp_outer,
+                            "UPDATE users SET balance = balance + 50 WHERE email = ?",
                             ["alice@example.com"])
 
                     savepoint(sp_outer, :inner) do sp_inner
-                        execute(sp_inner, "UPDATE users SET balance = balance + 25 WHERE email = ?",
+                        execute(sp_inner,
+                                "UPDATE users SET balance = balance + 25 WHERE email = ?",
                                 ["alice@example.com"])
                     end
                 end
@@ -301,7 +303,8 @@ import Tables
 
             transaction(db) do tx
                 savepoint(tx, :outer) do sp_outer
-                    execute(sp_outer, "UPDATE users SET balance = balance + 100 WHERE email = ?",
+                    execute(sp_outer,
+                            "UPDATE users SET balance = balance + 100 WHERE email = ?",
                             ["alice@example.com"])
 
                     try

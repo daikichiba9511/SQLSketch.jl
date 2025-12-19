@@ -164,7 +164,8 @@ transaction(db) do tx
         execute(sp1, "INSERT INTO orders (user_id, total) VALUES (?, ?)", [1, 100.0])
 
         savepoint(sp1, :sp2) do sp2
-            execute(sp2, "INSERT INTO order_items (order_id, sku) VALUES (?, ?)", [1, "ABC123"])
+            execute(sp2, "INSERT INTO order_items (order_id, sku) VALUES (?, ?)",
+                    [1, "ABC123"])
         end
     end
 end

@@ -13,7 +13,8 @@ See `docs/roadmap.md` Phase 1 for implementation plan.
 """
 
 using Test
-using SQLSketch.Core: SQLExpr, ColRef, Literal, Param, BinaryOp, UnaryOp, FuncCall, BetweenOp, InOp
+using SQLSketch.Core: SQLExpr, ColRef, Literal, Param, BinaryOp, UnaryOp, FuncCall,
+                      BetweenOp, InOp
 using SQLSketch.Core: Cast, Subquery, CaseExpr
 using SQLSketch.Core: col, literal, param, func, is_null, is_not_null
 using SQLSketch.Core: like, not_like, ilike, not_ilike, between, not_between
@@ -557,8 +558,8 @@ using SQLSketch.Core: from, where, select
 
         # IN subquery
         sq3 = subquery(from(:orders) |>
-                      where(col(:orders, :status) == literal("pending")) |>
-                      select(NamedTuple, col(:orders, :user_id)))
+                       where(col(:orders, :status) == literal("pending")) |>
+                       select(NamedTuple, col(:orders, :user_id)))
         expr3 = in_subquery(col(:users, :id), sq3)
         @test expr3 isa BinaryOp
         @test expr3.op == :IN
@@ -594,10 +595,9 @@ using SQLSketch.Core: from, where, select
 
     @testset "CASE Expressions" begin
         # Basic CASE with ELSE
-        expr = case_expr([
-            (col(:users, :age) < literal(18), literal("minor")),
-            (col(:users, :age) < literal(65), literal("adult"))
-        ], literal("senior"))
+        expr = case_expr([(col(:users, :age) < literal(18), literal("minor")),
+                          (col(:users, :age) < literal(65), literal("adult"))],
+                         literal("senior"))
         @test expr isa CaseExpr
         @test length(expr.whens) == 2
         @test expr.else_expr isa Literal
@@ -615,19 +615,15 @@ using SQLSketch.Core: from, where, select
         @test result2.value == "adult"
 
         # CASE without ELSE
-        expr2 = case_expr([
-            (col(:users, :status) == literal("active"), literal(1)),
-            (col(:users, :status) == literal("pending"), literal(0))
-        ])
+        expr2 = case_expr([(col(:users, :status) == literal("active"), literal(1)),
+                           (col(:users, :status) == literal("pending"), literal(0))])
         @test expr2 isa CaseExpr
         @test length(expr2.whens) == 2
         @test expr2.else_expr === nothing
 
         # CASE with auto-wrapping
-        expr3 = case_expr([
-            (col(:users, :verified) == literal(true), "✓"),
-            (col(:users, :verified) == literal(false), "✗")
-        ], "?")
+        expr3 = case_expr([(col(:users, :verified) == literal(true), "✓"),
+                           (col(:users, :verified) == literal(false), "✗")], "?")
         @test expr3 isa CaseExpr
         @test expr3.whens[1][2] isa Literal
         @test expr3.whens[1][2].value == "✓"
@@ -635,53 +631,40 @@ using SQLSketch.Core: from, where, select
         @test expr3.else_expr.value == "?"
 
         # CASE with complex conditions
-        expr4 = case_expr([
-            (col(:scores, :value) >= 90, "A"),
-            (col(:scores, :value) >= 80, "B"),
-            (col(:scores, :value) >= 70, "C"),
-            (col(:scores, :value) >= 60, "D")
-        ], "F")
+        expr4 = case_expr([(col(:scores, :value) >= 90, "A"),
+                           (col(:scores, :value) >= 80, "B"),
+                           (col(:scores, :value) >= 70, "C"),
+                           (col(:scores, :value) >= 60, "D")], "F")
         @test expr4 isa CaseExpr
         @test length(expr4.whens) == 4
 
         # Single WHEN clause
-        expr5 = case_expr([
-            (is_null(col(:users, :deleted_at)), literal("active"))
-        ], literal("deleted"))
+        expr5 = case_expr([(is_null(col(:users, :deleted_at)), literal("active"))],
+                          literal("deleted"))
         @test expr5 isa CaseExpr
         @test length(expr5.whens) == 1
 
         # Hash and equality
-        expr_a = case_expr([
-            (col(:users, :age) < 18, "minor"),
-            (col(:users, :age) < 65, "adult")
-        ], "senior")
-        expr_b = case_expr([
-            (col(:users, :age) < 18, "minor"),
-            (col(:users, :age) < 65, "adult")
-        ], "senior")
+        expr_a = case_expr([(col(:users, :age) < 18, "minor"),
+                            (col(:users, :age) < 65, "adult")], "senior")
+        expr_b = case_expr([(col(:users, :age) < 18, "minor"),
+                            (col(:users, :age) < 65, "adult")], "senior")
         @test hash(expr_a) == hash(expr_b)
         @test isequal(expr_a, expr_b)
 
         # Different WHEN clauses should not be equal
-        expr_c = case_expr([
-            (col(:users, :age) < 21, "minor"),
-            (col(:users, :age) < 65, "adult")
-        ], "senior")
+        expr_c = case_expr([(col(:users, :age) < 21, "minor"),
+                            (col(:users, :age) < 65, "adult")], "senior")
         @test !isequal(expr_a, expr_c)
 
         # Different ELSE should not be equal
-        expr_d = case_expr([
-            (col(:users, :age) < 18, "minor"),
-            (col(:users, :age) < 65, "adult")
-        ], "elderly")
+        expr_d = case_expr([(col(:users, :age) < 18, "minor"),
+                            (col(:users, :age) < 65, "adult")], "elderly")
         @test !isequal(expr_a, expr_d)
 
         # With ELSE vs without ELSE should not be equal
-        expr_e = case_expr([
-            (col(:users, :age) < 18, "minor"),
-            (col(:users, :age) < 65, "adult")
-        ])
+        expr_e = case_expr([(col(:users, :age) < 18, "minor"),
+                            (col(:users, :age) < 65, "adult")])
         @test !isequal(expr_a, expr_e)
 
         # Immutability
