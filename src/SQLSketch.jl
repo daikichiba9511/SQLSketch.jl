@@ -66,9 +66,7 @@ include("Dialects/sqlite.jl")
 
 # Driver implementations
 module Drivers
-using SQLite
-using DBInterface
-using ..Core
+using ..Core: Driver, Connection, connect, execute
 include("Drivers/sqlite.jl")
 export SQLiteDriver, SQLiteConnection
 end

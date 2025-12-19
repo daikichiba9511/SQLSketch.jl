@@ -31,6 +31,7 @@ See `docs/design.md` Section 10 for detailed design rationale.
 """
 
 using SQLite
+using DBInterface
 import ..Core: Driver, Connection, connect, execute
 
 """
