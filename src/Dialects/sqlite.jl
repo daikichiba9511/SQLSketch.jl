@@ -31,7 +31,7 @@ using .Core: Query, From, Where, Select, Join, OrderBy, Limit, Offset, Distinct,
              Having, InsertInto, InsertValues, Update, UpdateSet, UpdateWhere,
              DeleteFrom, DeleteWhere
 using .Core: SQLExpr, ColRef, Literal, Param, BinaryOp, UnaryOp, FuncCall, PlaceholderField,
-             BetweenOp, InOp
+             BetweenOp, InOp, Cast, Subquery
 import .Core: compile, compile_expr, quote_identifier, placeholder, supports
 
 """
@@ -193,6 +193,17 @@ function resolve_placeholders(expr::InOp, table::Symbol)::InOp
     return InOp(resolved_expr, resolved_values, expr.negated)
 end
 
+function resolve_placeholders(expr::Cast, table::Symbol)::Cast
+    resolved_expr = resolve_placeholders(expr.expr, table)
+    return Cast(resolved_expr, expr.target_type)
+end
+
+function resolve_placeholders(expr::Subquery, table::Symbol)::Subquery
+    # Subqueries are self-contained, don't resolve placeholders within them
+    # They will be resolved when the subquery itself is compiled
+    return expr
+end
+
 """
     contains_placeholder(expr::SQLExpr) -> Bool
 
@@ -232,6 +243,15 @@ end
 
 function contains_placeholder(expr::InOp)::Bool
     return contains_placeholder(expr.expr) || any(contains_placeholder(v) for v in expr.values)
+end
+
+function contains_placeholder(expr::Cast)::Bool
+    return contains_placeholder(expr.expr)
+end
+
+function contains_placeholder(expr::Subquery)::Bool
+    # Subqueries are self-contained
+    return false
 end
 
 """
@@ -384,6 +404,10 @@ function compile_expr(dialect::SQLiteDialect, expr::UnaryOp, params::Vector{Symb
         return "($operand_sql IS NULL)"
     elseif expr.op == :IS_NOT_NULL
         return "($operand_sql IS NOT NULL)"
+    elseif expr.op == :EXISTS
+        return "EXISTS $operand_sql"
+    elseif expr.op == :NOT_EXISTS
+        return "NOT EXISTS $operand_sql"
     else
         error("Unsupported unary operator: $(expr.op)")
     end
@@ -436,6 +460,25 @@ function compile_expr(dialect::SQLiteDialect, expr::InOp,
     else
         return "($expr_sql IN ($values_list))"
     end
+end
+
+function compile_expr(dialect::SQLiteDialect, expr::Cast,
+                      params::Vector{Symbol})::String
+    expr_sql = compile_expr(dialect, expr.expr, params)
+    target_type = uppercase(string(expr.target_type))
+    return "CAST($expr_sql AS $target_type)"
+end
+
+function compile_expr(dialect::SQLiteDialect, expr::Subquery,
+                      params::Vector{Symbol})::String
+    # Compile the subquery
+    subquery_sql, subquery_params = compile(dialect, expr.query)
+
+    # Append subquery parameters to the main params list
+    append!(params, subquery_params)
+
+    # Return the subquery wrapped in parentheses
+    return "($subquery_sql)"
 end
 
 #

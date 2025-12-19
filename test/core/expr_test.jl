@@ -14,9 +14,12 @@ See `docs/roadmap.md` Phase 1 for implementation plan.
 
 using Test
 using SQLSketch.Core: SQLExpr, ColRef, Literal, Param, BinaryOp, UnaryOp, FuncCall, BetweenOp, InOp
+using SQLSketch.Core: Cast, Subquery
 using SQLSketch.Core: col, literal, param, func, is_null, is_not_null
 using SQLSketch.Core: like, not_like, ilike, not_ilike, between, not_between
 using SQLSketch.Core: in_list, not_in_list
+using SQLSketch.Core: cast, subquery, exists, not_exists, in_subquery, not_in_subquery
+using SQLSketch.Core: from, where, select
 
 @testset "Expression AST" begin
     @testset "Column References" begin
@@ -484,5 +487,107 @@ using SQLSketch.Core: in_list, not_in_list
 
         # Type check
         @test expr isa SQLExpr
+    end
+
+    @testset "CAST Expressions" begin
+        # Basic cast
+        expr = cast(col(:users, :age), :TEXT)
+        @test expr isa Cast
+        @test expr.expr isa ColRef
+        @test expr.target_type == :TEXT
+
+        # Cast literal
+        expr2 = cast(literal("42"), :INTEGER)
+        @test expr2 isa Cast
+        @test expr2.expr isa Literal
+        @test expr2.target_type == :INTEGER
+
+        # Cast parameter
+        expr3 = cast(param(String, :value), :REAL)
+        @test expr3 isa Cast
+        @test expr3.expr isa Param
+        @test expr3.target_type == :REAL
+
+        # Cast complex expression
+        expr4 = cast(col(:users, :id) + literal(1), :TEXT)
+        @test expr4 isa Cast
+        @test expr4.expr isa BinaryOp
+
+        # Hash and equality
+        expr_a = cast(col(:users, :age), :TEXT)
+        expr_b = cast(col(:users, :age), :TEXT)
+        @test hash(expr_a) == hash(expr_b)
+        @test isequal(expr_a, expr_b)
+
+        # Different target types should not be equal
+        expr_c = cast(col(:users, :age), :INTEGER)
+        @test !isequal(expr_a, expr_c)
+
+        # Different expressions should not be equal
+        expr_d = cast(col(:users, :id), :TEXT)
+        @test !isequal(expr_a, expr_d)
+
+        # Immutability
+        @test !ismutable(expr)
+
+        # Type check
+        @test expr isa SQLExpr
+    end
+
+    @testset "Subquery Expressions" begin
+        # Basic subquery
+        q = from(:orders) |> select(NamedTuple, col(:orders, :user_id))
+        sq = subquery(q)
+        @test sq isa Subquery
+        @test sq.query == q
+
+        # EXISTS
+        sq2 = subquery(from(:orders) |> where(col(:orders, :user_id) == col(:users, :id)))
+        expr = exists(sq2)
+        @test expr isa UnaryOp
+        @test expr.op == :EXISTS
+        @test expr.expr isa Subquery
+
+        # NOT EXISTS
+        expr2 = not_exists(sq2)
+        @test expr2 isa UnaryOp
+        @test expr2.op == :NOT_EXISTS
+        @test expr2.expr isa Subquery
+
+        # IN subquery
+        sq3 = subquery(from(:orders) |>
+                      where(col(:orders, :status) == literal("pending")) |>
+                      select(NamedTuple, col(:orders, :user_id)))
+        expr3 = in_subquery(col(:users, :id), sq3)
+        @test expr3 isa BinaryOp
+        @test expr3.op == :IN
+        @test expr3.left isa ColRef
+        @test expr3.right isa Subquery
+
+        # NOT IN subquery
+        expr4 = not_in_subquery(col(:users, :id), sq3)
+        @test expr4 isa BinaryOp
+        @test expr4.op == :NOT_IN
+        @test expr4.left isa ColRef
+        @test expr4.right isa Subquery
+
+        # Hash and equality
+        q1 = from(:orders) |> select(NamedTuple, col(:orders, :user_id))
+        q2 = from(:orders) |> select(NamedTuple, col(:orders, :user_id))
+        sq_a = subquery(q1)
+        sq_b = subquery(q2)
+        @test hash(sq_a) == hash(sq_b)
+        @test isequal(sq_a, sq_b)
+
+        # Different queries should not be equal
+        q3 = from(:users) |> select(NamedTuple, col(:users, :id))
+        sq_c = subquery(q3)
+        @test !isequal(sq_a, sq_c)
+
+        # Immutability
+        @test !ismutable(sq)
+
+        # Type check
+        @test sq isa SQLExpr
     end
 end

@@ -31,12 +31,14 @@ module Core
 # Expression AST (Phase 1)
 include("Core/expr.jl")
 export SQLExpr, ColRef, Literal, Param, BinaryOp, UnaryOp, FuncCall, BetweenOp, InOp
+export Cast, Subquery
 export PlaceholderField, Placeholder, p_
 export col, literal, param, func
 export is_null, is_not_null
 export like, not_like, ilike, not_ilike
 export between, not_between
 export in_list, not_in_list
+export cast, subquery, exists, not_exists, in_subquery, not_in_subquery
 
 # Query AST (Phase 2 + DML)
 include("Core/query.jl")
@@ -85,12 +87,14 @@ end
 # Re-export everything from Core for convenience
 using .Core
 export SQLExpr, ColRef, Literal, Param, BinaryOp, UnaryOp, FuncCall, BetweenOp, InOp
+export Cast, Subquery
 export PlaceholderField, Placeholder, p_
 export col, literal, param, func
 export is_null, is_not_null
 export like, not_like, ilike, not_ilike
 export between, not_between
 export in_list, not_in_list
+export cast, subquery, exists, not_exists, in_subquery, not_in_subquery
 export Query, From, Where, Select, OrderBy, Limit, Offset, Distinct, GroupBy, Having, Join
 export InsertInto, InsertValues, Update, UpdateSet, UpdateWhere, DeleteFrom, DeleteWhere
 export from, where, select, order_by, limit, offset, distinct, group_by, having, join

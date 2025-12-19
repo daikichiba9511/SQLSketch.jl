@@ -631,6 +631,180 @@ function not_in_list(expr::SQLExpr, values::Vector)::InOp
     return InOp(expr, expr_values, true)
 end
 
+# CAST expression
+"""
+    Cast(expr::SQLExpr, target_type::Symbol)
+
+Represents a CAST expression in SQL (e.g., `CAST(column AS INTEGER)`).
+
+Type casting converts an expression to a different SQL type.
+
+# Fields
+
+  - `expr::SQLExpr` – expression to cast
+  - `target_type::Symbol` – target SQL type (`:INTEGER`, `:TEXT`, `:REAL`, `:BOOLEAN`, etc.)
+
+# Example
+
+```julia
+cast(col(:users, :age), :TEXT)
+# → CAST(users.age AS TEXT)
+
+cast(literal("42"), :INTEGER)
+# → CAST('42' AS INTEGER)
+```
+
+# Note
+
+The available types depend on the SQL dialect:
+- SQLite: INTEGER, TEXT, REAL, BLOB
+- PostgreSQL: INTEGER, TEXT, REAL, BOOLEAN, TIMESTAMP, etc.
+- MySQL: SIGNED, UNSIGNED, CHAR, DATE, DATETIME, etc.
+"""
+struct Cast <: SQLExpr
+    expr::SQLExpr
+    target_type::Symbol
+end
+
+"""
+    cast(expr::SQLExpr, target_type::Symbol) -> Cast
+
+Convenience constructor for type casting.
+
+# Example
+
+```julia
+cast(col(:users, :age), :TEXT)
+# → CAST(users.age AS TEXT)
+```
+"""
+cast(expr::SQLExpr, target_type::Symbol)::Cast = Cast(expr, target_type)
+
+# Subquery expression
+"""
+    Subquery(query)
+
+Represents a subquery expression that can be used in SQL expressions.
+
+Subqueries can be used in various contexts:
+- `WHERE column IN (SELECT ...)` – membership test
+- `WHERE EXISTS (SELECT ...)` – existence test
+- `SELECT (SELECT ...) AS field` – scalar subquery
+- `FROM (SELECT ...) AS alias` – derived table (future)
+
+# Fields
+
+  - `query` – the query to use as a subquery (any Query type)
+
+# Example
+
+```julia
+# IN subquery
+sq = subquery(from(:orders) |>
+              where(col(:orders, :status) == literal("pending")) |>
+              select(NamedTuple, col(:orders, :user_id)))
+
+where(in_subquery(col(:users, :id), sq))
+# → WHERE users.id IN (SELECT orders.user_id FROM orders WHERE orders.status = 'pending')
+
+# EXISTS subquery
+sq = subquery(from(:orders) |>
+              where(col(:orders, :user_id) == col(:users, :id)))
+
+where(exists(sq))
+# → WHERE EXISTS (SELECT * FROM orders WHERE orders.user_id = users.id)
+```
+
+# Note
+
+The query field is not typed as Query to avoid circular dependencies between expr.jl and query.jl.
+"""
+struct Subquery <: SQLExpr
+    query::Any  # Will be a Query{T} at runtime
+end
+
+"""
+    subquery(query) -> Subquery
+
+Convenience constructor for subquery expressions.
+
+# Example
+
+```julia
+sq = subquery(from(:orders) |> select(NamedTuple, col(:orders, :user_id)))
+```
+"""
+subquery(query)::Subquery = Subquery(query)
+
+"""
+    exists(sq::Subquery) -> UnaryOp
+
+Test if a subquery returns any rows.
+
+# Example
+
+```julia
+sq = subquery(from(:orders) |>
+              where(col(:orders, :user_id) == col(:users, :id)))
+
+where(exists(sq))
+# → WHERE EXISTS (SELECT * FROM orders WHERE orders.user_id = users.id)
+```
+"""
+exists(sq::Subquery)::UnaryOp = UnaryOp(:EXISTS, sq)
+
+"""
+    not_exists(sq::Subquery) -> UnaryOp
+
+Test if a subquery returns no rows.
+
+# Example
+
+```julia
+sq = subquery(from(:orders) |>
+              where(col(:orders, :user_id) == col(:users, :id)))
+
+where(not_exists(sq))
+# → WHERE NOT EXISTS (SELECT * FROM orders WHERE orders.user_id = users.id)
+```
+"""
+not_exists(sq::Subquery)::UnaryOp = UnaryOp(:NOT_EXISTS, sq)
+
+"""
+    in_subquery(expr::SQLExpr, sq::Subquery) -> BinaryOp
+
+Test if an expression is in the result set of a subquery.
+
+# Example
+
+```julia
+sq = subquery(from(:orders) |>
+              where(col(:orders, :status) == literal("pending")) |>
+              select(NamedTuple, col(:orders, :user_id)))
+
+in_subquery(col(:users, :id), sq)
+# → users.id IN (SELECT orders.user_id FROM orders WHERE orders.status = 'pending')
+```
+"""
+in_subquery(expr::SQLExpr, sq::Subquery)::BinaryOp = BinaryOp(:IN, expr, sq)
+
+"""
+    not_in_subquery(expr::SQLExpr, sq::Subquery) -> BinaryOp
+
+Test if an expression is not in the result set of a subquery.
+
+# Example
+
+```julia
+sq = subquery(from(:blocked_users) |>
+              select(NamedTuple, col(:blocked_users, :user_id)))
+
+not_in_subquery(col(:users, :id), sq)
+# → users.id NOT IN (SELECT blocked_users.user_id FROM blocked_users)
+```
+"""
+not_in_subquery(expr::SQLExpr, sq::Subquery)::BinaryOp = BinaryOp(:NOT_IN, expr, sq)
+
 # Structural equality for testing
 # These are used by @test and other testing utilities
 Base.isequal(a::ColRef, b::ColRef)::Bool = a.table == b.table && a.column == b.column
@@ -645,6 +819,8 @@ Base.isequal(a::BetweenOp, b::BetweenOp)::Bool = isequal(a.expr, b.expr) && iseq
                                                   isequal(a.high, b.high) && a.negated == b.negated
 Base.isequal(a::InOp, b::InOp)::Bool = isequal(a.expr, b.expr) && isequal(a.values, b.values) &&
                                        a.negated == b.negated
+Base.isequal(a::Cast, b::Cast)::Bool = isequal(a.expr, b.expr) && a.target_type == b.target_type
+Base.isequal(a::Subquery, b::Subquery)::Bool = isequal(a.query, b.query)
 
 # Hash functions for Dict/Set support
 Base.hash(a::ColRef, h::UInt)::UInt = hash((a.table, a.column), h)
@@ -656,8 +832,8 @@ Base.hash(a::UnaryOp, h::UInt)::UInt = hash((a.op, a.expr), h)
 Base.hash(a::FuncCall, h::UInt)::UInt = hash((a.name, a.args), h)
 Base.hash(a::BetweenOp, h::UInt)::UInt = hash((a.expr, a.low, a.high, a.negated), h)
 Base.hash(a::InOp, h::UInt)::UInt = hash((a.expr, a.values, a.negated), h)
+Base.hash(a::Cast, h::UInt)::UInt = hash((a.expr, a.target_type), h)
+Base.hash(a::Subquery, h::UInt)::UInt = hash(a.query, h)
 
 # Future: Additional expression types
-# - Subquery expressions
 # - CASE expressions
-# - Type casting
