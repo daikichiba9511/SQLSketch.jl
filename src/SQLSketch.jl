@@ -73,6 +73,11 @@ export map_row
 export IntCodec, Float64Codec, StringCodec, BoolCodec
 export DateCodec, DateTimeCodec, UUIDCodec
 
+# Transaction Management (Phase 7)
+include("Core/transaction.jl")
+export TransactionHandle
+export transaction, savepoint
+
 # Query Execution (Phase 6)
 include("Core/execute.jl")
 export fetch_all, fetch_one, fetch_maybe
@@ -85,6 +90,7 @@ include("Dialects/sqlite.jl")
 # Driver implementations
 module Drivers
 using ..Core: Driver, Connection, connect, execute
+using ..Core: TransactionHandle, transaction, savepoint
 include("Drivers/sqlite.jl")
 export SQLiteDriver, SQLiteConnection
 end
@@ -125,6 +131,10 @@ export DateCodec, DateTimeCodec, UUIDCodec
 # Query execution (Phase 6)
 export fetch_all, fetch_one, fetch_maybe
 export sql, explain, execute_dml
+
+# Transaction management (Phase 7)
+export TransactionHandle
+export transaction, savepoint
 
 # Export Dialect implementations
 export SQLiteDialect

@@ -145,6 +145,31 @@ function fetch_all(conn::Connection,
     return results
 end
 
+# Allow fetch_all to work with TransactionHandle
+function fetch_all(tx::TransactionHandle,
+                   dialect::Dialect,
+                   registry::CodecRegistry,
+                   query::Query{T},
+                   params::NamedTuple=NamedTuple())::Vector{T} where {T}
+    # Compile query to SQL
+    sql, param_names = compile(dialect, query)
+
+    # Bind parameters
+    param_values = bind_params(param_names, params)
+
+    # Execute query (will use TransactionHandle's execute() method)
+    raw_result = execute(tx, sql, param_values)
+
+    # Map rows to target type
+    results = T[]
+    for row in raw_result
+        mapped = map_row(registry, T, row)
+        push!(results, mapped)
+    end
+
+    return results
+end
+
 """
     fetch_one(conn::Connection, dialect::Dialect, registry::CodecRegistry,
               query::Query{T}, params::NamedTuple = NamedTuple()) -> T
@@ -195,6 +220,23 @@ function fetch_one(conn::Connection,
     return results[1]
 end
 
+# Allow fetch_one to work with TransactionHandle
+function fetch_one(tx::TransactionHandle,
+                   dialect::Dialect,
+                   registry::CodecRegistry,
+                   query::Query{T},
+                   params::NamedTuple=NamedTuple())::T where {T}
+    results = fetch_all(tx, dialect, registry, query, params)
+
+    if length(results) == 0
+        error("Expected exactly one row, but got zero rows")
+    elseif length(results) > 1
+        error("Expected exactly one row, but got $(length(results)) rows")
+    end
+
+    return results[1]
+end
+
 """
     fetch_maybe(conn::Connection, dialect::Dialect, registry::CodecRegistry,
                 query::Query{T}, params::NamedTuple = NamedTuple()) -> Union{T, Nothing}
@@ -235,6 +277,23 @@ function fetch_maybe(conn::Connection,
                      query::Query{T},
                      params::NamedTuple=NamedTuple())::Union{T, Nothing} where {T}
     results = fetch_all(conn, dialect, registry, query, params)
+
+    if length(results) == 0
+        return nothing
+    elseif length(results) > 1
+        error("Expected zero or one row, but got $(length(results)) rows")
+    end
+
+    return results[1]
+end
+
+# Allow fetch_maybe to work with TransactionHandle
+function fetch_maybe(tx::TransactionHandle,
+                     dialect::Dialect,
+                     registry::CodecRegistry,
+                     query::Query{T},
+                     params::NamedTuple=NamedTuple())::Union{T, Nothing} where {T}
+    results = fetch_all(tx, dialect, registry, query, params)
 
     if length(results) == 0
         return nothing
@@ -373,6 +432,23 @@ function execute_dml(conn::Connection,
 
     # Execute DML (no result to process)
     execute(conn, sql, param_values)
+
+    return nothing
+end
+
+# Allow execute_dml to work with TransactionHandle
+function execute_dml(tx::TransactionHandle,
+                     dialect::Dialect,
+                     query::Query,
+                     params::NamedTuple=NamedTuple())::Nothing
+    # Compile query to SQL
+    sql, param_names = compile(dialect, query)
+
+    # Bind parameters
+    param_values = bind_params(param_names, params)
+
+    # Execute DML (no result to process)
+    execute(tx, sql, param_values)
 
     return nothing
 end

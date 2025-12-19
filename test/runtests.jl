@@ -31,10 +31,9 @@ using Test
         include("integration/end_to_end_test.jl")
     end
 
-    # Future: Transactions
-    # @testset "Transactions (Core.transaction)" begin
-    #     include("core/transaction_test.jl")
-    # end
+    @testset "Transaction Management (Core.transaction)" begin
+        include("core/transaction_test.jl")
+    end
 
     # Future: Migrations
     # @testset "Migrations (Core.migrations)" begin

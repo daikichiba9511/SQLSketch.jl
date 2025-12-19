@@ -86,7 +86,7 @@ SQLSketch is designed as a two-layer system:
 
 ## Current Implementation Status
 
-**Completed Phases:** 6/10 | **Total Tests:** 936 passing ✅
+**Completed Phases:** 7/10 | **Total Tests:** 962 passing ✅
 
 - ✅ **Phase 1: Expression AST** (268 tests)
   - Column references, literals, parameters
@@ -133,7 +133,7 @@ SQLSketch is designed as a two-layer system:
   - NULL/Missing handling
   - Row mapping to NamedTuples and structs
 
-- ✅ **Phase 6: End-to-End Integration** (54 tests)
+- ✅ **Phase 6: End-to-End Integration** (95 tests)
   - Query execution API (`fetch_all`, `fetch_one`, `fetch_maybe`)
   - **DML execution API (`execute_dml`)**
   - Type-safe parameter binding
@@ -142,7 +142,14 @@ SQLSketch is designed as a two-layer system:
   - Comprehensive integration tests
   - **Full CRUD operations** (SELECT, INSERT, UPDATE, DELETE)
 
-- ⏳ **Phase 7-10:** See [`docs/roadmap.md`](docs/roadmap.md) and [`docs/TODO.md`](docs/TODO.md)
+- ✅ **Phase 7: Transaction Management** (26 tests)
+  - **Transaction API (`transaction`)** - automatic commit/rollback
+  - **Savepoint API (`savepoint`)** - nested transactions
+  - Transaction-compatible query execution
+  - SQLite implementation (BEGIN/COMMIT/ROLLBACK)
+  - Comprehensive error handling and isolation tests
+
+- ⏳ **Phase 8-10:** See [`docs/roadmap.md`](docs/roadmap.md) and [`docs/TODO.md`](docs/TODO.md)
 
 ---
 
@@ -329,6 +336,57 @@ delete_q = delete_from(:users) |>
 execute_dml(db, dialect, delete_q)
 # Generated SQL:
 # DELETE FROM `users` WHERE (`users`.`status` = 'inactive')
+
+# ========================================
+# Transactions - Atomic Operations
+# ========================================
+
+# Basic transaction - automatic commit/rollback
+transaction(db) do tx
+    # Insert user
+    execute_dml(tx, dialect,
+                insert_into(:users, [:email, :age, :status]) |>
+                insert_values([[literal("charlie@example.com"), literal(35), literal("active")]]))
+
+    # Insert order for the user
+    execute_dml(tx, dialect,
+                insert_into(:orders, [:user_id, :total]) |>
+                insert_values([[literal(3), literal(150.0)]]))
+
+    # Both inserts commit together, or both rollback on error
+end
+
+# Transaction with query execution
+users = transaction(db) do tx
+    # Queries work inside transactions too!
+    q = from(:users) |>
+        where(col(:users, :status) == literal("active")) |>
+        select(NamedTuple, col(:users, :id), col(:users, :email))
+
+    fetch_all(tx, dialect, registry, q)
+end
+
+# Nested transactions using savepoints
+transaction(db) do tx
+    execute_dml(tx, dialect,
+                insert_into(:users, [:email, :age, :status]) |>
+                insert_values([[literal("david@example.com"), literal(40), literal("active")]]))
+
+    # Savepoint for risky operation
+    try
+        savepoint(tx, :risky_update) do sp
+            execute_dml(sp, dialect,
+                        update(:users) |>
+                        set(:status => literal("suspended")) |>
+                        where(col(:users, :age) > literal(30)))
+
+            # If something fails here, only the UPDATE rolls back
+            # The INSERT above will still commit
+        end
+    catch e
+        # Savepoint rolled back, but outer transaction continues
+    end
+end
 
 close(db)
 ```

@@ -358,28 +358,31 @@ Task breakdown based on `design.md` and `roadmap.md`.
 
 ---
 
-## Phase 7: Transactions ⏳ PENDING
+## Phase 7: Transactions ✅ COMPLETED
 
-### Transaction Interface ⏳
-- [ ] Define `Transaction` abstract type
-- [ ] `transaction(f, conn)` → commit on success, rollback on error
-- [ ] Transaction handles compatible with query execution
-- [ ] Nested transaction support (if DB supports)
+### Transaction Interface ✅
+- [x] Define `TransactionHandle` abstract type
+- [x] `transaction(f, conn)` → commit on success, rollback on error
+- [x] Transaction handles compatible with query execution
+- [x] Nested transaction support using savepoints
 
-### SQLite Transactions ⏳
-- [ ] Implement SQLite transaction support
-- [ ] BEGIN TRANSACTION
-- [ ] COMMIT
-- [ ] ROLLBACK
-- [ ] Savepoint support (if needed)
+### SQLite Transactions ✅
+- [x] Implement SQLite transaction support
+- [x] BEGIN TRANSACTION
+- [x] COMMIT
+- [x] ROLLBACK
+- [x] Savepoint support (SAVEPOINT/RELEASE/ROLLBACK TO)
 
-### Tests ⏳
-- [ ] Create `test/core/transaction_test.jl`
-- [ ] Test successful commit
-- [ ] Test rollback on exception
-- [ ] Test query execution within transaction
-- [ ] Test nested transactions (if supported)
-- [ ] Test transaction isolation
+### Tests ✅
+- [x] Create `test/core/transaction_test.jl`
+- [x] Test successful commit
+- [x] Test rollback on exception
+- [x] Test query execution within transaction (fetch_all, fetch_one, execute_dml)
+- [x] Test nested transactions (savepoints)
+- [x] Test transaction isolation
+- [x] Test error handling
+
+**Total Transaction Tests:** 26 passing ✅
 
 ### Future Enhancements ⏳
 - [ ] Isolation level control
