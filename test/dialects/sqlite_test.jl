@@ -1,7 +1,10 @@
 using Test
-using SQLSketch.Core: Dialect, Capability, CAP_CTE, CAP_RETURNING, CAP_UPSERT, CAP_WINDOW, CAP_LATERAL
-using SQLSketch.Core: Query, From, Where, Select, Join, OrderBy, Limit, Offset, Distinct, GroupBy, Having
-using SQLSketch.Core: from, where, select, join, order_by, limit, offset, distinct, group_by, having
+using SQLSketch.Core: Dialect, Capability, CAP_CTE, CAP_RETURNING, CAP_UPSERT, CAP_WINDOW,
+                      CAP_LATERAL
+using SQLSketch.Core: Query, From, Where, Select, Join, OrderBy, Limit, Offset, Distinct,
+                      GroupBy, Having
+using SQLSketch.Core: from, where, select, join, order_by, limit, offset, distinct,
+                      group_by, having
 using SQLSketch.Core: SQLExpr, col, literal, param, func, is_null, is_not_null
 using SQLSketch.Core: compile, compile_expr, quote_identifier, placeholder, supports
 using SQLSketch: SQLiteDialect
@@ -205,9 +208,11 @@ end
         params = Symbol[]
 
         # (age > 18 AND active = 1) OR admin = 1
-        expr = ((col(:users, :age) > 18) & (col(:users, :active) == true)) | (col(:users, :admin) == true)
+        expr = ((col(:users, :age) > 18) & (col(:users, :active) == true)) |
+               (col(:users, :admin) == true)
         sql = compile_expr(dialect, expr, params)
-        @test sql == "(((`users`.`age` > 18) AND (`users`.`active` = 1)) OR (`users`.`admin` = 1))"
+        @test sql ==
+              "(((`users`.`age` > 18) AND (`users`.`active` = 1)) OR (`users`.`admin` = 1))"
     end
 end
 
@@ -252,12 +257,13 @@ end
             select(NamedTuple, col(:users, :id), col(:users, :email))
 
         sql, params = compile(dialect, q)
-        @test sql == "SELECT `users`.`id`, `users`.`email` FROM `users` WHERE (`users`.`active` = 1)"
+        @test sql ==
+              "SELECT `users`.`id`, `users`.`email` FROM `users` WHERE (`users`.`active` = 1)"
         @test isempty(params)
     end
 
     @testset "OrderBy - Single field ASC" begin
-        q = from(:users) |> order_by(col(:users, :created_at), desc=false)
+        q = from(:users) |> order_by(col(:users, :created_at), desc = false)
         sql, params = compile(dialect, q)
 
         @test sql == "SELECT * FROM `users` ORDER BY `users`.`created_at` ASC"
@@ -265,7 +271,7 @@ end
     end
 
     @testset "OrderBy - Single field DESC" begin
-        q = from(:users) |> order_by(col(:users, :created_at), desc=true)
+        q = from(:users) |> order_by(col(:users, :created_at), desc = true)
         sql, params = compile(dialect, q)
 
         @test sql == "SELECT * FROM `users` ORDER BY `users`.`created_at` DESC"
@@ -274,11 +280,12 @@ end
 
     @testset "OrderBy - Multiple fields" begin
         q = from(:users) |>
-            order_by(col(:users, :name), desc=false) |>
-            order_by(col(:users, :created_at), desc=true)
+            order_by(col(:users, :name), desc = false) |>
+            order_by(col(:users, :created_at), desc = true)
 
         sql, params = compile(dialect, q)
-        @test sql == "SELECT * FROM `users` ORDER BY `users`.`name` ASC, `users`.`created_at` DESC"
+        @test sql ==
+              "SELECT * FROM `users` ORDER BY `users`.`name` ASC, `users`.`created_at` DESC"
         @test isempty(params)
     end
 
@@ -338,7 +345,8 @@ end
             having(func(:COUNT, [col(:orders, :id)]) > 5)
 
         sql, params = compile(dialect, q)
-        @test sql == "SELECT * FROM `orders` GROUP BY `orders`.`user_id` HAVING (COUNT(`orders`.`id`) > 5)"
+        @test sql ==
+              "SELECT * FROM `orders` GROUP BY `orders`.`user_id` HAVING (COUNT(`orders`.`id`) > 5)"
         @test isempty(params)
     end
 
@@ -346,15 +354,18 @@ end
         q = from(:users) |> join(:orders, col(:users, :id) == col(:orders, :user_id))
         sql, params = compile(dialect, q)
 
-        @test sql == "SELECT * FROM `users` INNER JOIN `orders` ON (`users`.`id` = `orders`.`user_id`)"
+        @test sql ==
+              "SELECT * FROM `users` INNER JOIN `orders` ON (`users`.`id` = `orders`.`user_id`)"
         @test isempty(params)
     end
 
     @testset "Join - Left" begin
-        q = from(:users) |> join(:orders, col(:users, :id) == col(:orders, :user_id), kind=:left)
+        q = from(:users) |>
+            join(:orders, col(:users, :id) == col(:orders, :user_id), kind = :left)
         sql, params = compile(dialect, q)
 
-        @test sql == "SELECT * FROM `users` LEFT JOIN `orders` ON (`users`.`id` = `orders`.`user_id`)"
+        @test sql ==
+              "SELECT * FROM `users` LEFT JOIN `orders` ON (`users`.`id` = `orders`.`user_id`)"
         @test isempty(params)
     end
 end
@@ -366,7 +377,7 @@ end
         q = from(:users) |>
             where(col(:users, :active) == true) |>
             select(NamedTuple, col(:users, :id), col(:users, :email), col(:users, :name)) |>
-            order_by(col(:users, :created_at), desc=true) |>
+            order_by(col(:users, :created_at), desc = true) |>
             limit(20) |>
             offset(0)
 
@@ -381,12 +392,10 @@ end
             where(col(:orders, :status) == literal("completed")) |>
             group_by(col(:orders, :user_id)) |>
             having(func(:COUNT, [col(:orders, :id)]) > 5) |>
-            select(
-                NamedTuple,
-                col(:orders, :user_id),
-                func(:COUNT, [col(:orders, :id)]),
-                func(:SUM, [col(:orders, :total)])
-            )
+            select(NamedTuple,
+                   col(:orders, :user_id),
+                   func(:COUNT, [col(:orders, :id)]),
+                   func(:SUM, [col(:orders, :total)]))
 
         sql, params = compile(dialect, q)
         # This is a complex rewrite - the SELECT fields override the previous SELECT *
@@ -398,15 +407,13 @@ end
 
     @testset "Example 3: Join query with parameters" begin
         q = from(:users) |>
-            join(:orders, col(:users, :id) == col(:orders, :user_id), kind=:left) |>
+            join(:orders, col(:users, :id) == col(:orders, :user_id), kind = :left) |>
             where(col(:users, :active) == param(Bool, :active)) |>
-            select(
-                NamedTuple,
-                col(:users, :email),
-                col(:orders, :id),
-                col(:orders, :total)
-            ) |>
-            order_by(col(:orders, :created_at), desc=true)
+            select(NamedTuple,
+                   col(:users, :email),
+                   col(:orders, :id),
+                   col(:orders, :total)) |>
+            order_by(col(:orders, :created_at), desc = true)
 
         sql, params = compile(dialect, q)
         @test occursin("LEFT JOIN", sql)
@@ -417,10 +424,8 @@ end
 
     @testset "Example 4: Multiple parameters" begin
         q = from(:users) |>
-            where(
-                (col(:users, :age) > param(Int, :min_age)) &
-                (col(:users, :email) == param(String, :email))
-            )
+            where((col(:users, :age) > param(Int, :min_age)) &
+                  (col(:users, :email) == param(String, :email)))
 
         sql, params = compile(dialect, q)
         @test occursin("?", sql)
@@ -429,9 +434,7 @@ end
 
     @testset "Example 5: Complex expression with functions" begin
         q = from(:users) |>
-            where(
-                func(:LOWER, [col(:users, :email)]) == param(String, :email_lower)
-            ) |>
+            where(func(:LOWER, [col(:users, :email)]) == param(String, :email_lower)) |>
             select(NamedTuple, col(:users, :id), func(:UPPER, [col(:users, :name)]))
 
         sql, params = compile(dialect, q)

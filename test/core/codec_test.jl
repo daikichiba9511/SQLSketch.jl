@@ -177,7 +177,8 @@ end
 
     @testset "decode" begin
         @test decode(codec, "2025-12-19 10:30:45") === DateTime(2025, 12, 19, 10, 30, 45)
-        @test decode(codec, DateTime(2025, 12, 19, 10, 30, 45)) === DateTime(2025, 12, 19, 10, 30, 45)
+        @test decode(codec, DateTime(2025, 12, 19, 10, 30, 45)) ===
+              DateTime(2025, 12, 19, 10, 30, 45)
         @test ismissing(decode(codec, missing))
     end
 
@@ -220,18 +221,16 @@ end
     registry = CodecRegistry()
 
     @testset "Simple NamedTuple" begin
-        row = (id=1, email="test@example.com")
+        row = (id = 1, email = "test@example.com")
         result = map_row(registry, NamedTuple, row)
         @test result === row
     end
 
     @testset "NamedTuple with various types" begin
-        row = (
-            id=42,
-            name="Alice",
-            score=95.5,
-            active=true,
-        )
+        row = (id = 42,
+               name = "Alice",
+               score = 95.5,
+               active = true)
         result = map_row(registry, NamedTuple, row)
         @test result === row
     end
@@ -263,7 +262,7 @@ end
     end
 
     @testset "Simple struct" begin
-        row = (id=1, email="test@example.com")
+        row = (id = 1, email = "test@example.com")
         user = map_row(registry, User, row)
         @test user isa User
         @test user.id === 1
@@ -271,7 +270,7 @@ end
     end
 
     @testset "Struct with multiple types" begin
-        row = (id=1, name="Widget", price=19.99, active=true)
+        row = (id = 1, name = "Widget", price = 19.99, active = true)
         product = map_row(registry, Product, row)
         @test product isa Product
         @test product.id === 1
@@ -281,24 +280,24 @@ end
     end
 
     @testset "Struct with Union{T, Missing}" begin
-        row1 = (id=1, name="Alice")
+        row1 = (id = 1, name = "Alice")
         obj1 = map_row(registry, OptionalFields, row1)
         @test obj1.id === 1
         @test obj1.name === "Alice"
 
-        row2 = (id=2, name=missing)
+        row2 = (id = 2, name = missing)
         obj2 = map_row(registry, OptionalFields, row2)
         @test obj2.id === 2
         @test ismissing(obj2.name)
     end
 
     @testset "Error on missing required field" begin
-        row = (id=1,)  # Missing 'email' - note the trailing comma for single-element NamedTuple
+        row = (id = 1,)  # Missing 'email' - note the trailing comma for single-element NamedTuple
         @test_throws ErrorException map_row(registry, User, row)
     end
 
     @testset "Error on missing in non-optional field" begin
-        row = (id=1, email=missing)
+        row = (id = 1, email = missing)
         @test_throws ErrorException map_row(registry, User, row)
     end
 end
@@ -392,7 +391,7 @@ end
         end
 
         # This should work because decode handles type conversion
-        row = (id=Int8(1), name="test")
+        row = (id = Int8(1), name = "test")
         obj = map_row(registry, TypedStruct, row)
         @test obj.id === 1
         @test obj.name === "test"

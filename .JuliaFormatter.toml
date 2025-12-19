@@ -1,0 +1,32 @@
+# JuliaFormatter configuration for SQLSketch.jl
+
+# Basic formatting
+indent = 4
+margin = 92
+always_for_in = true
+whitespace_typedefs = true
+whitespace_ops_in_indices = true
+
+# Import formatting
+import_to_using = false
+pipe_to_function_call = false
+
+# Alignment
+align_assignment = false
+align_struct_field = false
+align_conditional = false
+align_pair_arrow = false
+
+# Line breaks
+short_to_long_function_def = false
+long_to_short_function_def = false
+always_use_return = false
+whitespace_in_kwargs = true
+
+# Style preferences
+remove_extra_newlines = true
+format_docstrings = true
+annotate_untyped_fields_with_any = false
+
+# YAS style (standard Julia style)
+style = "yas"

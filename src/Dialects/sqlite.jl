@@ -25,8 +25,10 @@ This dialect generates SQLite-compatible SQL from query and expression ASTs.
 See `docs/design.md` Section 10 for detailed design rationale.
 """
 
-using .Core: Dialect, Capability, CAP_CTE, CAP_RETURNING, CAP_UPSERT, CAP_WINDOW, CAP_LATERAL, CAP_BULK_COPY, CAP_SAVEPOINT, CAP_ADVISORY_LOCK
-using .Core: Query, From, Where, Select, Join, OrderBy, Limit, Offset, Distinct, GroupBy, Having
+using .Core: Dialect, Capability, CAP_CTE, CAP_RETURNING, CAP_UPSERT, CAP_WINDOW,
+             CAP_LATERAL, CAP_BULK_COPY, CAP_SAVEPOINT, CAP_ADVISORY_LOCK
+using .Core: Query, From, Where, Select, Join, OrderBy, Limit, Offset, Distinct, GroupBy,
+             Having
 using .Core: SQLExpr, ColRef, Literal, Param, BinaryOp, UnaryOp, FuncCall
 import .Core: compile, compile_expr, quote_identifier, placeholder, supports
 
@@ -36,9 +38,11 @@ import .Core: compile, compile_expr, quote_identifier, placeholder, supports
 SQLite dialect for SQL generation.
 
 # Fields
-- `version`: SQLite version (affects capability reporting)
+
+  - `version`: SQLite version (affects capability reporting)
 
 # Example
+
 ```julia
 dialect = SQLiteDialect()
 sql, params = compile(dialect, query)
@@ -61,6 +65,7 @@ SQLiteDialect() = SQLiteDialect(v"3.35.0")
 Quote an identifier using SQLite backtick syntax.
 
 # Example
+
 ```julia
 quote_identifier(SQLiteDialect(), :users) # → "`users`"
 ```
@@ -80,6 +85,7 @@ Generate a positional parameter placeholder.
 SQLite uses `?` for all positional parameters.
 
 # Example
+
 ```julia
 placeholder(SQLiteDialect(), 1) # → "?"
 placeholder(SQLiteDialect(), 2) # → "?"
@@ -95,6 +101,7 @@ end
 Check if SQLite supports a specific capability.
 
 # Example
+
 ```julia
 supports(SQLiteDialect(), CAP_CTE)     # → true
 supports(SQLiteDialect(), CAP_LATERAL) # → false
@@ -168,7 +175,8 @@ function compile_expr(dialect::SQLiteDialect, expr::Param, params::Vector{Symbol
     return placeholder(dialect, length(params))
 end
 
-function compile_expr(dialect::SQLiteDialect, expr::BinaryOp, params::Vector{Symbol})::String
+function compile_expr(dialect::SQLiteDialect, expr::BinaryOp,
+                      params::Vector{Symbol})::String
     left_sql = compile_expr(dialect, expr.left, params)
     right_sql = compile_expr(dialect, expr.right, params)
 
@@ -219,7 +227,8 @@ function compile_expr(dialect::SQLiteDialect, expr::UnaryOp, params::Vector{Symb
     end
 end
 
-function compile_expr(dialect::SQLiteDialect, expr::FuncCall, params::Vector{Symbol})::String
+function compile_expr(dialect::SQLiteDialect, expr::FuncCall,
+                      params::Vector{Symbol})::String
     func_name = string(expr.name)
 
     if isempty(expr.args)
@@ -243,6 +252,7 @@ end
 Compile a Query AST into a SQL string and parameter list.
 
 # Example
+
 ```julia
 q = from(:users) |> where(col(:users, :active) == param(Bool, :active))
 sql, params = compile(SQLiteDialect(), q)
@@ -250,14 +260,16 @@ sql, params = compile(SQLiteDialect(), q)
 # params → [:active]
 ```
 """
-function compile(dialect::SQLiteDialect, query::From{T})::Tuple{String, Vector{Symbol}} where {T}
+function compile(dialect::SQLiteDialect,
+                 query::From{T})::Tuple{String, Vector{Symbol}} where {T}
     params = Symbol[]
     table = quote_identifier(dialect, query.table)
     sql = "SELECT * FROM $table"
     return (sql, params)
 end
 
-function compile(dialect::SQLiteDialect, query::Where{T})::Tuple{String, Vector{Symbol}} where {T}
+function compile(dialect::SQLiteDialect,
+                 query::Where{T})::Tuple{String, Vector{Symbol}} where {T}
     # Compile the source query first
     source_sql, params = compile(dialect, query.source)
 
@@ -269,7 +281,8 @@ function compile(dialect::SQLiteDialect, query::Where{T})::Tuple{String, Vector{
     return (sql, params)
 end
 
-function compile(dialect::SQLiteDialect, query::Select{OutT})::Tuple{String, Vector{Symbol}} where {OutT}
+function compile(dialect::SQLiteDialect,
+                 query::Select{OutT})::Tuple{String, Vector{Symbol}} where {OutT}
     # Compile the source query first
     source_sql, params = compile(dialect, query.source)
 
@@ -294,7 +307,8 @@ function compile(dialect::SQLiteDialect, query::Select{OutT})::Tuple{String, Vec
     return (sql, params)
 end
 
-function compile(dialect::SQLiteDialect, query::Join{T})::Tuple{String, Vector{Symbol}} where {T}
+function compile(dialect::SQLiteDialect,
+                 query::Join{T})::Tuple{String, Vector{Symbol}} where {T}
     # Compile the source query first
     source_sql, params = compile(dialect, query.source)
 
@@ -322,7 +336,8 @@ function compile(dialect::SQLiteDialect, query::Join{T})::Tuple{String, Vector{S
     return (sql, params)
 end
 
-function compile(dialect::SQLiteDialect, query::OrderBy{T})::Tuple{String, Vector{Symbol}} where {T}
+function compile(dialect::SQLiteDialect,
+                 query::OrderBy{T})::Tuple{String, Vector{Symbol}} where {T}
     # Compile the source query first
     source_sql, params = compile(dialect, query.source)
 
@@ -339,7 +354,8 @@ function compile(dialect::SQLiteDialect, query::OrderBy{T})::Tuple{String, Vecto
     return (sql, params)
 end
 
-function compile(dialect::SQLiteDialect, query::Limit{T})::Tuple{String, Vector{Symbol}} where {T}
+function compile(dialect::SQLiteDialect,
+                 query::Limit{T})::Tuple{String, Vector{Symbol}} where {T}
     # Compile the source query first
     source_sql, params = compile(dialect, query.source)
 
@@ -348,7 +364,8 @@ function compile(dialect::SQLiteDialect, query::Limit{T})::Tuple{String, Vector{
     return (sql, params)
 end
 
-function compile(dialect::SQLiteDialect, query::Offset{T})::Tuple{String, Vector{Symbol}} where {T}
+function compile(dialect::SQLiteDialect,
+                 query::Offset{T})::Tuple{String, Vector{Symbol}} where {T}
     # Compile the source query first
     source_sql, params = compile(dialect, query.source)
 
@@ -357,7 +374,8 @@ function compile(dialect::SQLiteDialect, query::Offset{T})::Tuple{String, Vector
     return (sql, params)
 end
 
-function compile(dialect::SQLiteDialect, query::Distinct{T})::Tuple{String, Vector{Symbol}} where {T}
+function compile(dialect::SQLiteDialect,
+                 query::Distinct{T})::Tuple{String, Vector{Symbol}} where {T}
     # Compile the source query first
     source_sql, params = compile(dialect, query.source)
 
@@ -372,7 +390,8 @@ function compile(dialect::SQLiteDialect, query::Distinct{T})::Tuple{String, Vect
     return (sql, params)
 end
 
-function compile(dialect::SQLiteDialect, query::GroupBy{T})::Tuple{String, Vector{Symbol}} where {T}
+function compile(dialect::SQLiteDialect,
+                 query::GroupBy{T})::Tuple{String, Vector{Symbol}} where {T}
     # Compile the source query first
     source_sql, params = compile(dialect, query.source)
 
@@ -389,7 +408,8 @@ function compile(dialect::SQLiteDialect, query::GroupBy{T})::Tuple{String, Vecto
     return (sql, params)
 end
 
-function compile(dialect::SQLiteDialect, query::Having{T})::Tuple{String, Vector{Symbol}} where {T}
+function compile(dialect::SQLiteDialect,
+                 query::Having{T})::Tuple{String, Vector{Symbol}} where {T}
     # Compile the source query first
     source_sql, params = compile(dialect, query.source)
 

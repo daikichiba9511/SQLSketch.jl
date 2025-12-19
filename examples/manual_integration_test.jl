@@ -42,18 +42,19 @@ println("✓ Created 'users' table")
 
 # Insert test data
 execute(db, "INSERT INTO users (name, email, age, created_at) VALUES (?, ?, ?, ?)",
-    ["Alice", "alice@example.com", 30, "2025-01-01 10:00:00"])
+        ["Alice", "alice@example.com", 30, "2025-01-01 10:00:00"])
 execute(db, "INSERT INTO users (name, email, age, created_at) VALUES (?, ?, ?, ?)",
-    ["Bob", "bob@example.com", 25, "2025-01-02 11:00:00"])
+        ["Bob", "bob@example.com", 25, "2025-01-02 11:00:00"])
 execute(db, "INSERT INTO users (name, email, age, created_at) VALUES (?, ?, ?, ?)",
-    ["Charlie", "charlie@example.com", 35, "2025-01-03 12:00:00"])
+        ["Charlie", "charlie@example.com", 35, "2025-01-03 12:00:00"])
 println("✓ Inserted 3 test records")
 
 # Step 2: Build Query AST
 println("\n[2] Building Query AST...")
 q = from(:users) |>
     where(col(:users, :age) > literal(26)) |>
-    select(NamedTuple, col(:users, :id), col(:users, :name), col(:users, :email), col(:users, :age)) |>
+    select(NamedTuple, col(:users, :id), col(:users, :name), col(:users, :email),
+           col(:users, :age)) |>
     order_by(col(:users, :name))
 println("✓ Query AST constructed")
 
@@ -80,12 +81,10 @@ results_list = []
 for row in result
     # Convert SQLite.Row to NamedTuple manually
     # (In Phase 6, this will be automated by map_row)
-    nt = (
-        id = row.id,
-        name = row.name,
-        email = row.email,
-        age = row.age
-    )
+    nt = (id = row.id,
+          name = row.name,
+          email = row.email,
+          age = row.age)
     push!(results_list, nt)
     println("Row $(length(results_list)): $nt")
 end
@@ -105,12 +104,10 @@ end
 result2 = execute(db, sql_string, [])
 users = User[]
 for row in result2
-    nt = (
-        id = row.id,
-        name = row.name,
-        email = row.email,
-        age = row.age
-    )
+    nt = (id = row.id,
+          name = row.name,
+          email = row.email,
+          age = row.age)
     user = map_row(registry, User, nt)
     push!(users, user)
 end

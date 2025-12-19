@@ -45,116 +45,98 @@ struct TestCase
 end
 
 # Define test cases
-test_cases = [
-    TestCase(
-        "Simple SELECT",
-        "Select all users ordered by id",
-        () -> from(:users) |>
-              select(NamedTuple, col(:users, :id), col(:users, :name), col(:users, :email)) |>
-              order_by(col(:users, :id)),
-        "SELECT id, name, email FROM users ORDER BY id",
-        (results) -> begin
-            @test length(results) == 5
-            @test results[1].name == "Alice"
-            @test results[5].name == "Eve"
-        end
-    ),
-
-    TestCase(
-        "WHERE clause",
-        "Filter users by age > 26",
-        () -> from(:users) |>
-              where(col(:users, :age) > literal(26)) |>
-              select(NamedTuple, col(:users, :id), col(:users, :name), col(:users, :age)) |>
-              order_by(col(:users, :age)),
-        "SELECT id, name, age FROM users WHERE age > 26 ORDER BY age",
-        (results) -> begin
-            @test length(results) == 4  # Diana(28), Alice(30), Eve(32), Charlie(35)
-            @test results[1].name == "Diana"
-            @test results[1].age == 28
-            @test results[4].name == "Charlie"
-            @test results[4].age == 35
-        end
-    ),
-
-    TestCase(
-        "LIMIT",
-        "Get first 3 users",
-        () -> from(:users) |>
-              select(NamedTuple, col(:users, :id), col(:users, :name)) |>
-              order_by(col(:users, :id)) |>
-              limit(3),
-        "SELECT id, name FROM users ORDER BY id LIMIT 3",
-        (results) -> begin
-            @test length(results) == 3
-            @test results[1].name == "Alice"
-            @test results[3].name == "Charlie"
-        end
-    ),
-
-    TestCase(
-        "OFFSET",
-        "Skip first 2 users, get next 2",
-        () -> from(:users) |>
-              select(NamedTuple, col(:users, :id), col(:users, :name)) |>
-              order_by(col(:users, :id)) |>
-              limit(2) |>
-              offset(2),
-        "SELECT id, name FROM users ORDER BY id LIMIT 2 OFFSET 2",
-        (results) -> begin
-            @test length(results) == 2
-            @test results[1].name == "Charlie"
-            @test results[2].name == "Diana"
-        end
-    ),
-
-    TestCase(
-        "ORDER BY DESC",
-        "Users ordered by age descending",
-        () -> from(:users) |>
-              select(NamedTuple, col(:users, :name), col(:users, :age)) |>
-              order_by(col(:users, :age); desc=true),
-        "SELECT name, age FROM users ORDER BY age DESC",
-        (results) -> begin
-            @test length(results) == 5
-            @test results[1].name == "Charlie"  # age 35
-            @test results[1].age == 35
-            @test results[5].name == "Bob"      # age 25
-            @test results[5].age == 25
-        end
-    ),
-
-    TestCase(
-        "DISTINCT",
-        "Distinct ages",
-        () -> from(:users) |>
-              select(NamedTuple, col(:users, :age)) |>
-              distinct |>
-              order_by(col(:users, :age)),
-        "SELECT DISTINCT age FROM users ORDER BY age",
-        (results) -> begin
-            @test length(results) == 5  # All users have different ages
-            @test results[1].age == 25
-            @test results[5].age == 35
-        end
-    ),
-
-    TestCase(
-        "Multiple WHERE",
-        "Active users over 27",
-        () -> from(:users) |>
-              where(col(:users, :is_active) == literal(1) & (col(:users, :age) > literal(27))) |>
-              select(NamedTuple, col(:users, :name), col(:users, :age), col(:users, :is_active)) |>
-              order_by(col(:users, :name)),
-        "SELECT name, age, is_active FROM users WHERE is_active = 1 AND age > 27 ORDER BY name",
-        (results) -> begin
-            @test length(results) == 3  # Alice(30), Diana(28), Eve(32)
-            @test results[1].name == "Alice"
-            @test results[2].name == "Diana"
-            @test results[3].name == "Eve"
-        end
-    ),
-]
+test_cases = [TestCase("Simple SELECT",
+                       "Select all users ordered by id",
+                       () -> from(:users) |>
+                             select(NamedTuple, col(:users, :id), col(:users, :name),
+                                    col(:users, :email)) |>
+                             order_by(col(:users, :id)),
+                       "SELECT id, name, email FROM users ORDER BY id",
+                       (results) -> begin
+                           @test length(results) == 5
+                           @test results[1].name == "Alice"
+                           @test results[5].name == "Eve"
+                       end),
+              TestCase("WHERE clause",
+                       "Filter users by age > 26",
+                       () -> from(:users) |>
+                             where(col(:users, :age) > literal(26)) |>
+                             select(NamedTuple, col(:users, :id), col(:users, :name),
+                                    col(:users, :age)) |>
+                             order_by(col(:users, :age)),
+                       "SELECT id, name, age FROM users WHERE age > 26 ORDER BY age",
+                       (results) -> begin
+                           @test length(results) == 4  # Diana(28), Alice(30), Eve(32), Charlie(35)
+                           @test results[1].name == "Diana"
+                           @test results[1].age == 28
+                           @test results[4].name == "Charlie"
+                           @test results[4].age == 35
+                       end),
+              TestCase("LIMIT",
+                       "Get first 3 users",
+                       () -> from(:users) |>
+                             select(NamedTuple, col(:users, :id), col(:users, :name)) |>
+                             order_by(col(:users, :id)) |>
+                             limit(3),
+                       "SELECT id, name FROM users ORDER BY id LIMIT 3",
+                       (results) -> begin
+                           @test length(results) == 3
+                           @test results[1].name == "Alice"
+                           @test results[3].name == "Charlie"
+                       end),
+              TestCase("OFFSET",
+                       "Skip first 2 users, get next 2",
+                       () -> from(:users) |>
+                             select(NamedTuple, col(:users, :id), col(:users, :name)) |>
+                             order_by(col(:users, :id)) |>
+                             limit(2) |>
+                             offset(2),
+                       "SELECT id, name FROM users ORDER BY id LIMIT 2 OFFSET 2",
+                       (results) -> begin
+                           @test length(results) == 2
+                           @test results[1].name == "Charlie"
+                           @test results[2].name == "Diana"
+                       end),
+              TestCase("ORDER BY DESC",
+                       "Users ordered by age descending",
+                       () -> from(:users) |>
+                             select(NamedTuple, col(:users, :name), col(:users, :age)) |>
+                             order_by(col(:users, :age); desc = true),
+                       "SELECT name, age FROM users ORDER BY age DESC",
+                       (results) -> begin
+                           @test length(results) == 5
+                           @test results[1].name == "Charlie"  # age 35
+                           @test results[1].age == 35
+                           @test results[5].name == "Bob"      # age 25
+                           @test results[5].age == 25
+                       end),
+              TestCase("DISTINCT",
+                       "Distinct ages",
+                       () -> from(:users) |>
+                             select(NamedTuple, col(:users, :age)) |>
+                             distinct |>
+                             order_by(col(:users, :age)),
+                       "SELECT DISTINCT age FROM users ORDER BY age",
+                       (results) -> begin
+                           @test length(results) == 5  # All users have different ages
+                           @test results[1].age == 25
+                           @test results[5].age == 35
+                       end),
+              TestCase("Multiple WHERE",
+                       "Active users over 27",
+                       () -> from(:users) |>
+                             where(col(:users, :is_active) ==
+                                   literal(1) & (col(:users, :age) > literal(27))) |>
+                             select(NamedTuple, col(:users, :name), col(:users, :age),
+                                    col(:users, :is_active)) |>
+                             order_by(col(:users, :name)),
+                       "SELECT name, age, is_active FROM users WHERE is_active = 1 AND age > 27 ORDER BY name",
+                       (results) -> begin
+                           @test length(results) == 3  # Alice(30), Diana(28), Eve(32)
+                           @test results[1].name == "Alice"
+                           @test results[2].name == "Diana"
+                           @test results[3].name == "Eve"
+                       end)]
 
 # Run tests
 println("Running $(length(test_cases)) test cases...")

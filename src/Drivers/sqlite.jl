@@ -39,6 +39,7 @@ import ..Core: Driver, Connection, connect, execute
 SQLite database driver.
 
 # Example
+
 ```julia
 driver = SQLiteDriver()
 db = connect(driver, ":memory:")
@@ -53,7 +54,8 @@ end
 SQLite database connection wrapper.
 
 # Fields
-- `db`: The underlying SQLite.DB instance
+
+  - `db`: The underlying SQLite.DB instance
 """
 struct SQLiteConnection <: Connection
     db::SQLite.DB
@@ -69,13 +71,16 @@ end
 Connect to a SQLite database.
 
 # Arguments
-- `driver`: SQLiteDriver instance
-- `path`: Database file path or `:memory:` for in-memory database
+
+  - `driver`: SQLiteDriver instance
+  - `path`: Database file path or `:memory:` for in-memory database
 
 # Returns
-- SQLiteConnection instance
+
+  - SQLiteConnection instance
 
 # Example
+
 ```julia
 # In-memory database
 db = connect(SQLiteDriver(), ":memory:")
@@ -95,15 +100,18 @@ end
 Execute a SQL statement against a SQLite database.
 
 # Arguments
-- `conn`: Active SQLite connection
-- `sql`: SQL statement to execute
-- `params`: Optional vector of parameter values (bound to `?` placeholders)
+
+  - `conn`: Active SQLite connection
+  - `sql`: SQL statement to execute
+  - `params`: Optional vector of parameter values (bound to `?` placeholders)
 
 # Returns
-- SQLite.Query object for SELECT statements
-- Nothing for DDL/DML statements
+
+  - SQLite.Query object for SELECT statements
+  - Nothing for DDL/DML statements
 
 # Example
+
 ```julia
 # DDL
 execute(db, "CREATE TABLE users (id INTEGER PRIMARY KEY, email TEXT)")
@@ -113,9 +121,9 @@ execute(db, "INSERT INTO users (email) VALUES (?)", ["test@example.com"])
 
 # Query
 result = execute(db, "SELECT * FROM users WHERE id = ?", [1])
-```
+```    # Use DBInterface.execute for parameter binding
 """
-function execute(conn::SQLiteConnection, sql::String, params::Vector=Any[])
+function execute(conn::SQLiteConnection, sql::String, params::Vector = Any[])
     # Use DBInterface.execute for parameter binding
     # SQLite.jl automatically handles parameter binding with Vector
     return DBInterface.execute(conn.db, sql, params)
@@ -127,9 +135,11 @@ end
 Close a SQLite connection and release resources.
 
 # Arguments
-- `conn`: The connection to close
+
+  - `conn`: The connection to close
 
 # Example
+
 ```julia
 close(db)
 ```

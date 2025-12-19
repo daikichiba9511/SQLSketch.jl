@@ -84,7 +84,8 @@ The CodecRegistry maintains a mapping from Julia types to codecs.
 This centralizes all type conversion logic in a single, inspectable location.
 
 # Fields
-- `codecs::Dict{Type, Codec}` - Mapping from Julia types to codecs
+
+  - `codecs::Dict{Type, Codec}` - Mapping from Julia types to codecs
 """
 struct CodecRegistry
     codecs::Dict{Type, Codec}
@@ -96,10 +97,11 @@ end
 Create a new CodecRegistry with default codecs registered.
 
 Default codecs include:
-- Basic types: Int, Float64, String, Bool
-- Date/Time types: Date, DateTime
-- UUID (as TEXT)
-- Missing (NULL policy)
+
+  - Basic types: Int, Float64, String, Bool
+  - Date/Time types: Date, DateTime
+  - UUID (as TEXT)
+  - Missing (NULL policy)
 """
 function CodecRegistry()::CodecRegistry
     registry = CodecRegistry(Dict{Type, Codec}())
@@ -122,6 +124,7 @@ end
 Register a codec for a specific Julia type.
 
 # Example
+
 ```julia
 registry = CodecRegistry()
 register!(registry, MyType, MyTypeCodec())
@@ -140,6 +143,7 @@ Retrieve the codec for a specific Julia type.
 Throws an error if no codec is registered for the type.
 
 # Example
+
 ```julia
 codec = get_codec(registry, Int)
 encoded = encode(codec, 42)
@@ -291,8 +295,9 @@ decode(::UUIDCodec, value::UUID)::UUID = value
 Map a database row to a NamedTuple, applying type conversion via codecs.
 
 # Example
+
 ```julia
-row = (id=1, email="test@example.com")
+row = (id = 1, email = "test@example.com")
 result = map_row(registry, NamedTuple, row)
 # → (id=1, email="test@example.com")
 ```
@@ -312,21 +317,23 @@ end
 Map a database row to a struct of type T, applying type conversion via codecs.
 
 # Example
+
 ```julia
 struct User
     id::Int
     email::String
 end
 
-row = (id=1, email="test@example.com")
+row = (id = 1, email = "test@example.com")
 user = map_row(registry, User, row)
 # → User(1, "test@example.com")
 ```
 
 # Requirements
-- Field names in the row must match field names in the struct
-- Field types must have registered codecs
-- Fields are passed to the constructor in the order they are defined in the struct
+
+  - Field names in the row must match field names in the struct
+  - Field types must have registered codecs
+  - Fields are passed to the constructor in the order they are defined in the struct
 """
 function map_row(registry::CodecRegistry, ::Type{T}, row)::T where {T}
     # Get field names and types from the target struct

@@ -57,9 +57,11 @@ Represents a table source in a SQL query.
 This is the starting point of any query pipeline.
 
 # Type Parameter
-- `T`: The output type of rows from this query node (typically `NamedTuple`)
+
+  - `T`: The output type of rows from this query node (typically `NamedTuple`)
 
 # Example
+
 ```julia
 q = From{NamedTuple}(:users)
 ```
@@ -76,9 +78,11 @@ Represents a WHERE clause that filters rows.
 This is a **shape-preserving** operation – the output type `T` remains unchanged.
 
 # Type Parameter
-- `T`: The output type (inherited from the source query)
+
+  - `T`: The output type (inherited from the source query)
 
 # Example
+
 ```julia
 q = From{NamedTuple}(:users)
 q2 = Where(q, col(:users, :active) == literal(true))
@@ -98,9 +102,11 @@ This is the **only shape-changing** operation – it changes the output type fro
 source type to `OutT`.
 
 # Type Parameter
-- `OutT`: The output type after projection (e.g., `NamedTuple`, or a user-defined struct)
+
+  - `OutT`: The output type after projection (e.g., `NamedTuple`, or a user-defined struct)
 
 # Example
+
 ```julia
 q = From{NamedTuple}(:users)
 q2 = Select{NamedTuple}(q, [col(:users, :id), col(:users, :email)])
@@ -119,12 +125,15 @@ Represents an ORDER BY clause.
 This is a **shape-preserving** operation – the output type `T` remains unchanged.
 
 # Type Parameter
-- `T`: The output type (inherited from the source query)
+
+  - `T`: The output type (inherited from the source query)
 
 # Fields
-- `orderings`: A vector of `(expression, descending)` tuples
+
+  - `orderings`: A vector of `(expression, descending)` tuples
 
 # Example
+
 ```julia
 q = From{NamedTuple}(:users)
 q2 = OrderBy(q, [(col(:users, :created_at), true)])  # DESC
@@ -143,9 +152,11 @@ Represents a LIMIT clause.
 This is a **shape-preserving** operation – the output type `T` remains unchanged.
 
 # Type Parameter
-- `T`: The output type (inherited from the source query)
+
+  - `T`: The output type (inherited from the source query)
 
 # Example
+
 ```julia
 q = From{NamedTuple}(:users)
 q2 = Limit(q, 10)
@@ -164,9 +175,11 @@ Represents an OFFSET clause.
 This is a **shape-preserving** operation – the output type `T` remains unchanged.
 
 # Type Parameter
-- `T`: The output type (inherited from the source query)
+
+  - `T`: The output type (inherited from the source query)
 
 # Example
+
 ```julia
 q = From{NamedTuple}(:users)
 q2 = Offset(q, 20)
@@ -185,9 +198,11 @@ Represents a DISTINCT clause.
 This is a **shape-preserving** operation – the output type `T` remains unchanged.
 
 # Type Parameter
-- `T`: The output type (inherited from the source query)
+
+  - `T`: The output type (inherited from the source query)
 
 # Example
+
 ```julia
 q = From{NamedTuple}(:users)
 q2 = Distinct(q)
@@ -205,9 +220,11 @@ Represents a GROUP BY clause.
 This is a **shape-preserving** operation – the output type `T` remains unchanged.
 
 # Type Parameter
-- `T`: The output type (inherited from the source query)
+
+  - `T`: The output type (inherited from the source query)
 
 # Example
+
 ```julia
 q = From{NamedTuple}(:orders)
 q2 = GroupBy(q, [col(:orders, :user_id)])
@@ -226,9 +243,11 @@ Represents a HAVING clause (used with GROUP BY).
 This is a **shape-preserving** operation – the output type `T` remains unchanged.
 
 # Type Parameter
-- `T`: The output type (inherited from the source query)
+
+  - `T`: The output type (inherited from the source query)
 
 # Example
+
 ```julia
 q = From{NamedTuple}(:orders) |> GroupBy([col(:orders, :user_id)])
 q2 = Having(q, func(:COUNT, [col(:orders, :id)]) > literal(5))
@@ -248,12 +267,15 @@ This is a **shape-preserving** operation for now – the output type `T` remains
 (In a full implementation, joins would combine types from both tables.)
 
 # Type Parameter
-- `T`: The output type (inherited from the source query)
+
+  - `T`: The output type (inherited from the source query)
 
 # Fields
-- `kind`: Join type (`:inner`, `:left`, `:right`, `:full`)
+
+  - `kind`: Join type (`:inner`, `:left`, `:right`, `:full`)
 
 # Example
+
 ```julia
 q = From{NamedTuple}(:users)
 q2 = Join(q, :orders, col(:users, :id) == col(:orders, :user_id), :inner)
@@ -276,6 +298,7 @@ end
 Creates a FROM clause as the starting point of a query.
 
 # Example
+
 ```julia
 q = from(:users)
 ```
@@ -292,12 +315,14 @@ Adds a WHERE clause to filter rows.
 This is a **shape-preserving** operation.
 
 Can be used in two ways:
-- Explicit: `where(query, condition)`
-- Pipeline: `query |> where(condition)`
+
+  - Explicit: `where(query, condition)`
+  - Pipeline: `query |> where(condition)`
 
 The curried form `where(condition)` returns a function suitable for pipeline composition.
 
 # Example
+
 ```julia
 # Pipeline style
 q = from(:users) |> where(col(:users, :active) == literal(true))
@@ -321,12 +346,14 @@ Adds a SELECT clause to project specific columns.
 This is the **only shape-changing** operation – it changes the output type to `OutT`.
 
 Can be used in two ways:
-- Explicit: `select(query, OutT, fields...)`
-- Pipeline: `query |> select(OutT, fields...)`
+
+  - Explicit: `select(query, OutT, fields...)`
+  - Pipeline: `query |> select(OutT, fields...)`
 
 The curried form `select(OutT, fields...)` returns a function suitable for pipeline composition.
 
 # Example
+
 ```julia
 # Pipeline style
 q = from(:users) |> select(NamedTuple, col(:users, :id), col(:users, :email))
@@ -335,7 +362,8 @@ q = from(:users) |> select(NamedTuple, col(:users, :id), col(:users, :email))
 q = select(from(:users), NamedTuple, col(:users, :id), col(:users, :email))
 ```
 """
-select(q::Query, OutT::Type, fields::SQLExpr...)::Select{OutT} = Select{OutT}(q, collect(fields))
+select(q::Query, OutT::Type, fields::SQLExpr...)::Select{OutT} = Select{OutT}(q,
+                                                                              collect(fields))
 
 # Curried version for pipeline composition
 select(OutT::Type, fields::SQLExpr...) = q -> select(q, OutT, fields...)
@@ -348,21 +376,23 @@ Adds an ORDER BY clause.
 This is a **shape-preserving** operation.
 
 Can be used in two ways:
-- Explicit: `order_by(query, field, desc=false)`
-- Pipeline: `query |> order_by(field, desc=false)`
+
+  - Explicit: `order_by(query, field, desc=false)`
+  - Pipeline: `query |> order_by(field, desc=false)`
 
 The curried form `order_by(field; desc=false)` returns a function suitable for pipeline composition.
 
 # Example
+
 ```julia
 # Pipeline style
-q = from(:users) |> order_by(col(:users, :created_at), desc=true)
+q = from(:users) |> order_by(col(:users, :created_at); desc = true)
 
 # Explicit style
-q = order_by(from(:users), col(:users, :created_at), desc=true)
+q = order_by(from(:users), col(:users, :created_at); desc = true)
 ```
 """
-function order_by(q::Query{T}, field::SQLExpr; desc::Bool=false) where {T}
+function order_by(q::Query{T}, field::SQLExpr; desc::Bool = false) where {T}
     # If the query is already an OrderBy, append to its orderings
     if q isa OrderBy{T}
         return OrderBy{T}(q.source, vcat(q.orderings, [(field, desc)]))
@@ -372,7 +402,7 @@ function order_by(q::Query{T}, field::SQLExpr; desc::Bool=false) where {T}
 end
 
 # Curried version for pipeline composition
-order_by(field::SQLExpr; desc::Bool=false) = q -> order_by(q, field, desc=desc)
+order_by(field::SQLExpr; desc::Bool = false) = q -> order_by(q, field, desc = desc)
 
 """
     limit(q::Query{T}, n::Int)::Limit{T}
@@ -382,12 +412,14 @@ Adds a LIMIT clause.
 This is a **shape-preserving** operation.
 
 Can be used in two ways:
-- Explicit: `limit(query, n)`
-- Pipeline: `query |> limit(n)`
+
+  - Explicit: `limit(query, n)`
+  - Pipeline: `query |> limit(n)`
 
 The curried form `limit(n)` returns a function suitable for pipeline composition.
 
 # Example
+
 ```julia
 q = from(:users) |> limit(10)
 ```
@@ -407,12 +439,14 @@ Adds an OFFSET clause.
 This is a **shape-preserving** operation.
 
 Can be used in two ways:
-- Explicit: `offset(query, n)`
-- Pipeline: `query |> offset(n)`
+
+  - Explicit: `offset(query, n)`
+  - Pipeline: `query |> offset(n)`
 
 The curried form `offset(n)` returns a function suitable for pipeline composition.
 
 # Example
+
 ```julia
 q = from(:users) |> offset(20)
 ```
@@ -432,6 +466,7 @@ Adds a DISTINCT clause.
 This is a **shape-preserving** operation.
 
 # Example
+
 ```julia
 q = from(:users) |> select(NamedTuple, col(:users, :email)) |> distinct
 ```
@@ -448,12 +483,14 @@ Adds a GROUP BY clause.
 This is a **shape-preserving** operation.
 
 Can be used in two ways:
-- Explicit: `group_by(query, fields...)`
-- Pipeline: `query |> group_by(fields...)`
+
+  - Explicit: `group_by(query, fields...)`
+  - Pipeline: `query |> group_by(fields...)`
 
 The curried form `group_by(fields...)` returns a function suitable for pipeline composition.
 
 # Example
+
 ```julia
 q = from(:orders) |> group_by(col(:orders, :user_id))
 ```
@@ -473,12 +510,14 @@ Adds a HAVING clause (used with GROUP BY).
 This is a **shape-preserving** operation.
 
 Can be used in two ways:
-- Explicit: `having(query, condition)`
-- Pipeline: `query |> having(condition)`
+
+  - Explicit: `having(query, condition)`
+  - Pipeline: `query |> having(condition)`
 
 The curried form `having(condition)` returns a function suitable for pipeline composition.
 
 # Example
+
 ```julia
 q = from(:orders) |>
     group_by(col(:orders, :user_id)) |>
@@ -500,42 +539,54 @@ Adds a JOIN clause.
 This is a **shape-preserving** operation (for now).
 
 Can be used in two ways:
-- Explicit: `join(query, table, on, kind=:inner)`
-- Pipeline: `query |> join(table, on, kind=:inner)`
+
+  - Explicit: `join(query, table, on, kind=:inner)`
+  - Pipeline: `query |> join(table, on, kind=:inner)`
 
 The curried form `join(table, on; kind=:inner)` returns a function suitable for pipeline composition.
 
 # Arguments
-- `kind`: Join type (`:inner`, `:left`, `:right`, `:full`)
+
+  - `kind`: Join type (`:inner`, `:left`, `:right`, `:full`)
 
 # Example
+
 ```julia
 q = from(:users) |>
     join(:orders, col(:users, :id) == col(:orders, :user_id))
 ```
 """
-function join(q::Query{T}, table::Symbol, on::SQLExpr; kind::Symbol=:inner) where {T}
+function join(q::Query{T}, table::Symbol, on::SQLExpr; kind::Symbol = :inner) where {T}
     @assert kind in (:inner, :left, :right, :full) "Invalid join kind: $kind"
     return Join{T}(q, table, on, kind)
 end
 
 # Curried version for pipeline composition
-join(table::Symbol, on::SQLExpr; kind::Symbol=:inner) = q -> join(q, table, on, kind=kind)
+join(table::Symbol, on::SQLExpr; kind::Symbol = :inner) = q -> join(q, table, on,
+                                                                    kind = kind)
 
 #
 # Structural Equality (for testing)
 #
 
 Base.isequal(a::From{T}, b::From{T}) where {T} = a.table == b.table
-Base.isequal(a::Where{T}, b::Where{T}) where {T} = isequal(a.source, b.source) && isequal(a.condition, b.condition)
-Base.isequal(a::Select{T}, b::Select{T}) where {T} = isequal(a.source, b.source) && isequal(a.fields, b.fields)
-Base.isequal(a::OrderBy{T}, b::OrderBy{T}) where {T} = isequal(a.source, b.source) && isequal(a.orderings, b.orderings)
+Base.isequal(a::Where{T}, b::Where{T}) where {T} = isequal(a.source, b.source) &&
+                                                   isequal(a.condition, b.condition)
+Base.isequal(a::Select{T}, b::Select{T}) where {T} = isequal(a.source, b.source) &&
+                                                     isequal(a.fields, b.fields)
+Base.isequal(a::OrderBy{T}, b::OrderBy{T}) where {T} = isequal(a.source, b.source) &&
+                                                       isequal(a.orderings, b.orderings)
 Base.isequal(a::Limit{T}, b::Limit{T}) where {T} = isequal(a.source, b.source) && a.n == b.n
-Base.isequal(a::Offset{T}, b::Offset{T}) where {T} = isequal(a.source, b.source) && a.n == b.n
+Base.isequal(a::Offset{T}, b::Offset{T}) where {T} = isequal(a.source, b.source) &&
+                                                     a.n == b.n
 Base.isequal(a::Distinct{T}, b::Distinct{T}) where {T} = isequal(a.source, b.source)
-Base.isequal(a::GroupBy{T}, b::GroupBy{T}) where {T} = isequal(a.source, b.source) && isequal(a.fields, b.fields)
-Base.isequal(a::Having{T}, b::Having{T}) where {T} = isequal(a.source, b.source) && isequal(a.condition, b.condition)
-Base.isequal(a::Join{T}, b::Join{T}) where {T} = isequal(a.source, b.source) && a.table == b.table && isequal(a.on, b.on) && a.kind == b.kind
+Base.isequal(a::GroupBy{T}, b::GroupBy{T}) where {T} = isequal(a.source, b.source) &&
+                                                       isequal(a.fields, b.fields)
+Base.isequal(a::Having{T}, b::Having{T}) where {T} = isequal(a.source, b.source) &&
+                                                     isequal(a.condition, b.condition)
+Base.isequal(a::Join{T}, b::Join{T}) where {T} = isequal(a.source, b.source) &&
+                                                 a.table == b.table &&
+                                                 isequal(a.on, b.on) && a.kind == b.kind
 
 # Different types are never equal
 Base.isequal(a::Query, b::Query) = false

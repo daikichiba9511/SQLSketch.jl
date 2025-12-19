@@ -49,13 +49,11 @@ println("✓ Table 'users' created")
 
 # Insert test data
 println("\nInserting test data...")
-users_data = [
-    ("Alice", "alice@example.com", 30, 1, "2025-01-01 10:00:00"),
-    ("Bob", "bob@example.com", 25, 1, "2025-01-02 11:00:00"),
-    ("Charlie", "charlie@example.com", 35, 0, "2025-01-03 12:00:00"),
-    ("Diana", "diana@example.com", 28, 1, "2025-01-04 13:00:00"),
-    ("Eve", "eve@example.com", 32, 1, "2025-01-05 14:00:00"),
-]
+users_data = [("Alice", "alice@example.com", 30, 1, "2025-01-01 10:00:00"),
+              ("Bob", "bob@example.com", 25, 1, "2025-01-02 11:00:00"),
+              ("Charlie", "charlie@example.com", 35, 0, "2025-01-03 12:00:00"),
+              ("Diana", "diana@example.com", 28, 1, "2025-01-04 13:00:00"),
+              ("Eve", "eve@example.com", 32, 1, "2025-01-05 14:00:00")]
 
 for (name, email, age, is_active, created_at) in users_data
     execute(db, """
@@ -81,13 +79,11 @@ println("✓ Table 'posts' created")
 
 # Insert posts data
 println("\nInserting posts data...")
-posts_data = [
-    (1, "First Post", "Hello, World!", "2025-01-06 09:00:00"),
-    (1, "Second Post", "Julia is awesome", "2025-01-07 10:00:00"),
-    (2, "Bob's Post", "Testing SQLSketch", "2025-01-08 11:00:00"),
-    (4, "Diana's Thoughts", "Loving this framework", "2025-01-09 12:00:00"),
-    (5, "Eve's Update", "Working on new features", "2025-01-10 13:00:00"),
-]
+posts_data = [(1, "First Post", "Hello, World!", "2025-01-06 09:00:00"),
+              (1, "Second Post", "Julia is awesome", "2025-01-07 10:00:00"),
+              (2, "Bob's Post", "Testing SQLSketch", "2025-01-08 11:00:00"),
+              (4, "Diana's Thoughts", "Loving this framework", "2025-01-09 12:00:00"),
+              (5, "Eve's Update", "Working on new features", "2025-01-10 13:00:00")]
 
 for (user_id, title, content, created_at) in posts_data
     execute(db, """

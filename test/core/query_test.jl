@@ -1,6 +1,8 @@
 using Test
-using SQLSketch.Core: Query, From, Where, Select, OrderBy, Limit, Offset, Distinct, GroupBy, Having, Join
-using SQLSketch.Core: from, where, select, order_by, limit, offset, distinct, group_by, having, join
+using SQLSketch.Core: Query, From, Where, Select, OrderBy, Limit, Offset, Distinct, GroupBy,
+                      Having, Join
+using SQLSketch.Core: from, where, select, order_by, limit, offset, distinct, group_by,
+                      having, join
 using SQLSketch.Core: SQLExpr, col, literal, param, func
 
 @testset "Query AST" begin
@@ -73,7 +75,7 @@ using SQLSketch.Core: SQLExpr, col, literal, param, func
 
     @testset "order_by() helper" begin
         source = from(:users)
-        q = order_by(source, col(:users, :created_at), desc=true)
+        q = order_by(source, col(:users, :created_at), desc = true)
 
         @test q isa OrderBy{NamedTuple}
         @test q.source === source
@@ -84,8 +86,8 @@ using SQLSketch.Core: SQLExpr, col, literal, param, func
     @testset "order_by() multiple fields" begin
         source = from(:users)
         q = source |>
-            order_by(col(:users, :name), desc=false) |>
-            order_by(col(:users, :created_at), desc=true)
+            order_by(col(:users, :name), desc = false) |>
+            order_by(col(:users, :created_at), desc = true)
 
         @test q isa OrderBy{NamedTuple}
         @test length(q.orderings) == 2
@@ -228,7 +230,7 @@ using SQLSketch.Core: SQLExpr, col, literal, param, func
     @testset "join() helper - left join" begin
         source = from(:users)
         on_condition = col(:users, :id) == col(:orders, :user_id)
-        q = join(source, :orders, on_condition, kind=:left)
+        q = join(source, :orders, on_condition, kind = :left)
 
         @test q isa Join{NamedTuple}
         @test q.kind == :left
@@ -237,7 +239,7 @@ using SQLSketch.Core: SQLExpr, col, literal, param, func
     @testset "join() helper - invalid kind" begin
         source = from(:users)
         on_condition = col(:users, :id) == col(:orders, :user_id)
-        @test_throws AssertionError join(source, :orders, on_condition, kind=:invalid)
+        @test_throws AssertionError join(source, :orders, on_condition, kind = :invalid)
     end
 end
 
@@ -257,8 +259,9 @@ end
     @testset "Complex pipeline" begin
         q = from(:users) |>
             where(col(:users, :active) == literal(true)) |>
-            select(NamedTuple, col(:users, :id), col(:users, :email), col(:users, :created_at)) |>
-            order_by(col(:users, :created_at), desc=true) |>
+            select(NamedTuple, col(:users, :id), col(:users, :email),
+                   col(:users, :created_at)) |>
+            order_by(col(:users, :created_at), desc = true) |>
             limit(10) |>
             offset(20)
 
@@ -399,7 +402,7 @@ end
     @testset "Multiple order_by calls accumulate" begin
         q = from(:users) |>
             order_by(col(:users, :name)) |>
-            order_by(col(:users, :created_at), desc=true)
+            order_by(col(:users, :created_at), desc = true)
 
         @test q isa OrderBy{NamedTuple}
         @test length(q.orderings) == 2
@@ -423,7 +426,7 @@ end
         q = from(:users) |>
             where(col(:users, :active) == literal(true)) |>
             select(NamedTuple, col(:users, :id), col(:users, :email), col(:users, :name)) |>
-            order_by(col(:users, :created_at), desc=true) |>
+            order_by(col(:users, :created_at), desc = true) |>
             limit(20) |>
             offset(0)
 
@@ -438,12 +441,10 @@ end
             where(col(:orders, :status) == literal("completed")) |>
             group_by(col(:orders, :user_id)) |>
             having(func(:COUNT, [col(:orders, :id)]) > literal(5)) |>
-            select(
-                NamedTuple,
-                col(:orders, :user_id),
-                func(:COUNT, [col(:orders, :id)]),
-                func(:SUM, [col(:orders, :total)])
-            )
+            select(NamedTuple,
+                   col(:orders, :user_id),
+                   func(:COUNT, [col(:orders, :id)]),
+                   func(:SUM, [col(:orders, :total)]))
 
         @test q isa Select{NamedTuple}
         @test length(q.fields) == 3
@@ -451,15 +452,13 @@ end
 
     @testset "Example 3: Join query" begin
         q = from(:users) |>
-            join(:orders, col(:users, :id) == col(:orders, :user_id), kind=:left) |>
+            join(:orders, col(:users, :id) == col(:orders, :user_id), kind = :left) |>
             where(col(:users, :active) == literal(true)) |>
-            select(
-                NamedTuple,
-                col(:users, :email),
-                col(:orders, :id),
-                col(:orders, :total)
-            ) |>
-            order_by(col(:orders, :created_at), desc=true)
+            select(NamedTuple,
+                   col(:users, :email),
+                   col(:orders, :id),
+                   col(:orders, :total)) |>
+            order_by(col(:orders, :created_at), desc = true)
 
         @test q isa OrderBy{NamedTuple}
         @test q.source isa Select{NamedTuple}

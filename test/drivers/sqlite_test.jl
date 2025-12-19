@@ -58,7 +58,8 @@ import Tables
         result = execute(db, "CREATE TABLE users (id INTEGER PRIMARY KEY, email TEXT)")
 
         # Verify table exists by querying sqlite_master
-        result = execute(db, "SELECT name FROM sqlite_master WHERE type='table' AND name='users'")
+        result = execute(db,
+                         "SELECT name FROM sqlite_master WHERE type='table' AND name='users'")
         rows = Tables.rowtable(result)
         @test length(rows) == 1
         @test rows[1].name == "users"
@@ -95,7 +96,8 @@ import Tables
         execute(db, "INSERT INTO users (email) VALUES (?)", ["param@example.com"])
 
         # Verify with parameter binding in SELECT
-        result = execute(db, "SELECT email FROM users WHERE email = ?", ["param@example.com"])
+        result = execute(db, "SELECT email FROM users WHERE email = ?",
+                         ["param@example.com"])
         rows = Tables.rowtable(result)
         @test length(rows) == 1
         @test rows[1].email == "param@example.com"
@@ -108,11 +110,14 @@ import Tables
         db = connect(driver, ":memory:")
 
         # Setup
-        execute(db, "CREATE TABLE users (id INTEGER PRIMARY KEY, email TEXT, active INTEGER)")
+        execute(db,
+                "CREATE TABLE users (id INTEGER PRIMARY KEY, email TEXT, active INTEGER)")
 
         # Execute INSERT with multiple parameters
-        execute(db, "INSERT INTO users (email, active) VALUES (?, ?)", ["multi@example.com", 1])
-        execute(db, "INSERT INTO users (email, active) VALUES (?, ?)", ["inactive@example.com", 0])
+        execute(db, "INSERT INTO users (email, active) VALUES (?, ?)",
+                ["multi@example.com", 1])
+        execute(db, "INSERT INTO users (email, active) VALUES (?, ?)",
+                ["inactive@example.com", 0])
 
         # Query with multiple parameters
         result = execute(db, "SELECT email FROM users WHERE active = ?", [1])
@@ -153,7 +158,8 @@ import Tables
         db = connect(driver, ":memory:")
 
         # Setup
-        execute(db, "CREATE TABLE users (id INTEGER PRIMARY KEY, email TEXT, active INTEGER)")
+        execute(db,
+                "CREATE TABLE users (id INTEGER PRIMARY KEY, email TEXT, active INTEGER)")
         execute(db, "INSERT INTO users (email, active) VALUES ('active1@example.com', 1)")
         execute(db, "INSERT INTO users (email, active) VALUES ('inactive@example.com', 0)")
         execute(db, "INSERT INTO users (email, active) VALUES ('active2@example.com', 1)")
@@ -233,7 +239,8 @@ import Tables
 
         # Setup tables
         execute(db, "CREATE TABLE users (id INTEGER PRIMARY KEY, email TEXT)")
-        execute(db, "CREATE TABLE posts (id INTEGER PRIMARY KEY, user_id INTEGER, title TEXT)")
+        execute(db,
+                "CREATE TABLE posts (id INTEGER PRIMARY KEY, user_id INTEGER, title TEXT)")
 
         execute(db, "INSERT INTO users (email) VALUES ('user1@example.com')")
         execute(db, "INSERT INTO users (email) VALUES ('user2@example.com')")

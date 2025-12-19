@@ -41,11 +41,12 @@ See `docs/design.md` Section 10 for detailed design rationale.
 Abstract base type for all SQL dialects.
 
 Dialect implementations must define:
-- `compile(dialect, query)` → (sql::String, params::Vector{Symbol})
-- `compile_expr(dialect, expr)` → sql_fragment::String
-- `quote_identifier(dialect, name)` → quoted::String
-- `placeholder(dialect, idx)` → placeholder::String
-- `supports(dialect, capability)` → Bool
+
+  - `compile(dialect, query)` → (sql::String, params::Vector{Symbol})
+  - `compile_expr(dialect, expr)` → sql_fragment::String
+  - `quote_identifier(dialect, name)` → quoted::String
+  - `placeholder(dialect, idx)` → placeholder::String
+  - `supports(dialect, capability)` → Bool
 """
 abstract type Dialect end
 
@@ -54,14 +55,15 @@ abstract type Dialect end
 Database capabilities that may or may not be supported by a given dialect.
 
 # Capabilities
-- `CAP_CTE` – Common Table Expressions (WITH clause)
-- `CAP_RETURNING` – RETURNING clause in INSERT/UPDATE/DELETE
-- `CAP_UPSERT` – ON CONFLICT / ON DUPLICATE KEY UPDATE
-- `CAP_WINDOW` – Window functions
-- `CAP_LATERAL` – LATERAL joins
-- `CAP_BULK_COPY` – COPY FROM / LOAD DATA operations
-- `CAP_SAVEPOINT` – Transaction savepoints
-- `CAP_ADVISORY_LOCK` – Advisory locks
+
+  - `CAP_CTE` – Common Table Expressions (WITH clause)
+  - `CAP_RETURNING` – RETURNING clause in INSERT/UPDATE/DELETE
+  - `CAP_UPSERT` – ON CONFLICT / ON DUPLICATE KEY UPDATE
+  - `CAP_WINDOW` – Window functions
+  - `CAP_LATERAL` – LATERAL joins
+  - `CAP_BULK_COPY` – COPY FROM / LOAD DATA operations
+  - `CAP_SAVEPOINT` – Transaction savepoints
+  - `CAP_ADVISORY_LOCK` – Advisory locks
 """
 @enum Capability begin
     CAP_CTE
@@ -86,14 +88,17 @@ end
 Compile a Query AST into a SQL string and parameter list.
 
 # Arguments
-- `dialect`: The SQL dialect to use for compilation
-- `query`: The query AST to compile
+
+  - `dialect`: The SQL dialect to use for compilation
+  - `query`: The query AST to compile
 
 # Returns
-- `sql`: The generated SQL string
-- `params`: A vector of parameter names in the order they appear in the SQL
+
+  - `sql`: The generated SQL string
+  - `params`: A vector of parameter names in the order they appear in the SQL
 
 # Example
+
 ```julia
 q = from(:users) |> where(col(:users, :id) == param(Int, :user_id))
 sql, params = compile(SQLiteDialect(), q)
@@ -112,14 +117,17 @@ This function is called recursively to build SQL expressions.
 When a `Param` is encountered, its name is appended to the `params` vector.
 
 # Arguments
-- `dialect`: The SQL dialect to use for compilation
-- `expr`: The expression AST to compile
-- `params`: A mutable vector to collect parameter names
+
+  - `dialect`: The SQL dialect to use for compilation
+  - `expr`: The expression AST to compile
+  - `params`: A mutable vector to collect parameter names
 
 # Returns
-- A SQL fragment string
+
+  - A SQL fragment string
 
 # Example
+
 ```julia
 expr = col(:users, :age) > literal(18)
 params = Symbol[]
@@ -135,13 +143,16 @@ function compile_expr end
 Quote an identifier (table name, column name, alias) according to the dialect's rules.
 
 # Arguments
-- `dialect`: The SQL dialect
-- `name`: The identifier to quote
+
+  - `dialect`: The SQL dialect
+  - `name`: The identifier to quote
 
 # Returns
-- The quoted identifier
+
+  - The quoted identifier
 
 # Examples
+
 ```julia
 quote_identifier(SQLiteDialect(), :users)     # → "`users`"
 quote_identifier(PostgreSQLDialect(), :users) # → "\"users\""
@@ -155,13 +166,16 @@ function quote_identifier end
 Generate a parameter placeholder for the given index.
 
 # Arguments
-- `dialect`: The SQL dialect
-- `idx`: The 1-based parameter index
+
+  - `dialect`: The SQL dialect
+  - `idx`: The 1-based parameter index
 
 # Returns
-- The placeholder string
+
+  - The placeholder string
 
 # Examples
+
 ```julia
 placeholder(SQLiteDialect(), 1)     # → "?"
 placeholder(PostgreSQLDialect(), 1) # → "\$1"
@@ -175,13 +189,16 @@ function placeholder end
 Check if the dialect supports a specific capability.
 
 # Arguments
-- `dialect`: The SQL dialect
-- `cap`: The capability to check
+
+  - `dialect`: The SQL dialect
+  - `cap`: The capability to check
 
 # Returns
-- `true` if supported, `false` otherwise
+
+  - `true` if supported, `false` otherwise
 
 # Example
+
 ```julia
 supports(SQLiteDialect(), CAP_CTE)       # → true
 supports(SQLiteDialect(), CAP_LATERAL)   # → false

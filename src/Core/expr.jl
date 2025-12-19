@@ -50,10 +50,12 @@ abstract type SQLExpr end
 Represents a column reference in SQL (e.g., `users.id`).
 
 # Fields
-- `table::Symbol` – table name or alias
-- `column::Symbol` – column name
+
+  - `table::Symbol` – table name or alias
+  - `column::Symbol` – column name
 
 # Example
+
 ```julia
 col(:users, :email)  # → users.email
 ```
@@ -79,6 +81,7 @@ Represents a literal value in SQL (e.g., `42`, `"hello"`, `true`).
 Literals are directly embedded in the generated SQL.
 
 # Example
+
 ```julia
 literal(42)      # → 42
 literal("test")  # → 'test'
@@ -107,10 +110,12 @@ Parameters are passed separately during query execution and are properly
 escaped by the database driver.
 
 # Fields
-- `type::Type` – expected Julia type of the parameter
-- `name::Symbol` – parameter name for identification
+
+  - `type::Type` – expected Julia type of the parameter
+  - `name::Symbol` – parameter name for identification
 
 # Example
+
 ```julia
 param(String, :email)  # → ? or \$1 (dialect-dependent)
 param(Int, :user_id)
@@ -135,18 +140,21 @@ param(T::Type, name::Symbol)::Param = Param(T, name)
 Represents a binary operation in SQL (e.g., `=`, `<`, `AND`, `OR`).
 
 # Fields
-- `op::Symbol` – operator symbol (`:=`, `:<`, `:AND`, `:OR`, etc.)
-- `left::Expr` – left-hand expression
-- `right::Expr` – right-hand expression
+
+  - `op::Symbol` – operator symbol (`:=`, `:<`, `:AND`, `:OR`, etc.)
+  - `left::Expr` – left-hand expression
+  - `right::Expr` – right-hand expression
 
 # Supported Operators
-- Comparison: `=`, `!=`, `<`, `>`, `<=`, `>=`
-- Logical: `AND`, `OR`
-- Arithmetic: `+`, `-`, `*`, `/`
-- String: `LIKE`, `ILIKE`
-- Membership: `IN`
+
+  - Comparison: `=`, `!=`, `<`, `>`, `<=`, `>=`
+  - Logical: `AND`, `OR`
+  - Arithmetic: `+`, `-`, `*`, `/`
+  - String: `LIKE`, `ILIKE`
+  - Membership: `IN`
 
 # Example
+
 ```julia
 col(:users, :age) > literal(18)
 # → BinaryOp(:>, ColRef(:users, :age), Literal(18))
@@ -168,10 +176,12 @@ end
 Represents a unary operation in SQL (e.g., `NOT`, `IS NULL`).
 
 # Fields
-- `op::Symbol` – operator symbol (`:NOT`, `:IS_NULL`, `:IS_NOT_NULL`)
-- `expr::Expr` – operand expression
+
+  - `op::Symbol` – operator symbol (`:NOT`, `:IS_NULL`, `:IS_NOT_NULL`)
+  - `expr::Expr` – operand expression
 
 # Example
+
 ```julia
 is_null(col(:users, :deleted_at))
 # → UnaryOp(:IS_NULL, ColRef(:users, :deleted_at))
@@ -192,10 +202,12 @@ end
 Represents a SQL function call (e.g., `COUNT(*)`, `LOWER(email)`).
 
 # Fields
-- `name::Symbol` – function name
-- `args::Vector{Expr}` – function arguments
+
+  - `name::Symbol` – function name
+  - `args::Vector{Expr}` – function arguments
 
 # Example
+
 ```julia
 func(:COUNT, [col(:users, :id)])
 # → COUNT(users.id)
@@ -270,6 +282,7 @@ Base.:(/)(left, right::SQLExpr)::BinaryOp = literal(left) / right
 Check if an expression is NULL.
 
 # Example
+
 ```julia
 is_null(col(:users, :deleted_at))
 # → WHERE users.deleted_at IS NULL
@@ -283,6 +296,7 @@ is_null(expr::SQLExpr)::UnaryOp = UnaryOp(:IS_NULL, expr)
 Check if an expression is NOT NULL.
 
 # Example
+
 ```julia
 is_not_null(col(:users, :email))
 # → WHERE users.email IS NOT NULL
@@ -295,7 +309,8 @@ is_not_null(expr::SQLExpr)::UnaryOp = UnaryOp(:IS_NOT_NULL, expr)
 Base.isequal(a::ColRef, b::ColRef)::Bool = a.table == b.table && a.column == b.column
 Base.isequal(a::Literal, b::Literal)::Bool = isequal(a.value, b.value)
 Base.isequal(a::Param, b::Param)::Bool = a.type == b.type && a.name == b.name
-Base.isequal(a::BinaryOp, b::BinaryOp)::Bool = a.op == b.op && isequal(a.left, b.left) && isequal(a.right, b.right)
+Base.isequal(a::BinaryOp, b::BinaryOp)::Bool = a.op == b.op && isequal(a.left, b.left) &&
+                                               isequal(a.right, b.right)
 Base.isequal(a::UnaryOp, b::UnaryOp)::Bool = a.op == b.op && isequal(a.expr, b.expr)
 Base.isequal(a::FuncCall, b::FuncCall)::Bool = a.name == b.name && isequal(a.args, b.args)
 
