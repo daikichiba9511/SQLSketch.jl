@@ -322,15 +322,10 @@ Base.hash(a::BinaryOp, h::UInt)::UInt = hash((a.op, a.left, a.right), h)
 Base.hash(a::UnaryOp, h::UInt)::UInt = hash((a.op, a.expr), h)
 Base.hash(a::FuncCall, h::UInt)::UInt = hash((a.name, a.args), h)
 
-# TODO: Add support for:
+# Future: Additional expression types
 # - IN operator (expr in [values...])
 # - BETWEEN operator
 # - LIKE operator
 # - Subquery expressions
 # - CASE expressions
 # - Type casting
-
-# TODO (Phase 2): Placeholder support
-# struct Placeholder end
-# const _ = Placeholder()
-# Base.getproperty(::Placeholder, name::Symbol) = PlaceholderField(name)

@@ -35,9 +35,6 @@ close(db)
 See `docs/design.md` Section 10 for detailed design rationale.
 """
 
-# TODO: Implement Driver abstraction
-# This is Phase 4 of the roadmap
-
 """
 Abstract base type for all database drivers.
 

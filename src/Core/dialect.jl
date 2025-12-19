@@ -34,9 +34,6 @@ sql, params = compile(dialect, query)
 See `docs/design.md` Section 10 for detailed design rationale.
 """
 
-# TODO: Implement Dialect abstraction
-# This is Phase 3 of the roadmap
-
 """
 Abstract base type for all SQL dialects.
 

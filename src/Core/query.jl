@@ -35,9 +35,6 @@ q = from(:users) |>
 See `docs/design.md` Section 6 for detailed design rationale.
 """
 
-# TODO: Implement query AST types and pipeline API
-# This is Phase 2 of the roadmap
-
 """
 Abstract base type for all query nodes.
 
