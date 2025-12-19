@@ -24,4 +24,8 @@ Thumbs.db
 /test/tmp/
 /test/output/
 
+# Example SQLite databases
+examples/*.db
+examples/*.db-*
+
 CLAUDE.md
