@@ -805,6 +805,118 @@ not_in_subquery(col(:users, :id), sq)
 """
 not_in_subquery(expr::SQLExpr, sq::Subquery)::BinaryOp = BinaryOp(:NOT_IN, expr, sq)
 
+# CASE expression
+"""
+    CaseExpr(whens::Vector{Tuple{SQLExpr, SQLExpr}}, else_expr::Union{SQLExpr, Nothing})
+
+Represents a CASE expression in SQL.
+
+This implements the "searched CASE" form:
+```sql
+CASE
+  WHEN condition1 THEN result1
+  WHEN condition2 THEN result2
+  ELSE else_result
+END
+```
+
+# Fields
+
+  - `whens::Vector{Tuple{SQLExpr, SQLExpr}}` – list of (condition, result) pairs
+  - `else_expr::Union{SQLExpr, Nothing}` – optional ELSE clause result
+
+# Example
+
+```julia
+# Age category
+case_expr([
+    (col(:users, :age) < literal(18), literal("minor")),
+    (col(:users, :age) < literal(65), literal("adult"))
+], literal("senior"))
+# → CASE WHEN age < 18 THEN 'minor' WHEN age < 65 THEN 'adult' ELSE 'senior' END
+
+# Grade calculation
+case_expr([
+    (col(:scores, :value) >= literal(90), literal("A")),
+    (col(:scores, :value) >= literal(80), literal("B")),
+    (col(:scores, :value) >= literal(70), literal("C"))
+], literal("F"))
+# → CASE WHEN value >= 90 THEN 'A' WHEN value >= 80 THEN 'B' WHEN value >= 70 THEN 'C' ELSE 'F' END
+```
+
+# Note
+
+The simple CASE form (`CASE value WHEN x THEN y`) is not directly supported,
+but can be achieved using searched CASE with equality comparisons.
+"""
+struct CaseExpr <: SQLExpr
+    whens::Vector{Tuple{SQLExpr, SQLExpr}}
+    else_expr::Union{SQLExpr, Nothing}
+end
+
+"""
+    case_expr(whens::Vector{Tuple{SQLExpr, SQLExpr}}, else_result::SQLExpr) -> CaseExpr
+    case_expr(whens::Vector{Tuple{SQLExpr, SQLExpr}}) -> CaseExpr
+
+Convenience constructor for CASE expressions.
+
+# Example
+
+```julia
+# With ELSE clause
+case_expr([
+    (col(:users, :status) == literal("active"), literal(1)),
+    (col(:users, :status) == literal("pending"), literal(0))
+], literal(-1))
+
+# Without ELSE clause (returns NULL if no condition matches)
+case_expr([
+    (col(:users, :verified) == literal(true), literal("✓")),
+    (col(:users, :verified) == literal(false), literal("✗"))
+])
+```
+"""
+case_expr(whens::Vector{Tuple{SQLExpr, SQLExpr}}, else_result::SQLExpr)::CaseExpr =
+    CaseExpr(whens, else_result)
+
+case_expr(whens::Vector{Tuple{SQLExpr, SQLExpr}})::CaseExpr =
+    CaseExpr(whens, nothing)
+
+"""
+    case_expr(whens::Vector, else_result) -> CaseExpr
+    case_expr(whens::Vector) -> CaseExpr
+
+Convenience constructor with auto-wrapping for else_result.
+
+# Example
+
+```julia
+# else_result as plain value (auto-wrapped in literal)
+case_expr([
+    (col(:users, :age) < 18, "minor"),
+    (col(:users, :age) < 65, "adult")
+], "senior")
+```
+"""
+function case_expr(whens::Vector, else_result)::CaseExpr
+    # Convert tuples with non-SQLExpr results to SQLExpr
+    converted_whens = Tuple{SQLExpr, SQLExpr}[
+        (cond, result isa SQLExpr ? result : literal(result))
+        for (cond, result) in whens
+    ]
+    else_wrapped = else_result isa SQLExpr ? else_result : literal(else_result)
+    return CaseExpr(converted_whens, else_wrapped)
+end
+
+function case_expr(whens::Vector)::CaseExpr
+    # Convert tuples with non-SQLExpr results to SQLExpr
+    converted_whens = Tuple{SQLExpr, SQLExpr}[
+        (cond, result isa SQLExpr ? result : literal(result))
+        for (cond, result) in whens
+    ]
+    return CaseExpr(converted_whens, nothing)
+end
+
 # Structural equality for testing
 # These are used by @test and other testing utilities
 Base.isequal(a::ColRef, b::ColRef)::Bool = a.table == b.table && a.column == b.column
@@ -821,6 +933,21 @@ Base.isequal(a::InOp, b::InOp)::Bool = isequal(a.expr, b.expr) && isequal(a.valu
                                        a.negated == b.negated
 Base.isequal(a::Cast, b::Cast)::Bool = isequal(a.expr, b.expr) && a.target_type == b.target_type
 Base.isequal(a::Subquery, b::Subquery)::Bool = isequal(a.query, b.query)
+function Base.isequal(a::CaseExpr, b::CaseExpr)::Bool
+    # Check WHEN clauses
+    if !isequal(a.whens, b.whens)
+        return false
+    end
+
+    # Check ELSE clause - handle Nothing properly
+    if a.else_expr === nothing && b.else_expr === nothing
+        return true
+    elseif a.else_expr === nothing || b.else_expr === nothing
+        return false
+    else
+        return isequal(a.else_expr, b.else_expr)
+    end
+end
 
 # Hash functions for Dict/Set support
 Base.hash(a::ColRef, h::UInt)::UInt = hash((a.table, a.column), h)
@@ -834,6 +961,7 @@ Base.hash(a::BetweenOp, h::UInt)::UInt = hash((a.expr, a.low, a.high, a.negated)
 Base.hash(a::InOp, h::UInt)::UInt = hash((a.expr, a.values, a.negated), h)
 Base.hash(a::Cast, h::UInt)::UInt = hash((a.expr, a.target_type), h)
 Base.hash(a::Subquery, h::UInt)::UInt = hash(a.query, h)
+Base.hash(a::CaseExpr, h::UInt)::UInt = hash((a.whens, a.else_expr), h)
 
 # Future: Additional expression types
-# - CASE expressions
+# (All major expression types now implemented)

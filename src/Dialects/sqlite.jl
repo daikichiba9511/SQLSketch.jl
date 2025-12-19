@@ -31,7 +31,7 @@ using .Core: Query, From, Where, Select, Join, OrderBy, Limit, Offset, Distinct,
              Having, InsertInto, InsertValues, Update, UpdateSet, UpdateWhere,
              DeleteFrom, DeleteWhere
 using .Core: SQLExpr, ColRef, Literal, Param, BinaryOp, UnaryOp, FuncCall, PlaceholderField,
-             BetweenOp, InOp, Cast, Subquery
+             BetweenOp, InOp, Cast, Subquery, CaseExpr
 import .Core: compile, compile_expr, quote_identifier, placeholder, supports
 
 """
@@ -204,6 +204,23 @@ function resolve_placeholders(expr::Subquery, table::Symbol)::Subquery
     return expr
 end
 
+function resolve_placeholders(expr::CaseExpr, table::Symbol)::CaseExpr
+    # Resolve placeholders in all WHEN conditions and results
+    resolved_whens = Tuple{SQLExpr, SQLExpr}[
+        (resolve_placeholders(cond, table), resolve_placeholders(result, table))
+        for (cond, result) in expr.whens
+    ]
+
+    # Resolve placeholders in ELSE clause if present
+    resolved_else = if expr.else_expr === nothing
+        nothing
+    else
+        resolve_placeholders(expr.else_expr, table)
+    end
+
+    return CaseExpr(resolved_whens, resolved_else)
+end
+
 """
     contains_placeholder(expr::SQLExpr) -> Bool
 
@@ -251,6 +268,22 @@ end
 
 function contains_placeholder(expr::Subquery)::Bool
     # Subqueries are self-contained
+    return false
+end
+
+function contains_placeholder(expr::CaseExpr)::Bool
+    # Check if any WHEN condition or result contains placeholders
+    for (cond, result) in expr.whens
+        if contains_placeholder(cond) || contains_placeholder(result)
+            return true
+        end
+    end
+
+    # Check ELSE clause if present
+    if expr.else_expr !== nothing && contains_placeholder(expr.else_expr)
+        return true
+    end
+
     return false
 end
 
@@ -479,6 +512,30 @@ function compile_expr(dialect::SQLiteDialect, expr::Subquery,
 
     # Return the subquery wrapped in parentheses
     return "($subquery_sql)"
+end
+
+function compile_expr(dialect::SQLiteDialect, expr::CaseExpr,
+                      params::Vector{Symbol})::String
+    # Start CASE
+    parts = ["CASE"]
+
+    # Compile WHEN clauses
+    for (condition, result) in expr.whens
+        condition_sql = compile_expr(dialect, condition, params)
+        result_sql = compile_expr(dialect, result, params)
+        push!(parts, "WHEN $condition_sql THEN $result_sql")
+    end
+
+    # Compile ELSE clause if present
+    if expr.else_expr !== nothing
+        else_sql = compile_expr(dialect, expr.else_expr, params)
+        push!(parts, "ELSE $else_sql")
+    end
+
+    # End CASE
+    push!(parts, "END")
+
+    return Base.join(parts, " ")
 end
 
 #
