@@ -86,30 +86,39 @@ SQLSketch is designed as a two-layer system:
 
 ## Current Implementation Status
 
-**Completed Phases:** 6/10 | **Total Tests:** 636 passing ✅
+**Completed Phases:** 6/10 | **Total Tests:** 662+ passing ✅
 
-- ✅ **Phase 1: Expression AST** (135 tests)
+- ✅ **Phase 1: Expression AST** (268 tests)
   - Column references, literals, parameters
   - Binary/unary operators with auto-wrapping
   - Function calls
   - Type-safe composition
-  - Placeholder syntax (p_)
+  - **Placeholder syntax (`p_`)** - syntactic sugar for column references
+  - **LIKE/ILIKE operators** - pattern matching
+  - **BETWEEN operator** - range queries
+  - **IN operator** - membership tests
+  - **CAST expressions** - type conversion
+  - **Subquery expressions** - nested queries (EXISTS, IN subquery)
+  - **CASE expressions** - conditional logic
 
-- ✅ **Phase 2: Query AST** (151 tests)
+- ✅ **Phase 2: Query AST** (85 tests)
   - FROM, WHERE, SELECT, JOIN, ORDER BY
   - LIMIT, OFFSET, DISTINCT, GROUP BY, HAVING
   - **INSERT, UPDATE, DELETE** (DML operations)
   - Pipeline composition with `|>`
   - Shape-preserving and shape-changing semantics
   - Type-safe query transformations
+  - **Curried API** for natural pipeline composition
 
-- ✅ **Phase 3: Dialect Abstraction** (129 tests)
+- ✅ **Phase 3: Dialect Abstraction** (102 tests)
   - Dialect interface (compile, quote_identifier, placeholder, supports)
   - Capability system for feature detection
   - SQLite dialect implementation
   - Full SQL generation from query ASTs
+  - **All expression types** (CAST, Subquery, CASE, BETWEEN, IN, LIKE)
   - Expression and query compilation
   - **DML compilation (INSERT, UPDATE, DELETE)**
+  - **Placeholder resolution** (`p_` → `col(table, column)`)
 
 - ✅ **Phase 4: Driver Abstraction** (41 tests)
   - Driver interface (connect, execute, close)
@@ -118,13 +127,13 @@ SQLSketch is designed as a two-layer system:
   - Parameter binding with `?` placeholders
   - Query execution returning raw SQLite results
 
-- ✅ **Phase 5: CodecRegistry** (115 tests)
+- ✅ **Phase 5: CodecRegistry** (112 tests)
   - Type-safe encoding/decoding between Julia and SQL
   - Built-in codecs (Int, Float64, String, Bool, Date, DateTime, UUID)
   - NULL/Missing handling
   - Row mapping to NamedTuples and structs
 
-- ✅ **Phase 6: End-to-End Integration** (65 tests)
+- ✅ **Phase 6: End-to-End Integration** (54 tests)
   - Query execution API (`fetch_all`, `fetch_one`, `fetch_maybe`)
   - **DML execution API (`execute_dml`)**
   - Type-safe parameter binding
@@ -158,22 +167,49 @@ execute(db, """
     CREATE TABLE users (
         id INTEGER PRIMARY KEY,
         email TEXT NOT NULL,
-        active INTEGER DEFAULT 1,
+        age INTEGER,
+        status TEXT DEFAULT 'active',
         created_at TEXT
     )
 """, [])
 
-# Build type-safe query
+# Build type-safe query with advanced features
 q = from(:users) |>
-    where(col(:users, :active) == literal(1)) |>
-    select(NamedTuple, col(:users, :id), col(:users, :email)) |>
-    order_by(col(:users, :created_at); desc=true) |>
+    where(p_.status == "active") |>  # Placeholder syntax
+    select(NamedTuple,
+           p_.id,
+           p_.email,
+           # CASE expression for age categories
+           case_expr([
+               (p_.age < 18, "minor"),
+               (p_.age < 65, "adult")
+           ], "senior")) |>
+    order_by(p_.created_at; desc=true) |>
     limit(10)
 
 # Inspect SQL before execution
 sql_str = sql(dialect, q)
 println(sql_str)
-# => "SELECT `id`, `email` FROM `users` WHERE `active` = 1 ORDER BY `created_at` DESC LIMIT 10"
+# => SELECT `users`.`id`, `users`.`email`,
+#    CASE WHEN (`users`.`age` < 18) THEN 'minor' WHEN (`users`.`age` < 65) THEN 'adult' ELSE 'senior' END
+#    FROM `users` WHERE (`users`.`status` = 'active') ORDER BY `users`.`created_at` DESC LIMIT 10
+
+# Advanced expressions
+q2 = from(:users) |>
+    where(p_.age |> between(18, 65)) |>  # BETWEEN operator
+    where(p_.email |> like("%@gmail.com")) |>  # LIKE operator
+    select(NamedTuple, p_.id, p_.email)
+
+# Subquery example
+active_users = subquery(
+    from(:users) |>
+    where(p_.status == "active") |>
+    select(NamedTuple, p_.id)
+)
+
+q3 = from(:orders) |>
+    where(in_subquery(p_.user_id, active_users)) |>  # IN subquery
+    select(NamedTuple, p_.id, p_.user_id)
 
 # Execute and get typed results
 users = fetch_all(db, dialect, registry, q)  # Returns Vector{NamedTuple}
@@ -231,17 +267,17 @@ src/
   Drivers/           # Driver implementations
     sqlite.jl        # SQLite execution ✅
 
-test/                # Test suite (636 tests)
+test/                # Test suite (662+ tests)
   core/
-    expr_test.jl     # Expression tests ✅ (135)
-    query_test.jl    # Query tests ✅ (151)
-    codec_test.jl    # Codec tests ✅ (115)
+    expr_test.jl     # Expression tests ✅ (268)
+    query_test.jl    # Query tests ✅ (85)
+    codec_test.jl    # Codec tests ✅ (112)
   dialects/
-    sqlite_test.jl   # SQLite dialect tests ✅ (129)
+    sqlite_test.jl   # SQLite dialect tests ✅ (102)
   drivers/
     sqlite_test.jl   # SQLite driver tests ✅ (41)
   integration/
-    end_to_end_test.jl  # Integration tests ✅ (65)
+    end_to_end_test.jl  # Integration tests ✅ (54)
 
 docs/                # Documentation
   design.md          # Design document
@@ -273,14 +309,14 @@ julia --project
 ### Current Test Status
 
 ```
-Total: 636 tests passing ✅
+Total: 662+ tests passing ✅
 
-Phase 1 (Expression AST):        135 tests
-Phase 2 (Query AST):             151 tests (includes DML: INSERT/UPDATE/DELETE)
-Phase 3 (Dialect Abstraction):   129 tests (includes DML compilation)
+Phase 1 (Expression AST):        268 tests (CAST, Subquery, CASE, BETWEEN, IN, LIKE)
+Phase 2 (Query AST):              85 tests (includes DML: INSERT/UPDATE/DELETE)
+Phase 3 (Dialect Abstraction):   102 tests (includes DML compilation + all expressions)
 Phase 4 (Driver Abstraction):     41 tests
-Phase 5 (CodecRegistry):         115 tests
-Phase 6 (End-to-End Integration): 65 tests (includes DML execution)
+Phase 5 (CodecRegistry):         112 tests
+Phase 6 (End-to-End Integration): 54 tests (includes DML execution)
 Phase 7 (Transactions):           ⏳ Not yet implemented
 Phase 8 (Migrations):             ⏳ Not yet implemented
 ```

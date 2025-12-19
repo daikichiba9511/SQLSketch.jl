@@ -84,27 +84,39 @@ SQLSketch は2層システムとして設計されています：
 
 ## 現在の実装状況
 
-**完了フェーズ:** 6/10 | **総テスト数:** 544 passing ✅
+**完了フェーズ:** 6/10 | **総テスト数:** 662+ passing ✅
 
-- ✅ **Phase 1: Expression AST** (135 tests)
+- ✅ **Phase 1: Expression AST** (268 tests)
   - カラム参照、リテラル、パラメータ
   - 自動ラップ付きの二項/単項演算子
   - 関数呼び出し
   - 型安全な合成
+  - **Placeholder 構文（`p_`）** - カラム参照の糖衣構文
+  - **LIKE/ILIKE 演算子** - パターンマッチング
+  - **BETWEEN 演算子** - 範囲クエリ
+  - **IN 演算子** - メンバーシップテスト
+  - **CAST 式** - 型変換
+  - **サブクエリ式** - ネストされたクエリ（EXISTS、IN サブクエリ）
+  - **CASE 式** - 条件分岐ロジック
 
 - ✅ **Phase 2: Query AST** (85 tests)
   - FROM, WHERE, SELECT, JOIN, ORDER BY
   - LIMIT, OFFSET, DISTINCT, GROUP BY, HAVING
+  - **INSERT, UPDATE, DELETE**（DML 操作）
   - `|>` によるパイプライン合成
   - Shape-preserving と shape-changing セマンティクス
   - 型安全なクエリ変換
+  - **カリー化 API** - 自然なパイプライン合成
 
 - ✅ **Phase 3: Dialect Abstraction** (102 tests)
   - Dialect インターフェース（compile, quote_identifier, placeholder, supports）
   - 機能検出のための Capability システム
   - SQLite dialect 実装
   - クエリ AST からの完全な SQL 生成
+  - **すべての式型**（CAST、Subquery、CASE、BETWEEN、IN、LIKE）
   - 式とクエリのコンパイル
+  - **DML コンパイル（INSERT、UPDATE、DELETE）**
+  - **Placeholder 解決**（`p_` → `col(table, column)`）
 
 - ✅ **Phase 4: Driver Abstraction** (41 tests)
   - Driver インターフェース（connect, execute, close）
@@ -121,10 +133,12 @@ SQLSketch は2層システムとして設計されています：
 
 - ✅ **Phase 6: End-to-End Integration** (54 tests)
   - クエリ実行 API（`fetch_all`, `fetch_one`, `fetch_maybe`）
+  - **DML 実行 API（`execute_dml`）**
   - 型安全なパラメータバインディング
   - 完全なパイプライン: Query AST → Dialect → Driver → CodecRegistry
   - 可観測性 API（`sql`, `explain`）
   - 包括的な統合テスト
+  - **完全な CRUD 操作**（SELECT、INSERT、UPDATE、DELETE）
 
 - ⏳ **Phase 7-10:** [`docs/roadmap.md`](docs/roadmap.md) と [`docs/TODO.md`](docs/TODO.md) を参照
 
@@ -151,22 +165,49 @@ execute(db, """
     CREATE TABLE users (
         id INTEGER PRIMARY KEY,
         email TEXT NOT NULL,
-        active INTEGER DEFAULT 1,
+        age INTEGER,
+        status TEXT DEFAULT 'active',
         created_at TEXT
     )
 """, [])
 
-# 型安全なクエリを構築
+# 高度な機能を使った型安全なクエリを構築
 q = from(:users) |>
-    where(col(:users, :active) == literal(1)) |>
-    select(NamedTuple, col(:users, :id), col(:users, :email)) |>
-    order_by(col(:users, :created_at); desc=true) |>
+    where(p_.status == "active") |>  # Placeholder 構文
+    select(NamedTuple,
+           p_.id,
+           p_.email,
+           # CASE 式で年齢カテゴリを分類
+           case_expr([
+               (p_.age < 18, "minor"),
+               (p_.age < 65, "adult")
+           ], "senior")) |>
+    order_by(p_.created_at; desc=true) |>
     limit(10)
 
 # 実行前に SQL を検査
 sql_str = sql(dialect, q)
 println(sql_str)
-# => "SELECT `id`, `email` FROM `users` WHERE `active` = 1 ORDER BY `created_at` DESC LIMIT 10"
+# => SELECT `users`.`id`, `users`.`email`,
+#    CASE WHEN (`users`.`age` < 18) THEN 'minor' WHEN (`users`.`age` < 65) THEN 'adult' ELSE 'senior' END
+#    FROM `users` WHERE (`users`.`status` = 'active') ORDER BY `users`.`created_at` DESC LIMIT 10
+
+# 高度な式の例
+q2 = from(:users) |>
+    where(p_.age |> between(18, 65)) |>  # BETWEEN 演算子
+    where(p_.email |> like("%@gmail.com")) |>  # LIKE 演算子
+    select(NamedTuple, p_.id, p_.email)
+
+# サブクエリの例
+active_users = subquery(
+    from(:users) |>
+    where(p_.status == "active") |>
+    select(NamedTuple, p_.id)
+)
+
+q3 = from(:orders) |>
+    where(in_subquery(p_.user_id, active_users)) |>  # IN サブクエリ
+    select(NamedTuple, p_.id, p_.user_id)
 
 # 実行して型付き結果を取得
 users = fetch_all(db, dialect, registry, q)  # Returns Vector{NamedTuple}
@@ -176,6 +217,30 @@ user = fetch_one(db, dialect, registry, q)  # Returns NamedTuple（1件でない
 
 # または、0件か1件取得
 maybe_user = fetch_maybe(db, dialect, registry, q)  # Returns Union{NamedTuple, Nothing}
+
+# DML 操作（INSERT、UPDATE、DELETE）
+import SQLSketch.Core: execute_dml
+
+# リテラルを使った INSERT
+insert_q = insert_into(:users, [:email, :active]) |>
+    values([[literal("alice@example.com"), literal(1)]])
+execute_dml(db, dialect, insert_q)
+
+# パラメータを使った INSERT
+insert_q = insert_into(:users, [:email, :active]) |>
+    values([[param(String, :email), param(Int, :active)]])
+execute_dml(db, dialect, insert_q, (email="bob@example.com", active=1))
+
+# WHERE 句付き UPDATE
+update_q = update(:users) |>
+    set(:active => param(Int, :active)) |>
+    where(col(:users, :email) == param(String, :email))
+execute_dml(db, dialect, update_q, (active=0, email="alice@example.com"))
+
+# WHERE 句付き DELETE
+delete_q = delete_from(:users) |>
+    where(col(:users, :active) == literal(0))
+execute_dml(db, dialect, delete_q)
 
 close(db)
 ```
@@ -200,11 +265,11 @@ src/
   Drivers/           # Driver 実装
     sqlite.jl        # SQLite 実行 ✅
 
-test/                # テストスイート (544 tests)
+test/                # テストスイート (662+ tests)
   core/
-    expr_test.jl     # 式のテスト ✅ (135)
+    expr_test.jl     # 式のテスト ✅ (268)
     query_test.jl    # クエリのテスト ✅ (85)
-    codec_test.jl    # Codec のテスト ✅ (115)
+    codec_test.jl    # Codec のテスト ✅ (112)
   dialects/
     sqlite_test.jl   # SQLite dialect のテスト ✅ (102)
   drivers/
@@ -242,14 +307,14 @@ julia --project
 ### 現在のテスト状況
 
 ```
-Total: 544 tests passing ✅
+Total: 662+ tests passing ✅
 
-Phase 1 (Expression AST):        135 tests
-Phase 2 (Query AST):              85 tests
-Phase 3 (Dialect Abstraction):   102 tests
+Phase 1 (Expression AST):        268 tests (CAST、Subquery、CASE、BETWEEN、IN、LIKE)
+Phase 2 (Query AST):              85 tests (DML: INSERT/UPDATE/DELETE を含む)
+Phase 3 (Dialect Abstraction):   102 tests (DML コンパイル + すべての式型)
 Phase 4 (Driver Abstraction):     41 tests
-Phase 5 (CodecRegistry):         115 tests (includes 112 codec + 3 map_row)
-Phase 6 (End-to-End Integration): 54 tests
+Phase 5 (CodecRegistry):         112 tests
+Phase 6 (End-to-End Integration): 54 tests (DML 実行を含む)
 Phase 7 (Transactions):           ⏳ 未実装
 Phase 8 (Migrations):             ⏳ 未実装
 ```
@@ -324,11 +389,17 @@ users::Vector{User} = fetch_all(db, dialect, registry, q)
 
 - Julia **1.9+**（Project.toml で指定）
 
-将来の依存関係（実装の進行に応じて追加されます）：
-- SQLite.jl (Phase 4)
-- DBInterface.jl (Phase 4)
-- Dates (Phase 5)
-- UUIDs (Phase 5)
+### 現在の依存関係
+
+- **SQLite.jl** - SQLite データベースドライバ ✅
+- **DBInterface.jl** - データベースインターフェース抽象化 ✅
+- **Dates**（stdlib）- Date/DateTime 型サポート ✅
+- **UUIDs**（stdlib）- UUID 型サポート ✅
+
+### 将来の依存関係
+
+- LibPQ.jl（Phase 9 - PostgreSQL サポート）
+- MySQL.jl（将来 - MySQL サポート）
 
 ---
 

@@ -1,5 +1,7 @@
 # SQLSketch.jl – Implementation Roadmap
 
+**Last Updated:** 2025-12-20
+
 This document outlines the phased implementation plan for SQLSketch.jl,
 based on the design document (`design.md`).
 

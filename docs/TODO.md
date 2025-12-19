@@ -8,26 +8,39 @@ Task breakdown based on `design.md` and `roadmap.md`.
 - ⏳ Pending
 - 🔄 Blocked/Depends on other tasks
 
-**Last Updated:** 2025-12-19
+**Last Updated:** 2025-12-20
 
 ---
 
 ## Phase 1: Expression AST ✅ COMPLETED
 
 ### Core Types ✅
-- [x] Define `Expr` abstract type
+- [x] Define `SQLExpr` abstract type
 - [x] Implement `ColRef` struct
 - [x] Implement `Literal` struct
 - [x] Implement `Param` struct
 - [x] Implement `BinaryOp` struct
 - [x] Implement `UnaryOp` struct
 - [x] Implement `FuncCall` struct
+- [x] Implement `BetweenOp` struct
+- [x] Implement `InOp` struct
+- [x] Implement `Cast` struct
+- [x] Implement `Subquery` struct
+- [x] Implement `CaseExpr` struct
+- [x] Implement `PlaceholderField` struct
 
 ### Constructors ✅
 - [x] `col(table, column)` helper
 - [x] `literal(value)` helper
 - [x] `param(T, name)` helper
 - [x] `func(name, args)` helper
+- [x] `between(expr, low, high)` helper
+- [x] `not_between(expr, low, high)` helper
+- [x] `in_list(expr, values)` helper
+- [x] `not_in_list(expr, values)` helper
+- [x] `cast(expr, target_type)` helper
+- [x] `subquery(query)` helper
+- [x] `case_expr(whens, else_result)` helper
 
 ### Operator Overloading ✅
 - [x] Comparison operators (`==`, `!=`, `<`, `>`, `<=`, `>=`)
@@ -36,6 +49,16 @@ Task breakdown based on `design.md` and `roadmap.md`.
 - [x] Auto-wrap literals in comparison operators
 - [x] Auto-wrap literals in arithmetic operators
 - [x] NULL checking helpers (`is_null`, `is_not_null`)
+- [x] Pattern matching operators (`like`, `not_like`, `ilike`, `not_ilike`)
+
+### Advanced Features ✅
+- [x] `IN` operator support (`in_list`, `not_in_list`)
+- [x] `BETWEEN` operator support (`between`, `not_between`)
+- [x] `LIKE` / `ILIKE` operator support
+- [x] Subquery expressions (`subquery`, `exists`, `not_exists`, `in_subquery`, `not_in_subquery`)
+- [x] `CASE` expressions (`case_expr`)
+- [x] Type casting expressions (`cast`)
+- [x] Placeholder API (`p_` for column references)
 
 ### Tests ✅
 - [x] Column reference tests
@@ -49,15 +72,15 @@ Task breakdown based on `design.md` and `roadmap.md`.
 - [x] Expression composition tests
 - [x] Type hierarchy tests
 - [x] Immutability tests
+- [x] LIKE/ILIKE operator tests
+- [x] BETWEEN operator tests
+- [x] IN operator tests
+- [x] CAST expression tests
+- [x] Subquery expression tests
+- [x] CASE expression tests
+- [x] Placeholder tests
 
-### Future Enhancements ⏳
-- [ ] `IN` operator support
-- [ ] `BETWEEN` operator support
-- [ ] `LIKE` / `ILIKE` operator support
-- [ ] Subquery expressions
-- [ ] `CASE` expressions
-- [ ] Type casting expressions
-- [ ] Placeholder API (`_` for column references)
+**Total Expression Tests:** 268 passing ✅
 
 ---
 
@@ -104,11 +127,17 @@ Task breakdown based on `design.md` and `roadmap.md`.
 - [x] Test complex query pipelines
 - [x] Test type safety and inference
 
+### DML Operations ✅
+- [x] `INSERT INTO` statement (`insert_into`, `values`)
+- [x] `UPDATE` statement (`update`, `set`)
+- [x] `DELETE FROM` statement (`delete_from`)
+- [x] WHERE clause support for DML
+
 ### Future Enhancements ⏳
-- [ ] Placeholder API (`_` for column references in queries)
-- [ ] Subquery support (queries as expressions)
-- [ ] CTE (Common Table Expressions) support
+- [ ] CTE (Common Table Expressions) support (WITH clause)
 - [ ] UNION / INTERSECT / EXCEPT
+- [ ] Window functions (OVER clause)
+- [ ] UPSERT (ON CONFLICT) support
 
 ---
 
@@ -132,6 +161,12 @@ Task breakdown based on `design.md` and `roadmap.md`.
   - [x] Compile `BinaryOp`
   - [x] Compile `UnaryOp`
   - [x] Compile `FuncCall`
+  - [x] Compile `BetweenOp`
+  - [x] Compile `InOp`
+  - [x] Compile `Cast`
+  - [x] Compile `Subquery`
+  - [x] Compile `CaseExpr`
+  - [x] Compile `PlaceholderField` (with resolution)
 - [x] Implement query compilation
   - [x] Compile `From`
   - [x] Compile `Where`
@@ -141,8 +176,12 @@ Task breakdown based on `design.md` and `roadmap.md`.
   - [x] Compile `Limit` / `Offset`
   - [x] Compile `GroupBy` / `Having`
   - [x] Compile `Distinct`
+  - [x] Compile `InsertInto` / `InsertValues`
+  - [x] Compile `Update` / `UpdateSet` / `UpdateWhere`
+  - [x] Compile `DeleteFrom` / `DeleteWhere`
 - [x] Identifier quoting (backticks)
 - [x] Placeholder syntax (`?`)
+- [x] Placeholder field resolution (`p_` support)
 - [x] Capability reporting
   - [x] CTE support
   - [x] RETURNING support (SQLite 3.35+)
@@ -160,8 +199,8 @@ Task breakdown based on `design.md` and `roadmap.md`.
 
 ### Future Enhancements ⏳
 - [ ] DDL compilation (CREATE TABLE, ALTER TABLE, etc.)
-- [ ] INSERT / UPDATE / DELETE statement compilation
 - [ ] UPSERT (ON CONFLICT) compilation
+- [ ] CTE (WITH clause) compilation
 
 ---
 
@@ -297,11 +336,16 @@ Task breakdown based on `design.md` and `roadmap.md`.
 - [x] Test type conversion end-to-end
 - [x] Test parameter binding
 
+### DML Execution ✅
+- [x] INSERT execution via `execute_dml`
+- [x] UPDATE execution via `execute_dml`
+- [x] DELETE execution via `execute_dml`
+
 ### Future Enhancements ⏳
-- [ ] INSERT / UPDATE / DELETE execution
-- [ ] Batch operations
+- [ ] Batch INSERT operations
 - [ ] Streaming results (large datasets)
 - [ ] Result pagination
+- [ ] RETURNING clause support
 
 ---
 
@@ -507,7 +551,7 @@ Task breakdown based on `design.md` and `roadmap.md`.
 ## Current Status Summary
 
 **Completed Phases:** 6/10
-**Total Tasks Completed:** ~240/400+
+**Total Tasks Completed:** ~290/400+
 **Current Phase:** Phase 7 (Transactions) ⏳
 
 **Next Immediate Tasks:**
@@ -519,14 +563,22 @@ Task breakdown based on `design.md` and `roadmap.md`.
 **Blockers:** None
 
 **Notes:**
-- Phase 1 (Expression AST) completed successfully with 135 tests passing
-- Phase 2 (Query AST) completed successfully with 85 tests passing
-- Phase 3 (Dialect Abstraction) completed successfully with 102 tests passing
-- Phase 4 (Driver Abstraction) completed successfully with 41 tests passing
-- Phase 5 (CodecRegistry) completed successfully with 112 tests passing
-- Phase 6 (End-to-End Integration) completed successfully with 54 integration tests passing
-- **Total: 544 tests passing** ✅
+- Phase 1 (Expression AST) completed successfully with **268 tests passing** ✅
+  - All major SQL expression types implemented (CAST, Subquery, CASE)
+  - Placeholder API (`p_`) fully functional
+  - Pattern matching (LIKE/ILIKE), BETWEEN, IN operators
+- Phase 2 (Query AST) completed successfully with **85 tests passing** ✅
+  - Full DML support (INSERT, UPDATE, DELETE)
+  - Curried pipeline API for natural SQL composition
+- Phase 3 (Dialect Abstraction) completed successfully with **102 tests passing** ✅
+  - Complete SQLite dialect implementation
+  - All expression types compile correctly to SQL
+- Phase 4 (Driver Abstraction) completed successfully with **41 tests passing** ✅
+- Phase 5 (CodecRegistry) completed successfully with **112 tests passing** ✅
+- Phase 6 (End-to-End Integration) completed successfully with **54 integration tests passing** ✅
+- **Total: 662+ tests passing** ✅
 - Full query execution pipeline operational
 - Type-safe parameter binding working
+- DML operations (INSERT/UPDATE/DELETE) working
 - Observability API (sql, explain) implemented
 - Ready to proceed with Phase 7 (Transactions)
