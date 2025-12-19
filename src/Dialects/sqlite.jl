@@ -29,7 +29,7 @@ using .Core: Dialect, Capability, CAP_CTE, CAP_RETURNING, CAP_UPSERT, CAP_WINDOW
              CAP_LATERAL, CAP_BULK_COPY, CAP_SAVEPOINT, CAP_ADVISORY_LOCK
 using .Core: Query, From, Where, Select, Join, OrderBy, Limit, Offset, Distinct, GroupBy,
              Having, InsertInto, InsertValues, Update, UpdateSet, UpdateWhere,
-             DeleteFrom, DeleteWhere
+             DeleteFrom, DeleteWhere, CTE, With
 using .Core: SQLExpr, ColRef, Literal, Param, BinaryOp, UnaryOp, FuncCall, PlaceholderField,
              BetweenOp, InOp, Cast, Subquery, CaseExpr
 import .Core: compile, compile_expr, quote_identifier, placeholder, supports
@@ -932,5 +932,43 @@ function compile(dialect::SQLiteDialect,
     condition_sql = compile_expr(dialect, query.condition, params)
 
     sql = "$source_sql WHERE $condition_sql"
+    return (sql, params)
+end
+
+#
+# CTE (Common Table Expressions) Compilation
+#
+
+function compile(dialect::SQLiteDialect,
+                 query::With{T})::Tuple{String, Vector{Symbol}} where {T}
+    params = Symbol[]
+
+    # Compile all CTEs
+    cte_parts = String[]
+    for cte_def in query.ctes
+        cte_name = quote_identifier(dialect, cte_def.name)
+
+        # Add column aliases if specified
+        if !isempty(cte_def.columns)
+            column_list = Base.join([quote_identifier(dialect, col) for col in cte_def.columns],
+                               ", ")
+            cte_name = "$cte_name ($column_list)"
+        end
+
+        # Compile the CTE query
+        cte_sql, cte_params = compile(dialect, cte_def.query)
+        append!(params, cte_params)
+
+        push!(cte_parts, "$cte_name AS ($cte_sql)")
+    end
+
+    # Compile the main query
+    main_sql, main_params = compile(dialect, query.main_query)
+    append!(params, main_params)
+
+    # Combine: WITH cte1 AS (...), cte2 AS (...) main_query
+    cte_clause = Base.join(cte_parts, ", ")
+    sql = "WITH $cte_clause $main_sql"
+
     return (sql, params)
 end

@@ -133,8 +133,17 @@ Task breakdown based on `design.md` and `roadmap.md`.
 - [x] `DELETE FROM` statement (`delete_from`)
 - [x] WHERE clause support for DML
 
+### CTE Support ✅
+- [x] CTE (Common Table Expressions) support (WITH clause)
+  - [x] `CTE` struct for defining CTEs
+  - [x] `With{T}` query node
+  - [x] `cte(name, query)` helper with optional column aliases
+  - [x] `with(ctes, main_query)` helper (single and multiple CTEs)
+  - [x] SQL compilation for CTEs
+  - [x] End-to-end execution tests
+  - [x] Nested CTE references support
+
 ### Future Enhancements ⏳
-- [ ] CTE (Common Table Expressions) support (WITH clause)
 - [ ] UNION / INTERSECT / EXCEPT
 - [ ] Window functions (OVER clause)
 - [ ] UPSERT (ON CONFLICT) support

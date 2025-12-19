@@ -1,8 +1,8 @@
 using Test
 using SQLSketch.Core: Query, From, Where, Select, OrderBy, Limit, Offset, Distinct, GroupBy,
-                      Having, Join
+                      Having, Join, CTE, With
 using SQLSketch.Core: from, where, select, order_by, limit, offset, distinct, group_by,
-                      having, join
+                      having, join, cte, with
 using SQLSketch.Core: SQLExpr, col, literal, param, func
 
 @testset "Query AST" begin
@@ -476,5 +476,183 @@ end
         @test q isa OrderBy{NamedTuple}
         @test q.source isa Distinct{NamedTuple}
         @test q.source.source isa Select{NamedTuple}
+    end
+
+    # CTE (Common Table Expressions) Tests
+    @testset "CTE constructor" begin
+        subq = from(:users) |> where(col(:users, :active) == literal(true))
+
+        # Without column aliases
+        c = CTE(:active_users, Symbol[], subq)
+        @test c.name == :active_users
+        @test c.columns == Symbol[]
+        @test c.query === subq
+
+        # With column aliases
+        c2 = CTE(:active_users, [:id, :email], subq)
+        @test c2.name == :active_users
+        @test c2.columns == [:id, :email]
+        @test c2.query === subq
+    end
+
+    @testset "cte() helper" begin
+        subq = from(:users) |> where(col(:users, :active) == literal(true))
+
+        # Basic CTE without column aliases
+        c = cte(:active_users, subq)
+        @test c isa CTE
+        @test c.name == :active_users
+        @test c.columns == Symbol[]
+        @test c.query === subq
+
+        # CTE with column aliases
+        c2 = cte(:user_summary, subq, columns = [:user_id, :user_email])
+        @test c2 isa CTE
+        @test c2.name == :user_summary
+        @test c2.columns == [:user_id, :user_email]
+        @test c2.query === subq
+    end
+
+    @testset "With constructor - single CTE" begin
+        subq = from(:users) |> where(col(:users, :active) == literal(true))
+        c = cte(:active_users, subq)
+        main_q = from(:active_users) |> select(NamedTuple, col(:active_users, :id))
+
+        w = With{NamedTuple}([c], main_q)
+        @test w isa Query{NamedTuple}
+        @test w isa With{NamedTuple}
+        @test length(w.ctes) == 1
+        @test w.ctes[1] === c
+        @test w.main_query === main_q
+    end
+
+    @testset "With constructor - multiple CTEs" begin
+        subq1 = from(:users) |> where(col(:users, :active) == literal(true))
+        subq2 = from(:orders) |> where(col(:orders, :status) == literal("completed"))
+        c1 = cte(:active_users, subq1)
+        c2 = cte(:completed_orders, subq2)
+        main_q = from(:active_users) |>
+                 join(:completed_orders,
+                      col(:active_users, :id) == col(:completed_orders, :user_id)) |>
+                 select(NamedTuple, col(:active_users, :id))
+
+        w = With{NamedTuple}([c1, c2], main_q)
+        @test w isa With{NamedTuple}
+        @test length(w.ctes) == 2
+        @test w.ctes[1] === c1
+        @test w.ctes[2] === c2
+        @test w.main_query === main_q
+    end
+
+    @testset "with() helper - single CTE object" begin
+        subq = from(:users) |> where(col(:users, :active) == literal(true))
+        c = cte(:active_users, subq)
+        main_q = from(:active_users) |> select(NamedTuple, col(:active_users, :id))
+
+        w = with(c, main_q)
+        @test w isa With{NamedTuple}
+        @test length(w.ctes) == 1
+        @test w.ctes[1] === c
+        @test w.main_query === main_q
+    end
+
+    @testset "with() helper - multiple CTE objects" begin
+        subq1 = from(:users) |> where(col(:users, :active) == literal(true))
+        subq2 = from(:orders) |> where(col(:orders, :status) == literal("completed"))
+        c1 = cte(:active_users, subq1)
+        c2 = cte(:completed_orders, subq2)
+        main_q = from(:active_users) |> select(NamedTuple, col(:active_users, :id))
+
+        w = with([c1, c2], main_q)
+        @test w isa With{NamedTuple}
+        @test length(w.ctes) == 2
+        @test w.ctes[1] === c1
+        @test w.ctes[2] === c2
+    end
+
+    @testset "with() helper - convenience syntax" begin
+        subq = from(:users) |> where(col(:users, :active) == literal(true))
+        main_q = from(:active_users) |> select(NamedTuple, col(:active_users, :id))
+
+        # Without column aliases
+        w = with(:active_users, subq, main_q)
+        @test w isa With{NamedTuple}
+        @test length(w.ctes) == 1
+        @test w.ctes[1].name == :active_users
+        @test w.ctes[1].columns == Symbol[]
+        @test w.ctes[1].query === subq
+        @test w.main_query === main_q
+
+        # With column aliases
+        w2 = with(:active_users, subq, main_q, columns = [:user_id, :is_active])
+        @test w2 isa With{NamedTuple}
+        @test w2.ctes[1].columns == [:user_id, :is_active]
+    end
+
+    @testset "CTE type preservation" begin
+        # Output type should come from main_query
+        subq = from(:users) |> where(col(:users, :active) == literal(true))
+        c = cte(:active_users, subq)
+
+        # Main query returns NamedTuple
+        main_q1 = from(:active_users) |> select(NamedTuple, col(:active_users, :id))
+        w1 = with(c, main_q1)
+        @test w1 isa With{NamedTuple}
+
+        # If we had a custom type (hypothetically)
+        struct User
+            id::Int
+        end
+        main_q2 = from(:active_users) |> select(User, col(:active_users, :id))
+        w2 = with(c, main_q2)
+        @test w2 isa With{User}
+    end
+
+    @testset "CTE structural equality" begin
+        subq1 = from(:users) |> where(col(:users, :active) == literal(true))
+        subq2 = from(:users) |> where(col(:users, :active) == literal(true))
+
+        c1 = CTE(:active_users, Symbol[], subq1)
+        c2 = CTE(:active_users, Symbol[], subq1)  # same instance
+        c3 = CTE(:active_users, Symbol[], subq2)  # different instance, same structure
+        c4 = CTE(:different_name, Symbol[], subq1)
+
+        @test isequal(c1, c2)
+        @test isequal(c1, c3)  # structural equality
+        @test !isequal(c1, c4)  # different name
+
+        # With column aliases
+        c5 = CTE(:active_users, [:id, :email], subq1)
+        c6 = CTE(:active_users, [:id, :email], subq1)
+        @test isequal(c5, c6)
+        @test !isequal(c1, c5)  # different columns
+    end
+
+    @testset "With structural equality" begin
+        subq = from(:users) |> where(col(:users, :active) == literal(true))
+        c = cte(:active_users, subq)
+        main_q = from(:active_users) |> select(NamedTuple, col(:active_users, :id))
+
+        w1 = With{NamedTuple}([c], main_q)
+        w2 = With{NamedTuple}([c], main_q)
+        @test isequal(w1, w2)
+
+        # Different main query
+        main_q2 = from(:active_users) |> select(NamedTuple, col(:active_users, :email))
+        w3 = With{NamedTuple}([c], main_q2)
+        @test !isequal(w1, w3)
+    end
+
+    @testset "CTE hash functions" begin
+        subq = from(:users) |> where(col(:users, :active) == literal(true))
+        c1 = cte(:active_users, subq)
+        c2 = cte(:active_users, subq)
+
+        # Same structure should have same hash
+        @test hash(c1) == hash(c2)
+
+        # Can be used in Dict/Set
+        dict = Dict(c1 => "value")
+        @test haskey(dict, c2)  # structural equality
     end
 end

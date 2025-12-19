@@ -2,11 +2,11 @@ using Test
 using SQLSketch.Core: Dialect, Capability, CAP_CTE, CAP_RETURNING, CAP_UPSERT, CAP_WINDOW,
                       CAP_LATERAL
 using SQLSketch.Core: Query, From, Where, Select, Join, OrderBy, Limit, Offset, Distinct,
-                      GroupBy, Having
+                      GroupBy, Having, CTE, With
 using SQLSketch.Core: InsertInto, InsertValues, Update, UpdateSet, UpdateWhere,
                       DeleteFrom, DeleteWhere
 using SQLSketch.Core: from, where, select, join, order_by, limit, offset, distinct,
-                      group_by, having
+                      group_by, having, cte, with
 using SQLSketch.Core: insert_into, values, update, set, delete_from
 using SQLSketch.Core: SQLExpr, col, literal, param, func, is_null, is_not_null
 using SQLSketch.Core: like, not_like, ilike, not_ilike, between, not_between
@@ -802,6 +802,183 @@ end
             sql, params = compile(dialect, q)
 
             @test occursin("`products`.`discount` IN (0.1, 0.2, 0.5)", sql)
+        end
+    end
+
+    @testset "CTE Compilation" begin
+        dialect = SQLiteDialect()
+
+        @testset "Single CTE without column aliases" begin
+            cte_query = from(:users) |> where(col(:users, :active) == literal(true))
+            c = cte(:active_users, cte_query)
+            main_query = from(:active_users) |>
+                         select(NamedTuple, col(:active_users, :id),
+                                col(:active_users, :email))
+            q = with(c, main_query)
+
+            sql, params = compile(dialect, q)
+
+            @test occursin("WITH `active_users` AS (", sql)
+            @test occursin("SELECT * FROM `users`", sql)
+            @test occursin("WHERE (`users`.`active` = 1)", sql)
+            @test occursin(
+                          ") SELECT `active_users`.`id`, `active_users`.`email` FROM `active_users`",
+                          sql)
+            @test isempty(params)
+        end
+
+        @testset "Single CTE with column aliases" begin
+            cte_query = from(:users) |> select(NamedTuple, col(:users, :id), col(:users, :email))
+            main_query = from(:user_summary) |> select(NamedTuple, col(:user_summary, :user_id))
+            q = with(:user_summary, cte_query, main_query, columns = [:user_id, :user_email])
+
+            sql, params = compile(dialect, q)
+
+            @test occursin("WITH `user_summary` (`user_id`, `user_email`) AS (", sql)
+            @test occursin("SELECT `users`.`id`, `users`.`email` FROM `users`", sql)
+            @test occursin(") SELECT `user_summary`.`user_id` FROM `user_summary`", sql)
+            @test isempty(params)
+        end
+
+        @testset "Multiple CTEs" begin
+            cte1_query = from(:users) |> where(col(:users, :active) == literal(true))
+            cte2_query = from(:orders) |> where(col(:orders, :status) == literal("completed"))
+
+            c1 = cte(:active_users, cte1_query)
+            c2 = cte(:completed_orders, cte2_query)
+
+            main_query = from(:active_users) |>
+                         join(:completed_orders,
+                              col(:active_users, :id) == col(:completed_orders, :user_id)) |>
+                         select(NamedTuple, col(:active_users, :id),
+                                col(:completed_orders, :total))
+
+            q = with([c1, c2], main_query)
+            sql, params = compile(dialect, q)
+
+            # Check both CTEs are present
+            @test occursin("WITH `active_users` AS (", sql)
+            @test occursin("), `completed_orders` AS (", sql)
+            @test occursin("WHERE (`users`.`active` = 1)", sql)
+            @test occursin("WHERE (`orders`.`status` = 'completed')", sql)
+            @test occursin("FROM `active_users`", sql)
+            @test occursin("INNER JOIN `completed_orders`", sql)
+            @test isempty(params)
+        end
+
+        @testset "CTE with parameters" begin
+            cte_query = from(:users) |> where(col(:users, :active) == param(Bool, :is_active))
+            c = cte(:active_users, cte_query)
+            main_query = from(:active_users) |>
+                         where(col(:active_users, :created_at) >
+                               param(String, :min_date)) |>
+                         select(NamedTuple, col(:active_users, :id))
+
+            q = with(c, main_query)
+            sql, params = compile(dialect, q)
+
+            @test occursin("WITH `active_users` AS (", sql)
+            @test occursin("WHERE (`users`.`active` = ?)", sql)
+            @test occursin(
+                          ") SELECT `active_users`.`id` FROM `active_users` WHERE (`active_users`.`created_at` > ?)",
+                          sql)
+            @test params == [:is_active, :min_date]
+        end
+
+        @testset "CTE with complex main query" begin
+            cte_query = from(:users) |> where(col(:users, :active) == literal(true))
+            c = cte(:active_users, cte_query)
+
+            main_query = from(:active_users) |>
+                         join(:orders, col(:active_users, :id) == col(:orders, :user_id)) |>
+                         where(col(:orders, :total) > literal(100)) |>
+                         group_by(col(:active_users, :id)) |>
+                         having(func(:COUNT, [col(:orders, :id)]) > literal(5)) |>
+                         select(NamedTuple, col(:active_users, :id),
+                                func(:SUM, [col(:orders, :total)])) |>
+                         order_by(col(:active_users, :id))
+
+            q = with(c, main_query)
+            sql, params = compile(dialect, q)
+
+            @test occursin("WITH `active_users` AS (", sql)
+            @test occursin("FROM `active_users`", sql)
+            @test occursin("INNER JOIN `orders`", sql)
+            @test occursin("WHERE (`orders`.`total` > 100)", sql)
+            @test occursin("GROUP BY `active_users`.`id`", sql)
+            @test occursin("HAVING (COUNT(`orders`.`id`) > 5)", sql)
+            @test occursin("ORDER BY `active_users`.`id`", sql)
+        end
+
+        @testset "CTE with DISTINCT and LIMIT" begin
+            cte_query = from(:users) |>
+                        select(NamedTuple, col(:users, :email)) |>
+                        distinct
+            c = cte(:unique_emails, cte_query)
+
+            main_query = from(:unique_emails) |>
+                         select(NamedTuple, col(:unique_emails, :email)) |>
+                         order_by(col(:unique_emails, :email)) |>
+                         limit(10)
+
+            q = with(c, main_query)
+            sql, params = compile(dialect, q)
+
+            @test occursin("WITH `unique_emails` AS (", sql)
+            @test occursin("SELECT DISTINCT `users`.`email` FROM `users`", sql)
+            @test occursin(
+                          ") SELECT `unique_emails`.`email` FROM `unique_emails` ORDER BY `unique_emails`.`email` ASC LIMIT 10",
+                          sql)
+        end
+
+        @testset "Nested CTE references" begin
+            # CTE1: active users
+            cte1_query = from(:users) |> where(col(:users, :active) == literal(true))
+            c1 = cte(:active_users, cte1_query)
+
+            # CTE2: orders from active users (references active_users)
+            cte2_query = from(:orders) |>
+                         join(:active_users,
+                              col(:orders, :user_id) == col(:active_users, :id)) |>
+                         select(NamedTuple, col(:orders, :id), col(:orders, :user_id),
+                                col(:orders, :total))
+            c2 = cte(:active_orders, cte2_query)
+
+            # Main query: use active_orders
+            main_query = from(:active_orders) |>
+                         select(NamedTuple, col(:active_orders, :id), col(:active_orders, :total))
+
+            q = with([c1, c2], main_query)
+            sql, params = compile(dialect, q)
+
+            @test occursin("WITH `active_users` AS (", sql)
+            @test occursin("), `active_orders` AS (", sql)
+            @test occursin("FROM `orders`", sql)
+            @test occursin("INNER JOIN `active_users`", sql)
+            @test occursin("FROM `active_orders`", sql)
+        end
+
+        @testset "CTE with aggregation" begin
+            cte_query = from(:orders) |>
+                        group_by(col(:orders, :user_id)) |>
+                        select(NamedTuple, col(:orders, :user_id),
+                               func(:SUM, [col(:orders, :total)]))
+
+            c = cte(:user_totals, cte_query, columns = [:user_id, :total_spent])
+
+            main_query = from(:user_totals) |>
+                         where(col(:user_totals, :total_spent) > literal(1000)) |>
+                         select(NamedTuple, col(:user_totals, :user_id),
+                                col(:user_totals, :total_spent))
+
+            q = with(c, main_query)
+            sql, params = compile(dialect, q)
+
+            @test occursin("WITH `user_totals` (`user_id`, `total_spent`) AS (", sql)
+            @test occursin("GROUP BY `orders`.`user_id`", sql)
+            @test occursin("SELECT `orders`.`user_id`, SUM(`orders`.`total`) FROM `orders`",
+                           sql)
+            @test occursin("WHERE (`user_totals`.`total_spent` > 1000)", sql)
         end
     end
 end

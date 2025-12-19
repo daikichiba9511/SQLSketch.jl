@@ -13,14 +13,22 @@ Tests cover:
 """
 
 using Test
-using SQLSketch
-using SQLSketch.Core
 using SQLSketch.Drivers
 using Dates
 using UUIDs
 
-# Import execution functions with new names
+# Import from SQLSketch, avoiding Base name conflicts
+import SQLSketch
+import SQLSketch.Core
 import SQLSketch.Core: fetch_all, fetch_one, fetch_maybe, sql, explain, execute_dml
+import SQLSketch.Core: from, where, select, order_by, limit, offset, distinct, group_by, having
+import SQLSketch.Core: col, literal, param, func
+import SQLSketch.Core: insert_into, update, set, delete_from
+import SQLSketch.Core: cte
+import SQLSketch.Core: connect, execute, close
+import SQLSketch: SQLiteDialect, CodecRegistry
+# Use aliases to avoid Base conflicts
+import SQLSketch.Core: innerjoin, insert_values, with
 
 @testset "End-to-End Integration Tests" begin
     # Setup: Create in-memory database
@@ -48,6 +56,16 @@ import SQLSketch.Core: fetch_all, fetch_one, fetch_maybe, sql, explain, execute_
             title TEXT NOT NULL,
             content TEXT,
             published INTEGER DEFAULT 0,
+            FOREIGN KEY (user_id) REFERENCES users(id)
+        )
+    """, [])
+
+    execute(db, """
+        CREATE TABLE orders (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            user_id INTEGER NOT NULL,
+            total REAL NOT NULL,
+            status TEXT NOT NULL,
             FOREIGN KEY (user_id) REFERENCES users(id)
         )
     """, [])
@@ -146,7 +164,7 @@ import SQLSketch.Core: fetch_all, fetch_one, fetch_maybe, sql, explain, execute_
 
     @testset "Query with JOIN" begin
         q = from(:users) |>
-            join(:posts, col(:users, :id) == col(:posts, :user_id)) |>
+            innerjoin(:posts, col(:users, :id) == col(:posts, :user_id)) |>
             select(NamedTuple,
                    col(:users, :name),
                    col(:posts, :title))
@@ -329,7 +347,7 @@ import SQLSketch.Core: fetch_all, fetch_one, fetch_maybe, sql, explain, execute_
     @testset "Complex Query - Multiple operations" begin
         # Complex query: JOIN, WHERE, ORDER BY, LIMIT
         q = from(:users) |>
-            join(:posts, col(:users, :id) == col(:posts, :user_id)) |>
+            innerjoin(:posts, col(:users, :id) == col(:posts, :user_id)) |>
             where(col(:posts, :published) == literal(1)) |>
             select(NamedTuple,
                    col(:users, :name),
@@ -361,7 +379,7 @@ import SQLSketch.Core: fetch_all, fetch_one, fetch_maybe, sql, explain, execute_
 
         @testset "INSERT with literals" begin
             q = insert_into(:dml_test, [:name, :value]) |>
-                values([[literal("test1"), literal(100)]])
+                insert_values([[literal("test1"), literal(100)]])
 
             execute_dml(db, dialect, q)
 
@@ -378,7 +396,7 @@ import SQLSketch.Core: fetch_all, fetch_one, fetch_maybe, sql, explain, execute_
 
         @testset "INSERT with parameters" begin
             q = insert_into(:dml_test, [:name, :value]) |>
-                values([[param(String, :name), param(Int, :value)]])
+                insert_values([[param(String, :name), param(Int, :value)]])
 
             execute_dml(db, dialect, q, (name="test2", value=200))
 
@@ -394,7 +412,7 @@ import SQLSketch.Core: fetch_all, fetch_one, fetch_maybe, sql, explain, execute_
 
         @testset "INSERT multiple rows" begin
             q = insert_into(:dml_test, [:name, :value]) |>
-                values([
+                insert_values([
                     [literal("test3"), literal(300)],
                     [literal("test4"), literal(400)]
                 ])
@@ -459,6 +477,242 @@ import SQLSketch.Core: fetch_all, fetch_one, fetch_maybe, sql, explain, execute_
 
         # Cleanup DML test table
         execute(db, "DROP TABLE dml_test", [])
+    end
+
+    @testset "CTE End-to-End Execution" begin
+        # Setup fresh test data for CTE tests
+        execute(db, "DROP TABLE IF EXISTS orders", [])
+        execute(db, "DROP TABLE IF EXISTS posts", [])
+        execute(db, "DROP TABLE IF EXISTS users", [])
+
+        execute(db, """
+            CREATE TABLE users (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                name TEXT NOT NULL,
+                email TEXT UNIQUE NOT NULL,
+                age INTEGER,
+                is_active INTEGER DEFAULT 1,
+                created_at TEXT
+            )
+        """, [])
+
+        execute(db, """
+            CREATE TABLE posts (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                user_id INTEGER NOT NULL,
+                title TEXT NOT NULL,
+                content TEXT,
+                published INTEGER DEFAULT 0,
+                FOREIGN KEY (user_id) REFERENCES users(id)
+            )
+        """, [])
+
+        execute(db, """
+            CREATE TABLE orders (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                user_id INTEGER NOT NULL,
+                total REAL NOT NULL,
+                status TEXT NOT NULL,
+                FOREIGN KEY (user_id) REFERENCES users(id)
+            )
+        """, [])
+
+        execute(db, "INSERT INTO users (name, email, age, is_active) VALUES ('Alice', 'alice@example.com', 30, 1)", [])
+        execute(db, "INSERT INTO users (name, email, age, is_active) VALUES ('Bob', 'bob@example.com', 25, 0)", [])
+        execute(db, "INSERT INTO users (name, email, age, is_active) VALUES ('Charlie', 'charlie@example.com', 35, 1)", [])
+
+        @testset "Simple CTE execution" begin
+
+            # CTE: filter active users
+            cte_query = from(:users) |> where(col(:users, :is_active) == literal(1))
+            c = cte(:active_users, cte_query)
+
+            # Main query: select from CTE
+            main_query = from(:active_users) |>
+                         select(NamedTuple, col(:active_users, :name), col(:active_users, :age)) |>
+                         order_by(col(:active_users, :age))
+
+            q = with(c, main_query)
+
+            # Execute
+            results = fetch_all(db, dialect, registry, q)
+
+            @test length(results) == 2
+            @test results[1][:name] == "Alice"
+            @test results[1][:age] == 30
+            @test results[2][:name] == "Charlie"
+            @test results[2][:age] == 35
+        end
+
+        @testset "CTE with parameter binding" begin
+            # CTE with parameter
+            cte_query = from(:users) |>
+                        where(col(:users, :age) > param(Int, :min_age))
+            c = cte(:filtered_users, cte_query)
+
+            main_query = from(:filtered_users) |>
+                         select(NamedTuple, col(:filtered_users, :name)) |>
+                         order_by(col(:filtered_users, :name))
+
+            q = with(c, main_query)
+
+            # Execute with parameters
+            results = fetch_all(db, dialect, registry, q, (min_age = 28,))
+
+            @test length(results) == 2
+            @test results[1][:name] == "Alice"
+            @test results[2][:name] == "Charlie"
+        end
+
+        @testset "Multiple CTEs with JOIN" begin
+            # Ensure fresh test data
+            execute(db, "DELETE FROM orders", [])
+            execute(db,
+                    "INSERT INTO orders (user_id, total, status) VALUES (1, 150.0, 'completed'), (1, 200.0, 'pending'), (3, 300.0, 'completed')",
+                    [])
+
+            # CTE1: active users
+            cte1_query = from(:users) |> where(col(:users, :is_active) == literal(1))
+            c1 = cte(:active_users, cte1_query)
+
+            # CTE2: completed orders
+            cte2_query = from(:orders) |> where(col(:orders, :status) == literal("completed"))
+            c2 = cte(:completed_orders, cte2_query)
+
+            # Main query: JOIN both CTEs
+            main_query = from(:active_users) |>
+                         innerjoin(:completed_orders,
+                              col(:active_users, :id) == col(:completed_orders, :user_id)) |>
+                         select(NamedTuple, col(:active_users, :name), col(:completed_orders, :total)) |>
+                         order_by(col(:active_users, :name))
+
+            q = with([c1, c2], main_query)
+
+            # Execute
+            results = fetch_all(db, dialect, registry, q)
+
+            @test length(results) == 2
+            @test results[1][:name] == "Alice"
+            @test results[1][:total] == 150.0
+            @test results[2][:name] == "Charlie"
+            @test results[2][:total] == 300.0
+        end
+
+        @testset "CTE with aggregation" begin
+            # CTE: aggregate orders by user
+            cte_query = from(:orders) |>
+                        group_by(col(:orders, :user_id)) |>
+                        select(NamedTuple, col(:orders, :user_id),
+                               func(:SUM, [col(:orders, :total)]),
+                               func(:COUNT, [col(:orders, :id)]))
+
+            c = cte(:user_stats, cte_query, columns = [:user_id, :total_spent, :order_count])
+
+            # Main query: filter and order
+            main_query = from(:user_stats) |>
+                         where(col(:user_stats, :order_count) > literal(1)) |>
+                         select(NamedTuple, col(:user_stats, :user_id),
+                                col(:user_stats, :total_spent),
+                                col(:user_stats, :order_count))
+
+            q = with(c, main_query)
+
+            # Execute
+            results = fetch_all(db, dialect, registry, q)
+
+            @test length(results) == 1
+            @test results[1][:user_id] == 1
+            @test results[1][:total_spent] == 350.0  # 150 + 200
+            @test results[1][:order_count] == 2
+        end
+
+        @testset "CTE with DISTINCT" begin
+            # CTE: unique emails
+            cte_query = from(:users) |>
+                        select(NamedTuple, col(:users, :email)) |>
+                        distinct
+
+            c = cte(:unique_emails, cte_query)
+
+            # Main query: count
+            main_query = from(:unique_emails) |>
+                         select(NamedTuple, func(:COUNT, [col(:unique_emails, :email)]))
+
+            q = with(c, main_query)
+
+            # Execute
+            result = fetch_one(db, dialect, registry, q)
+
+            @test result[Symbol("COUNT(`unique_emails`.`email`)")] == 3
+        end
+
+        @testset "Nested CTE references" begin
+            # CTE1: active users
+            cte1_query = from(:users) |> where(col(:users, :is_active) == literal(1))
+            c1 = cte(:active_users, cte1_query)
+
+            # CTE2: orders from active users
+            cte2_query = from(:orders) |>
+                         innerjoin(:active_users,
+                              col(:orders, :user_id) == col(:active_users, :id)) |>
+                         select(NamedTuple, col(:orders, :id), col(:orders, :user_id),
+                                col(:orders, :total), col(:active_users, :name))
+
+            c2 = cte(:active_orders, cte2_query)
+
+            # Main query: select from CTE2
+            main_query = from(:active_orders) |>
+                         select(NamedTuple, col(:active_orders, :name), col(:active_orders, :total)) |>
+                         order_by(col(:active_orders, :total))
+
+            q = with([c1, c2], main_query)
+
+            # Execute
+            results = fetch_all(db, dialect, registry, q)
+
+            @test length(results) == 3
+            @test results[1][:total] == 150.0
+            @test results[2][:total] == 200.0
+            @test results[3][:total] == 300.0
+        end
+
+        @testset "CTE with column aliases" begin
+            # CTE with explicit column aliases
+            cte_query = from(:users) |>
+                        select(NamedTuple, col(:users, :id), col(:users, :name))
+
+            c = cte(:user_summary, cte_query, columns = [:user_id, :user_name])
+
+            # Main query: use aliased columns
+            main_query = from(:user_summary) |>
+                         select(NamedTuple, col(:user_summary, :user_id),
+                                col(:user_summary, :user_name)) |>
+                         order_by(col(:user_summary, :user_name))
+
+            q = with(c, main_query)
+
+            # Execute
+            results = fetch_all(db, dialect, registry, q)
+
+            @test length(results) == 3
+            @test results[1][:user_name] == "Alice"
+            @test results[2][:user_name] == "Bob"
+            @test results[3][:user_name] == "Charlie"
+        end
+
+        @testset "CTE observability - sql() function" begin
+            cte_query = from(:users) |> where(col(:users, :is_active) == literal(1))
+            c = cte(:active_users, cte_query)
+            main_query = from(:active_users) |> select(NamedTuple, col(:active_users, :name))
+            q = with(c, main_query)
+
+            sql_str = sql(dialect, q)
+
+            @test occursin("WITH `active_users` AS", sql_str)
+            @test occursin("SELECT * FROM `users`", sql_str)
+            @test occursin("WHERE (`users`.`is_active` = 1)", sql_str)
+            @test occursin("SELECT `active_users`.`name` FROM `active_users`", sql_str)
+        end
     end
 
     # Cleanup

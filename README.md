@@ -86,7 +86,7 @@ SQLSketch is designed as a two-layer system:
 
 ## Current Implementation Status
 
-**Completed Phases:** 6/10 | **Total Tests:** 662+ passing ✅
+**Completed Phases:** 6/10 | **Total Tests:** 936 passing ✅
 
 - ✅ **Phase 1: Expression AST** (268 tests)
   - Column references, literals, parameters
@@ -155,6 +155,9 @@ using SQLSketch.Drivers
 
 # Import execution functions
 import SQLSketch.Core: fetch_all, fetch_one, fetch_maybe, execute_dml, sql
+
+# Note: Use innerjoin/leftjoin/rightjoin/fulljoin aliases to avoid Base.join conflict
+# Use insert_values alias to avoid Base.values conflict
 
 # Connect to database
 driver = SQLiteDriver()
@@ -245,7 +248,7 @@ q3 = from(:users) |>
 
 # When joining tables, explicit col() makes it clear which table each column belongs to
 q4 = from(:users) |>
-    join(:orders, col(:orders, :user_id) == col(:users, :id)) |>
+    innerjoin(:orders, col(:orders, :user_id) == col(:users, :id)) |>
     where(col(:users, :status) == literal("active")) |>
     select(NamedTuple,
            col(:users, :id),
@@ -298,14 +301,14 @@ maybe_user = fetch_maybe(db, dialect, registry, q2)  # Returns Union{NamedTuple,
 
 # INSERT with literals
 insert_q = insert_into(:users, [:email, :age, :status]) |>
-    values([[literal("alice@example.com"), literal(25), literal("active")]])
+    insert_values([[literal("alice@example.com"), literal(25), literal("active")]])
 execute_dml(db, dialect, insert_q)
 # Generated SQL:
 # INSERT INTO `users` (`email`, `age`, `status`) VALUES ('alice@example.com', 25, 'active')
 
 # INSERT with parameters (type-safe binding)
 insert_q2 = insert_into(:users, [:email, :age, :status]) |>
-    values([[param(String, :email), param(Int, :age), param(String, :status)]])
+    insert_values([[param(String, :email), param(Int, :age), param(String, :status)]])
 execute_dml(db, dialect, insert_q2, (email="bob@example.com", age=30, status="active"))
 # Generated SQL:
 # INSERT INTO `users` (`email`, `age`, `status`) VALUES (?, ?, ?)

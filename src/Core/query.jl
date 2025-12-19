@@ -563,6 +563,67 @@ join(table::Symbol, on::SQLExpr; kind::Symbol = :inner) = q -> join(q, table, on
                                                                     kind = kind)
 
 #
+# Join Aliases (to avoid Base.join conflict, DataFrames.jl compatible)
+#
+
+"""
+    innerjoin(q::Query{T}, table::Symbol, on::SQLExpr) -> Join{T}
+
+Alias for `join(q, table, on, kind=:inner)`.
+Avoids naming conflict with Base.join.
+
+# Example
+
+```julia
+q = from(:users) |> innerjoin(:orders, col(:users, :id) == col(:orders, :user_id))
+```
+"""
+innerjoin(q::Query{T}, table::Symbol, on::SQLExpr) where {T} = join(q, table, on, kind=:inner)
+innerjoin(table::Symbol, on::SQLExpr) = q -> innerjoin(q, table, on)
+
+"""
+    leftjoin(q::Query{T}, table::Symbol, on::SQLExpr) -> Join{T}
+
+Alias for `join(q, table, on, kind=:left)`.
+
+# Example
+
+```julia
+q = from(:users) |> leftjoin(:orders, col(:users, :id) == col(:orders, :user_id))
+```
+"""
+leftjoin(q::Query{T}, table::Symbol, on::SQLExpr) where {T} = join(q, table, on, kind=:left)
+leftjoin(table::Symbol, on::SQLExpr) = q -> leftjoin(q, table, on)
+
+"""
+    rightjoin(q::Query{T}, table::Symbol, on::SQLExpr) -> Join{T}
+
+Alias for `join(q, table, on, kind=:right)`.
+
+# Example
+
+```julia
+q = from(:users) |> rightjoin(:orders, col(:users, :id) == col(:orders, :user_id))
+```
+"""
+rightjoin(q::Query{T}, table::Symbol, on::SQLExpr) where {T} = join(q, table, on, kind=:right)
+rightjoin(table::Symbol, on::SQLExpr) = q -> rightjoin(q, table, on)
+
+"""
+    fulljoin(q::Query{T}, table::Symbol, on::SQLExpr) -> Join{T}
+
+Alias for `join(q, table, on, kind=:full)`.
+
+# Example
+
+```julia
+q = from(:users) |> fulljoin(:orders, col(:users, :id) == col(:orders, :user_id))
+```
+"""
+fulljoin(q::Query{T}, table::Symbol, on::SQLExpr) where {T} = join(q, table, on, kind=:full)
+fulljoin(table::Symbol, on::SQLExpr) = q -> fulljoin(q, table, on)
+
+#
 # Structural Equality (for testing)
 #
 
@@ -831,6 +892,26 @@ function values(source::InsertInto{T}, rows)::InsertValues{T} where {T}
     return InsertValues{T}(source, converted_rows)
 end
 
+#
+# VALUES Alias (to avoid Base.values conflict)
+#
+
+"""
+    insert_values(rows) -> Function
+    insert_values(source::InsertInto{T}, rows) -> InsertValues{T}
+
+Alias for `values()`.
+Avoids naming conflict with Base.values.
+
+# Example
+
+```julia
+insert_into(:users, [:name, :email]) |>
+    insert_values([[literal("Alice"), literal("alice@example.com")]])
+```
+"""
+const insert_values = values
+
 """
     update(table::Symbol) -> Update{NamedTuple}
 
@@ -914,3 +995,49 @@ Base.hash(a::UpdateSet{T}, h::UInt) where {T} = hash((a.source, a.assignments), 
 Base.hash(a::UpdateWhere{T}, h::UInt) where {T} = hash((a.source, a.condition), h)
 Base.hash(a::DeleteFrom{T}, h::UInt) where {T} = hash(a.table, h)
 Base.hash(a::DeleteWhere{T}, h::UInt) where {T} = hash((a.source, a.condition), h)
+
+#
+# CTE (Common Table Expressions) Query Types
+#
+
+struct CTE
+    name::Symbol
+    columns::Vector{Symbol}
+    query::Query
+end
+
+struct With{T} <: Query{T}
+    ctes::Vector{CTE}
+    main_query::Query{T}
+end
+
+#
+# CTE Pipeline API
+#
+
+function cte(name::Symbol, query::Query; columns::Vector{Symbol} = Symbol[])::CTE
+    return CTE(name, columns, query)
+end
+
+function with(ctes::Vector{CTE}, main_query::Query{T})::With{T} where {T}
+    return With{T}(ctes, main_query)
+end
+
+function with(cte::CTE, main_query::Query{T})::With{T} where {T}
+    return With{T}([cte], main_query)
+end
+
+function with(name::Symbol, cte_query::Query, main_query::Query{T};
+              columns::Vector{Symbol} = Symbol[])::With{T} where {T}
+    return With{T}([CTE(name, columns, cte_query)], main_query)
+end
+
+# Structural Equality for CTE
+Base.isequal(a::CTE, b::CTE) = a.name == b.name && a.columns == b.columns &&
+                               isequal(a.query, b.query)
+Base.isequal(a::With{T}, b::With{T}) where {T} = isequal(a.ctes, b.ctes) &&
+                                                  isequal(a.main_query, b.main_query)
+
+# Hash functions for CTE
+Base.hash(a::CTE, h::UInt) = hash((a.name, a.columns, a.query), h)
+Base.hash(a::With{T}, h::UInt) where {T} = hash((a.ctes, a.main_query), h)

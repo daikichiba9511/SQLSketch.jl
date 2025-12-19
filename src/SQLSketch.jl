@@ -41,12 +41,16 @@ export in_list, not_in_list
 export cast, subquery, exists, not_exists, in_subquery, not_in_subquery
 export case_expr
 
-# Query AST (Phase 2 + DML)
+# Query AST (Phase 2 + DML + CTE)
 include("Core/query.jl")
 export Query, From, Where, Select, OrderBy, Limit, Offset, Distinct, GroupBy, Having, Join
 export InsertInto, InsertValues, Update, UpdateSet, UpdateWhere, DeleteFrom, DeleteWhere
+export CTE, With
 export from, where, select, order_by, limit, offset, distinct, group_by, having, join
 export insert_into, values, update, set, delete_from
+export cte, with
+# Aliases to avoid Base conflicts
+export innerjoin, leftjoin, rightjoin, fulljoin, insert_values
 
 # Dialect abstraction (Phase 3)
 include("Core/dialect.jl")
@@ -99,8 +103,12 @@ export cast, subquery, exists, not_exists, in_subquery, not_in_subquery
 export case_expr
 export Query, From, Where, Select, OrderBy, Limit, Offset, Distinct, GroupBy, Having, Join
 export InsertInto, InsertValues, Update, UpdateSet, UpdateWhere, DeleteFrom, DeleteWhere
+export CTE, With
 export from, where, select, order_by, limit, offset, distinct, group_by, having, join
 export insert_into, values, update, set, delete_from
+export cte, with
+# Aliases to avoid Base conflicts
+export innerjoin, leftjoin, rightjoin, fulljoin, insert_values
 export Dialect, Capability
 export CAP_CTE, CAP_RETURNING, CAP_UPSERT, CAP_WINDOW, CAP_LATERAL, CAP_BULK_COPY,
        CAP_SAVEPOINT, CAP_ADVISORY_LOCK
