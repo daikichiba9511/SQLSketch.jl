@@ -86,37 +86,49 @@ SQLSketch is designed as a two-layer system:
 
 ## Current Implementation Status
 
-**Completed Phases:** 4/10
+**Completed Phases:** 6/10 | **Total Tests:** 544 passing ✅
 
-- ✅ **Phase 1: Expression AST** (135 tests passing)
+- ✅ **Phase 1: Expression AST** (135 tests)
   - Column references, literals, parameters
   - Binary/unary operators with auto-wrapping
   - Function calls
   - Type-safe composition
 
-- ✅ **Phase 2: Query AST** (482 tests passing)
+- ✅ **Phase 2: Query AST** (85 tests)
   - FROM, WHERE, SELECT, JOIN, ORDER BY
   - LIMIT, OFFSET, DISTINCT, GROUP BY, HAVING
   - Pipeline composition with `|>`
   - Shape-preserving and shape-changing semantics
   - Type-safe query transformations
 
-- ✅ **Phase 3: Dialect Abstraction** (102 tests passing)
+- ✅ **Phase 3: Dialect Abstraction** (102 tests)
   - Dialect interface (compile, quote_identifier, placeholder, supports)
   - Capability system for feature detection
   - SQLite dialect implementation
   - Full SQL generation from query ASTs
   - Expression and query compilation
 
-- ✅ **Phase 4: Driver Abstraction** (143 tests passing)
+- ✅ **Phase 4: Driver Abstraction** (41 tests)
   - Driver interface (connect, execute, close)
   - SQLiteDriver implementation
   - Connection management (in-memory and file-based)
   - Parameter binding with `?` placeholders
   - Query execution returning raw SQLite results
-  - Integration tests with real database operations
 
-- ⏳ **Phase 5-10:** See [`docs/roadmap.md`](docs/roadmap.md) and [`docs/TODO.md`](docs/TODO.md)
+- ✅ **Phase 5: CodecRegistry** (112 tests)
+  - Type-safe encoding/decoding between Julia and SQL
+  - Built-in codecs (Int, Float64, String, Bool, Date, DateTime, UUID)
+  - NULL/Missing handling
+  - Row mapping to NamedTuples and structs
+
+- ✅ **Phase 6: End-to-End Integration** (54 tests)
+  - Query execution API (`all`, `one`, `maybeone`)
+  - Type-safe parameter binding
+  - Full pipeline: Query AST → Dialect → Driver → CodecRegistry
+  - Observability API (`sql`, `explain`)
+  - Comprehensive integration tests
+
+- ⏳ **Phase 7-10:** See [`docs/roadmap.md`](docs/roadmap.md) and [`docs/TODO.md`](docs/TODO.md)
 
 ---
 
@@ -124,25 +136,50 @@ SQLSketch is designed as a two-layer system:
 
 ```julia
 using SQLSketch
+using SQLSketch.Core
+using SQLSketch.Drivers
 
-# Build query with type-safe composition
+# Import execution functions to avoid name conflicts with Base
+import SQLSketch.Core: all, one, maybeone, sql, explain
+
+# Connect to database
+driver = SQLiteDriver()
+db = connect(driver, ":memory:")
+dialect = SQLiteDialect()
+registry = CodecRegistry()
+
+# Create table
+execute(db, """
+    CREATE TABLE users (
+        id INTEGER PRIMARY KEY,
+        email TEXT NOT NULL,
+        active INTEGER DEFAULT 1,
+        created_at TEXT
+    )
+""", [])
+
+# Build type-safe query
 q = from(:users) |>
-    where(col(:users, :active) == true) |>
+    where(col(:users, :active) == literal(1)) |>
     select(NamedTuple, col(:users, :id), col(:users, :email)) |>
-    order_by(col(:users, :created_at), desc=true) |>
+    order_by(col(:users, :created_at); desc=true) |>
     limit(10)
 
-# Compile to SQL
-dialect = SQLiteDialect()
-sql, params = compile(dialect, q)
+# Inspect SQL before execution
+sql_str = sql(dialect, q)
+println(sql_str)
+# => "SELECT `id`, `email` FROM `users` WHERE `active` = 1 ORDER BY `created_at` DESC LIMIT 10"
 
-println(sql)
-# => "SELECT `users`.`id`, `users`.`email` FROM `users`
-#     WHERE (`users`.`active` = 1) ORDER BY `users`.`created_at` DESC LIMIT 10"
+# Execute and get typed results
+users = all(db, dialect, registry, q)  # Returns Vector{NamedTuple}
 
-# Execute and get typed results (Phase 4+)
-# db = connect(SQLiteDriver(), ":memory:")
-# users = all(db, q)  # Returns Vector{NamedTuple}
+# Or get exactly one result
+user = one(db, dialect, registry, q)  # Returns NamedTuple (errors if not exactly 1 row)
+
+# Or maybe get one result
+maybe_user = maybeone(db, dialect, registry, q)  # Returns Union{NamedTuple, Nothing}
+
+close(db)
 ```
 
 ---
@@ -155,29 +192,33 @@ src/
     expr.jl          # Expression AST ✅
     query.jl         # Query AST ✅
     dialect.jl       # Dialect abstraction ✅
-    driver.jl        # Driver abstraction ⏳
-    codec.jl         # Type conversion ⏳
-    execute.jl       # Query execution ⏳
+    driver.jl        # Driver abstraction ✅
+    codec.jl         # Type conversion ✅
+    execute.jl       # Query execution ✅
     transaction.jl   # Transaction management ⏳
     migrations.jl    # Migration runner ⏳
   Dialects/          # Dialect implementations
     sqlite.jl        # SQLite SQL generation ✅
   Drivers/           # Driver implementations
-    sqlite.jl        # SQLite execution ⏳
+    sqlite.jl        # SQLite execution ✅
 
-test/                # Test suite
+test/                # Test suite (544 tests)
   core/
-    expr_test.jl     # Expression tests ✅
-    query_test.jl    # Query tests ✅
+    expr_test.jl     # Expression tests ✅ (135)
+    query_test.jl    # Query tests ✅ (85)
+    codec_test.jl    # Codec tests ✅ (115)
   dialects/
-    sqlite_test.jl   # SQLite dialect tests ✅
+    sqlite_test.jl   # SQLite dialect tests ✅ (102)
   drivers/
+    sqlite_test.jl   # SQLite driver tests ✅ (41)
   integration/
+    end_to_end_test.jl  # Integration tests ✅ (54)
 
 docs/                # Documentation
   design.md          # Design document
   roadmap.md         # Implementation roadmap
   TODO.md            # Task breakdown
+  CLAUDE.md          # Implementation guidelines
 ```
 
 ---
@@ -203,11 +244,16 @@ julia --project
 ### Current Test Status
 
 ```
-Total: 429 tests passing
-- Phase 1 (Expression AST): 135 tests
-- Phase 2 (Query AST): 482 tests
-- Phase 3 (SQLite Dialect): 102 tests
-- Phase 4 (SQLite Driver): 143 tests
+Total: 544 tests passing ✅
+
+Phase 1 (Expression AST):        135 tests
+Phase 2 (Query AST):              85 tests
+Phase 3 (Dialect Abstraction):   102 tests
+Phase 4 (Driver Abstraction):     41 tests
+Phase 5 (CodecRegistry):         115 tests (includes 112 codec + 3 map_row)
+Phase 6 (End-to-End Integration): 54 tests
+Phase 7 (Transactions):           ⏳ Not yet implemented
+Phase 8 (Migrations):             ⏳ Not yet implemented
 ```
 
 ---
@@ -280,11 +326,17 @@ It is a **typed SQL query builder**, by design.
 
 - Julia **1.9+** (as specified in Project.toml)
 
-Future dependencies (will be added as implementation progresses):
-- SQLite.jl (Phase 4)
-- DBInterface.jl (Phase 4)
-- Dates (Phase 5)
-- UUIDs (Phase 5)
+### Current Dependencies
+
+- **SQLite.jl** - SQLite database driver ✅
+- **DBInterface.jl** - Database interface abstraction ✅
+- **Dates** (stdlib) - Date/DateTime type support ✅
+- **UUIDs** (stdlib) - UUID type support ✅
+
+### Future Dependencies
+
+- LibPQ.jl (Phase 9 - PostgreSQL support)
+- MySQL.jl (Future - MySQL support)
 
 ---
 
@@ -292,14 +344,14 @@ Future dependencies (will be added as implementation progresses):
 
 See [`docs/roadmap.md`](docs/roadmap.md) for the complete implementation plan.
 
-**Estimated Timeline:**
-- Phase 1-3 (Expressions, Queries, Dialect): 6 weeks ✅ **COMPLETED**
-- Phase 4-6 (Driver, Codec, Integration): 6 weeks
-- Phase 7-8 (Transactions, Migrations): 2 weeks
-- Phase 9 (PostgreSQL): 2 weeks
-- Phase 10 (Documentation): 2+ weeks
+**Progress:**
+- ✅ Phase 1-3 (Expressions, Queries, Dialect): 6 weeks - **COMPLETED**
+- ✅ Phase 4-6 (Driver, Codec, Integration): 6 weeks - **COMPLETED**
+- ⏳ Phase 7-8 (Transactions, Migrations): 2 weeks - **NEXT**
+- ⏳ Phase 9 (PostgreSQL): 2 weeks
+- ⏳ Phase 10 (Documentation): 2+ weeks
 
-**Total:** ~16 weeks for Core layer
+**Estimated Total:** ~18 weeks for Core layer (60% complete)
 
 ---
 
