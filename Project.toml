@@ -7,7 +7,9 @@ version = "0.1.0"
 # Phase 4: Driver abstraction
 DBInterface = "a10d1c49-ce27-4219-8d33-6db1a4562965"
 SQLite = "0aa819cd-b072-5ff4-a722-6bc24af294d9"
-# Phase 5: Dates, UUIDs (to be added)
+# Phase 5: CodecRegistry
+Dates = "ade2ca70-3891-5945-98fb-dc099432e06a"
+UUIDs = "cf7118a7-6976-5b1a-9a39-7adc72f591a4"
 
 [compat]
 julia = "1.9"

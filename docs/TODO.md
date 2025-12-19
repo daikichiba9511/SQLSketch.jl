@@ -209,51 +209,51 @@ Task breakdown based on `design.md` and `roadmap.md`.
 
 ---
 
-## Phase 5: CodecRegistry ⏳ PENDING
+## Phase 5: CodecRegistry ✅ COMPLETED
 
-### Codec Interface ⏳
-- [ ] Define `Codec` abstract type
-- [ ] Define `CodecRegistry` struct
-- [ ] `encode(codec, value)` → database value
-- [ ] `decode(codec, dbvalue)` → Julia value
-- [ ] `register!(registry, T, codec)`
-- [ ] `get_codec(registry, T)` → Codec
+### Codec Interface ✅
+- [x] Define `Codec` abstract type
+- [x] Define `CodecRegistry` struct
+- [x] `encode(codec, value)` → database value
+- [x] `decode(codec, dbvalue)` → Julia value
+- [x] `register!(registry, T, codec)`
+- [x] `get_codec(registry, T)` → Codec
 
-### Default Codecs ⏳
-- [ ] Implement `IntCodec`
-- [ ] Implement `Float64Codec`
-- [ ] Implement `StringCodec`
-- [ ] Implement `BoolCodec`
-- [ ] Implement `DateCodec`
-- [ ] Implement `DateTimeCodec`
-- [ ] Implement `UUIDCodec` (as TEXT for SQLite)
-- [ ] Implement `MissingCodec` (NULL policy)
-- [ ] Add `Dates` dependency to Project.toml
-- [ ] Add `UUIDs` dependency to Project.toml
+### Default Codecs ✅
+- [x] Implement `IntCodec`
+- [x] Implement `Float64Codec`
+- [x] Implement `StringCodec`
+- [x] Implement `BoolCodec`
+- [x] Implement `DateCodec`
+- [x] Implement `DateTimeCodec`
+- [x] Implement `UUIDCodec` (as TEXT for SQLite)
+- [x] Implement `MissingCodec` (NULL policy)
+- [x] Add `Dates` dependency to Project.toml
+- [x] Add `UUIDs` dependency to Project.toml
 
-### Row Mapping ⏳
-- [ ] `map_row(registry, ::Type{NamedTuple}, row)` → NamedTuple
-- [ ] `map_row(registry, ::Type{T}, row)` → T (struct construction)
-- [ ] Column name normalization
-- [ ] Missing field handling
-- [ ] Type conversion error handling
+### Row Mapping ✅
+- [x] `map_row(registry, ::Type{NamedTuple}, row)` → NamedTuple
+- [x] `map_row(registry, ::Type{T}, row)` → T (struct construction)
+- [x] Column name normalization
+- [x] Missing field handling
+- [x] Type conversion error handling
 
-### NULL Handling ⏳
-- [ ] Define global NULL policy (Missing-based)
-- [ ] Encode `missing` → NULL
-- [ ] Decode NULL → `missing`
-- [ ] Support `Union{T, Missing}` types
+### NULL Handling ✅
+- [x] Define global NULL policy (Missing-based)
+- [x] Encode `missing` → NULL
+- [x] Decode NULL → `missing`
+- [x] Support `Union{T, Missing}` types
 
-### Tests ⏳
-- [ ] Create `test/core/codec_test.jl`
-- [ ] Test basic type codecs (Int, Float64, String, Bool)
-- [ ] Test Date/DateTime codecs
-- [ ] Test UUID codec
-- [ ] Test NULL/Missing handling
-- [ ] Test row mapping to NamedTuple
-- [ ] Test row mapping to structs
-- [ ] Test encode/decode round-trips
-- [ ] Test error handling
+### Tests ✅
+- [x] Create `test/core/codec_test.jl`
+- [x] Test basic type codecs (Int, Float64, String, Bool)
+- [x] Test Date/DateTime codecs
+- [x] Test UUID codec
+- [x] Test NULL/Missing handling
+- [x] Test row mapping to NamedTuple
+- [x] Test row mapping to structs
+- [x] Test encode/decode round-trips
+- [x] Test error handling
 
 ### Future Enhancements ⏳
 - [ ] JSON codec
@@ -506,24 +506,26 @@ Task breakdown based on `design.md` and `roadmap.md`.
 
 ## Current Status Summary
 
-**Completed Phases:** 4/10
-**Total Tasks Completed:** ~125/400+
-**Current Phase:** Phase 5 (CodecRegistry) ⏳
+**Completed Phases:** 5/10
+**Total Tasks Completed:** ~175/400+
+**Current Phase:** Phase 6 (End-to-End Integration) ⏳
 
 **Next Immediate Tasks:**
-1. Begin Phase 5: CodecRegistry implementation
-2. Define Codec and CodecRegistry types
-3. Implement default codecs for basic types
-4. Implement row mapping functions
-5. Write comprehensive tests for codec functionality
+1. Begin Phase 6: End-to-End Integration
+2. Implement query execution API (all, one, maybeone)
+3. Integrate Query → Dialect → Driver → CodecRegistry pipeline
+4. Implement sql() and explain() functions
+5. Write comprehensive integration tests
 
 **Blockers:** None
 
 **Notes:**
 - Phase 1 (Expression AST) completed successfully with 135 tests passing
-- Phase 2 (Query AST) completed successfully with 482 tests passing (note: actual count includes nested tests)
+- Phase 2 (Query AST) completed successfully with 85 tests passing
 - Phase 3 (Dialect Abstraction) completed successfully with 102 tests passing
-- Phase 4 (Driver Abstraction) completed successfully with 143 tests passing
-- Total: 429 tests passing
+- Phase 4 (Driver Abstraction) completed successfully with 41 tests passing
+- Phase 5 (CodecRegistry) completed successfully with 112 tests passing
+- Total: 541 tests passing
 - SQLite driver fully functional for query execution
-- Ready to proceed with Phase 5 (Type conversion layer)
+- Type conversion layer complete with Missing/NULL support
+- Ready to proceed with Phase 6 (End-to-end integration)

@@ -20,7 +20,7 @@ using Test
     include("drivers/sqlite_test.jl")
 
     # Phase 5: Codecs
-    # include("core/codec_test.jl")
+    include("core/codec_test.jl")
 
     # Phase 6: End-to-end Integration
     # include("integration/end_to_end_test.jl")

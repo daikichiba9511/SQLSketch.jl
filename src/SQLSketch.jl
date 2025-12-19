@@ -48,6 +48,15 @@ module Core
     include("Core/driver.jl")
     export Driver, Connection
     export connect, execute
+
+    # CodecRegistry (Phase 5)
+    include("Core/codec.jl")
+    export Codec, CodecRegistry
+    export encode, decode
+    export register!, get_codec
+    export map_row
+    export IntCodec, Float64Codec, StringCodec, BoolCodec
+    export DateCodec, DateTimeCodec, UUIDCodec
 end
 
 # Dialect implementations
@@ -74,6 +83,12 @@ export CAP_CTE, CAP_RETURNING, CAP_UPSERT, CAP_WINDOW, CAP_LATERAL, CAP_BULK_COP
 export compile, compile_expr, quote_identifier, placeholder, supports
 export Driver, Connection
 export connect, execute
+export Codec, CodecRegistry
+export encode, decode
+export register!, get_codec
+export map_row
+export IntCodec, Float64Codec, StringCodec, BoolCodec
+export DateCodec, DateTimeCodec, UUIDCodec
 
 # Export Dialect implementations
 export SQLiteDialect
