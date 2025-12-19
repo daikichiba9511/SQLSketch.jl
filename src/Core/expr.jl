@@ -221,47 +221,47 @@ func(name::Symbol, args::Vector)::FuncCall = FuncCall(name, convert(Vector{SQLEx
 # These allow natural Julia syntax to build expression ASTs
 
 # Comparison operators
-Base.:(==)(left::SQLExpr, right::SQLExpr) = BinaryOp(:(=), left, right)
-Base.:(!=)(left::SQLExpr, right::SQLExpr) = BinaryOp(:!=, left, right)
-Base.:(<)(left::SQLExpr, right::SQLExpr) = BinaryOp(:<, left, right)
-Base.:(>)(left::SQLExpr, right::SQLExpr) = BinaryOp(:>, left, right)
-Base.:(<=)(left::SQLExpr, right::SQLExpr) = BinaryOp(:<=, left, right)
-Base.:(>=)(left::SQLExpr, right::SQLExpr) = BinaryOp(:>=, left, right)
+Base.:(==)(left::SQLExpr, right::SQLExpr)::BinaryOp = BinaryOp(:(=), left, right)
+Base.:(!=)(left::SQLExpr, right::SQLExpr)::BinaryOp = BinaryOp(:!=, left, right)
+Base.:(<)(left::SQLExpr, right::SQLExpr)::BinaryOp = BinaryOp(:<, left, right)
+Base.:(>)(left::SQLExpr, right::SQLExpr)::BinaryOp = BinaryOp(:>, left, right)
+Base.:(<=)(left::SQLExpr, right::SQLExpr)::BinaryOp = BinaryOp(:<=, left, right)
+Base.:(>=)(left::SQLExpr, right::SQLExpr)::BinaryOp = BinaryOp(:>=, left, right)
 
 # Auto-wrap literals when mixing Expr with Julia values
-Base.:(==)(left::SQLExpr, right) = left == literal(right)
-Base.:(==)(left, right::SQLExpr) = literal(left) == right
-Base.:(!=)(left::SQLExpr, right) = left != literal(right)
-Base.:(!=)(left, right::SQLExpr) = literal(left) != right
-Base.:(<)(left::SQLExpr, right) = left < literal(right)
-Base.:(<)(left, right::SQLExpr) = literal(left) < right
-Base.:(>)(left::SQLExpr, right) = left > literal(right)
-Base.:(>)(left, right::SQLExpr) = literal(left) > right
-Base.:(<=)(left::SQLExpr, right) = left <= literal(right)
-Base.:(<=)(left, right::SQLExpr) = literal(left) <= right
-Base.:(>=)(left::SQLExpr, right) = left >= literal(right)
-Base.:(>=)(left, right::SQLExpr) = literal(left) >= right
+Base.:(==)(left::SQLExpr, right)::BinaryOp = left == literal(right)
+Base.:(==)(left, right::SQLExpr)::BinaryOp = literal(left) == right
+Base.:(!=)(left::SQLExpr, right)::BinaryOp = left != literal(right)
+Base.:(!=)(left, right::SQLExpr)::BinaryOp = literal(left) != right
+Base.:(<)(left::SQLExpr, right)::BinaryOp = left < literal(right)
+Base.:(<)(left, right::SQLExpr)::BinaryOp = literal(left) < right
+Base.:(>)(left::SQLExpr, right)::BinaryOp = left > literal(right)
+Base.:(>)(left, right::SQLExpr)::BinaryOp = literal(left) > right
+Base.:(<=)(left::SQLExpr, right)::BinaryOp = left <= literal(right)
+Base.:(<=)(left, right::SQLExpr)::BinaryOp = literal(left) <= right
+Base.:(>=)(left::SQLExpr, right)::BinaryOp = left >= literal(right)
+Base.:(>=)(left, right::SQLExpr)::BinaryOp = literal(left) >= right
 
 # Logical operators (use & and | to avoid short-circuit evaluation)
-Base.:(&)(left::SQLExpr, right::SQLExpr) = BinaryOp(:AND, left, right)
-Base.:(|)(left::SQLExpr, right::SQLExpr) = BinaryOp(:OR, left, right)
-Base.:(!)(expr::SQLExpr) = UnaryOp(:NOT, expr)
+Base.:(&)(left::SQLExpr, right::SQLExpr)::BinaryOp = BinaryOp(:AND, left, right)
+Base.:(|)(left::SQLExpr, right::SQLExpr)::BinaryOp = BinaryOp(:OR, left, right)
+Base.:(!)(expr::SQLExpr)::UnaryOp = UnaryOp(:NOT, expr)
 
 # Arithmetic operators
-Base.:(+)(left::SQLExpr, right::SQLExpr) = BinaryOp(:+, left, right)
-Base.:(-)(left::SQLExpr, right::SQLExpr) = BinaryOp(:-, left, right)
-Base.:(*)(left::SQLExpr, right::SQLExpr) = BinaryOp(:*, left, right)
-Base.:(/)(left::SQLExpr, right::SQLExpr) = BinaryOp(:/, left, right)
+Base.:(+)(left::SQLExpr, right::SQLExpr)::BinaryOp = BinaryOp(:+, left, right)
+Base.:(-)(left::SQLExpr, right::SQLExpr)::BinaryOp = BinaryOp(:-, left, right)
+Base.:(*)(left::SQLExpr, right::SQLExpr)::BinaryOp = BinaryOp(:*, left, right)
+Base.:(/)(left::SQLExpr, right::SQLExpr)::BinaryOp = BinaryOp(:/, left, right)
 
 # Auto-wrap literals for arithmetic
-Base.:(+)(left::SQLExpr, right) = left + literal(right)
-Base.:(+)(left, right::SQLExpr) = literal(left) + right
-Base.:(-)(left::SQLExpr, right) = left - literal(right)
-Base.:(-)(left, right::SQLExpr) = literal(left) - right
-Base.:(*)(left::SQLExpr, right) = left * literal(right)
-Base.:(*)(left, right::SQLExpr) = literal(left) * right
-Base.:(/)(left::SQLExpr, right) = left / literal(right)
-Base.:(/)(left, right::SQLExpr) = literal(left) / right
+Base.:(+)(left::SQLExpr, right)::BinaryOp = left + literal(right)
+Base.:(+)(left, right::SQLExpr)::BinaryOp = literal(left) + right
+Base.:(-)(left::SQLExpr, right)::BinaryOp = left - literal(right)
+Base.:(-)(left, right::SQLExpr)::BinaryOp = literal(left) - right
+Base.:(*)(left::SQLExpr, right)::BinaryOp = left * literal(right)
+Base.:(*)(left, right::SQLExpr)::BinaryOp = literal(left) * right
+Base.:(/)(left::SQLExpr, right)::BinaryOp = left / literal(right)
+Base.:(/)(left, right::SQLExpr)::BinaryOp = literal(left) / right
 
 # Null checking helpers
 """

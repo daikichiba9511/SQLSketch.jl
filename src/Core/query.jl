@@ -280,7 +280,9 @@ Creates a FROM clause as the starting point of a query.
 q = from(:users)
 ```
 """
-from(table::Symbol) = From{NamedTuple}(table)
+function from(table::Symbol)::From{NamedTuple}
+    return From{NamedTuple}(table)
+end
 
 """
     where(q, condition)
@@ -304,7 +306,9 @@ q = from(:users) |> where(col(:users, :active) == literal(true))
 q = where(from(:users), col(:users, :active) == literal(true))
 ```
 """
-where(q::Query{T}, condition::SQLExpr) where {T} = Where{T}(q, condition)
+function where(q::Query{T}, condition::SQLExpr)::Where{T} where {T}
+    return Where{T}(q, condition)
+end
 
 # Curried version for pipeline composition
 where(condition::SQLExpr) = q -> where(q, condition)
@@ -388,7 +392,9 @@ The curried form `limit(n)` returns a function suitable for pipeline composition
 q = from(:users) |> limit(10)
 ```
 """
-limit(q::Query{T}, n::Int) where {T} = Limit{T}(q, n)
+function limit(q::Query{T}, n::Int)::Limit{T} where {T}
+    return Limit{T}(q, n)
+end
 
 # Curried version for pipeline composition
 limit(n::Int) = q -> limit(q, n)
@@ -411,7 +417,9 @@ The curried form `offset(n)` returns a function suitable for pipeline compositio
 q = from(:users) |> offset(20)
 ```
 """
-offset(q::Query{T}, n::Int) where {T} = Offset{T}(q, n)
+function offset(q::Query{T}, n::Int)::Offset{T} where {T}
+    return Offset{T}(q, n)
+end
 
 # Curried version for pipeline composition
 offset(n::Int) = q -> offset(q, n)
@@ -428,7 +436,9 @@ This is a **shape-preserving** operation.
 q = from(:users) |> select(NamedTuple, col(:users, :email)) |> distinct
 ```
 """
-distinct(q::Query{T}) where {T} = Distinct{T}(q)
+function distinct(q::Query{T})::Distinct{T} where {T}
+    return Distinct{T}(q)
+end
 
 """
     group_by(q::Query{T}, fields::SQLExpr...)::GroupBy{T}
@@ -448,7 +458,9 @@ The curried form `group_by(fields...)` returns a function suitable for pipeline 
 q = from(:orders) |> group_by(col(:orders, :user_id))
 ```
 """
-group_by(q::Query{T}, fields::SQLExpr...) where {T} = GroupBy{T}(q, collect(fields))
+function group_by(q::Query{T}, fields::SQLExpr...)::GroupBy{T} where {T}
+    return GroupBy{T}(q, collect(fields))
+end
 
 # Curried version for pipeline composition
 group_by(fields::SQLExpr...) = q -> group_by(q, fields...)
@@ -473,7 +485,9 @@ q = from(:orders) |>
     having(func(:COUNT, [col(:orders, :id)]) > literal(5))
 ```
 """
-having(q::Query{T}, condition::SQLExpr) where {T} = Having{T}(q, condition)
+function having(q::Query{T}, condition::SQLExpr)::Having{T} where {T}
+    return Having{T}(q, condition)
+end
 
 # Curried version for pipeline composition
 having(condition::SQLExpr) = q -> having(q, condition)
