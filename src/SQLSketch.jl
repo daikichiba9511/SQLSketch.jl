@@ -59,6 +59,11 @@ export register!, get_codec
 export map_row
 export IntCodec, Float64Codec, StringCodec, BoolCodec
 export DateCodec, DateTimeCodec, UUIDCodec
+
+# Query Execution (Phase 6)
+include("Core/execute.jl")
+export all, one, maybeone
+export sql, explain
 end
 
 # Dialect implementations
@@ -90,6 +95,10 @@ export register!, get_codec
 export map_row
 export IntCodec, Float64Codec, StringCodec, BoolCodec
 export DateCodec, DateTimeCodec, UUIDCodec
+
+# Query execution (Phase 6)
+export all, one, maybeone
+export sql, explain
 
 # Export Dialect implementations
 export SQLiteDialect

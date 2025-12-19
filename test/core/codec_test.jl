@@ -235,9 +235,22 @@ end
         @test result === row
     end
 
-    @testset "Error on non-NamedTuple" begin
-        @test_throws ErrorException map_row(registry, NamedTuple, [1, 2, 3])
-        @test_throws ErrorException map_row(registry, NamedTuple, Dict(:id => 1))
+    @testset "Convert row-like objects to NamedTuple" begin
+        # Test with a simple struct (simulating a database row)
+        struct MockRow
+            id::Int
+            name::String
+            email::String
+        end
+
+        mock_row = MockRow(1, "Alice", "alice@example.com")
+        result = map_row(registry, NamedTuple, mock_row)
+
+        @test result isa NamedTuple
+        @test result.id == 1
+        @test result.name == "Alice"
+        @test result.email == "alice@example.com"
+        @test propertynames(result) == (:id, :name, :email)
     end
 end
 

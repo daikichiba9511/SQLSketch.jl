@@ -308,7 +308,11 @@ function map_row(registry::CodecRegistry, ::Type{NamedTuple}, row)::NamedTuple
         return row
     end
 
-    error("Cannot convert row of type $(typeof(row)) to NamedTuple")
+    # Convert database row (e.g., SQLite.Row) to NamedTuple
+    # Get column names from the row
+    cols = propertynames(row)
+    values = [getproperty(row, col) for col in cols]
+    return NamedTuple{Tuple(cols)}(Tuple(values))
 end
 
 """
