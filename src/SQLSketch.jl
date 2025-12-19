@@ -31,6 +31,7 @@ module Core
 # Expression AST (Phase 1)
 include("Core/expr.jl")
 export SQLExpr, ColRef, Literal, Param, BinaryOp, UnaryOp, FuncCall
+export PlaceholderField, Placeholder, p_
 export col, literal, param, func
 export is_null, is_not_null
 
@@ -79,6 +80,7 @@ end
 # Re-export everything from Core for convenience
 using .Core
 export SQLExpr, ColRef, Literal, Param, BinaryOp, UnaryOp, FuncCall
+export PlaceholderField, Placeholder, p_
 export col, literal, param, func
 export is_null, is_not_null
 export Query, From, Where, Select, OrderBy, Limit, Offset, Distinct, GroupBy, Having, Join

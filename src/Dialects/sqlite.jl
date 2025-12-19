@@ -29,7 +29,7 @@ using .Core: Dialect, Capability, CAP_CTE, CAP_RETURNING, CAP_UPSERT, CAP_WINDOW
              CAP_LATERAL, CAP_BULK_COPY, CAP_SAVEPOINT, CAP_ADVISORY_LOCK
 using .Core: Query, From, Where, Select, Join, OrderBy, Limit, Offset, Distinct, GroupBy,
              Having
-using .Core: SQLExpr, ColRef, Literal, Param, BinaryOp, UnaryOp, FuncCall
+using .Core: SQLExpr, ColRef, Literal, Param, BinaryOp, UnaryOp, FuncCall, PlaceholderField
 import .Core: compile, compile_expr, quote_identifier, placeholder, supports
 
 """
@@ -128,6 +128,134 @@ function supports(dialect::SQLiteDialect, cap::Capability)::Bool
     else
         return false
     end
+end
+
+#
+# Placeholder Resolution
+#
+
+"""
+    resolve_placeholders(expr::SQLExpr, table::Symbol) -> SQLExpr
+
+Resolve PlaceholderField expressions to ColRef expressions using the given table name.
+
+# Example
+
+```julia
+resolve_placeholders(PlaceholderField(:email), :users)
+# → ColRef(:users, :email)
+```
+"""
+function resolve_placeholders(expr::PlaceholderField, table::Symbol)::ColRef
+    return ColRef(table, expr.column)
+end
+
+function resolve_placeholders(expr::ColRef, table::Symbol)::ColRef
+    return expr
+end
+
+function resolve_placeholders(expr::Literal, table::Symbol)::Literal
+    return expr
+end
+
+function resolve_placeholders(expr::Param, table::Symbol)::Param
+    return expr
+end
+
+function resolve_placeholders(expr::BinaryOp, table::Symbol)::BinaryOp
+    left = resolve_placeholders(expr.left, table)
+    right = resolve_placeholders(expr.right, table)
+    return BinaryOp(expr.op, left, right)
+end
+
+function resolve_placeholders(expr::UnaryOp, table::Symbol)::UnaryOp
+    resolved_expr = resolve_placeholders(expr.expr, table)
+    return UnaryOp(expr.op, resolved_expr)
+end
+
+function resolve_placeholders(expr::FuncCall, table::Symbol)::FuncCall
+    resolved_args = [resolve_placeholders(arg, table) for arg in expr.args]
+    return FuncCall(expr.name, resolved_args)
+end
+
+"""
+    contains_placeholder(expr::SQLExpr) -> Bool
+
+Check if an expression contains any PlaceholderField nodes.
+"""
+function contains_placeholder(expr::PlaceholderField)::Bool
+    return true
+end
+
+function contains_placeholder(expr::ColRef)::Bool
+    return false
+end
+
+function contains_placeholder(expr::Literal)::Bool
+    return false
+end
+
+function contains_placeholder(expr::Param)::Bool
+    return false
+end
+
+function contains_placeholder(expr::BinaryOp)::Bool
+    return contains_placeholder(expr.left) || contains_placeholder(expr.right)
+end
+
+function contains_placeholder(expr::UnaryOp)::Bool
+    return contains_placeholder(expr.expr)
+end
+
+function contains_placeholder(expr::FuncCall)::Bool
+    return any(contains_placeholder(arg) for arg in expr.args)
+end
+
+"""
+    get_primary_table(query::Query) -> Union{Symbol, Nothing}
+
+Extract the primary table name from a query for placeholder resolution.
+Returns `nothing` if the query has multiple tables (JOINs).
+"""
+function get_primary_table(query::From)::Symbol
+    return query.table
+end
+
+function get_primary_table(query::Where)::Union{Symbol, Nothing}
+    return get_primary_table(query.source)
+end
+
+function get_primary_table(query::Select)::Union{Symbol, Nothing}
+    return get_primary_table(query.source)
+end
+
+function get_primary_table(query::OrderBy)::Union{Symbol, Nothing}
+    return get_primary_table(query.source)
+end
+
+function get_primary_table(query::Limit)::Union{Symbol, Nothing}
+    return get_primary_table(query.source)
+end
+
+function get_primary_table(query::Offset)::Union{Symbol, Nothing}
+    return get_primary_table(query.source)
+end
+
+function get_primary_table(query::Distinct)::Union{Symbol, Nothing}
+    return get_primary_table(query.source)
+end
+
+function get_primary_table(query::GroupBy)::Union{Symbol, Nothing}
+    return get_primary_table(query.source)
+end
+
+function get_primary_table(query::Having)::Union{Symbol, Nothing}
+    return get_primary_table(query.source)
+end
+
+function get_primary_table(query::Join)::Nothing
+    # JOINs have multiple tables - placeholders are ambiguous
+    return nothing
 end
 
 #
@@ -242,6 +370,12 @@ function compile_expr(dialect::SQLiteDialect, expr::FuncCall,
     end
 end
 
+function compile_expr(dialect::SQLiteDialect, expr::PlaceholderField,
+                      params::Vector{Symbol})::String
+    error("PlaceholderField($(expr.column)) must be resolved to ColRef before compilation. " *
+          "This is a bug in the query resolution logic.")
+end
+
 #
 # Query Compilation
 #
@@ -273,8 +407,21 @@ function compile(dialect::SQLiteDialect,
     # Compile the source query first
     source_sql, params = compile(dialect, query.source)
 
+    # Resolve placeholders in the WHERE condition
+    table = get_primary_table(query)
+    if table === nothing
+        # Multi-table query (JOIN) - check if placeholders exist
+        if contains_placeholder(query.condition)
+            error("Cannot use placeholder syntax (_.) in multi-table queries. " *
+                  "Use explicit col(table, column) instead.")
+        end
+        resolved_condition = query.condition
+    else
+        resolved_condition = resolve_placeholders(query.condition, table)
+    end
+
     # Compile the WHERE condition
-    condition_sql = compile_expr(dialect, query.condition, params)
+    condition_sql = compile_expr(dialect, resolved_condition, params)
 
     # Append WHERE clause
     sql = "$source_sql WHERE $condition_sql"
@@ -292,7 +439,20 @@ function compile(dialect::SQLiteDialect,
         return (source_sql, params)
     end
 
-    fields_sql = [compile_expr(dialect, field, params) for field in query.fields]
+    # Resolve placeholders in SELECT fields
+    table = get_primary_table(query)
+    resolved_fields = if table === nothing
+        # Multi-table query - check for placeholders
+        if any(contains_placeholder(f) for f in query.fields)
+            error("Cannot use placeholder syntax (_.) in multi-table queries. " *
+                  "Use explicit col(table, column) instead.")
+        end
+        query.fields
+    else
+        [resolve_placeholders(f, table) for f in query.fields]
+    end
+
+    fields_sql = [compile_expr(dialect, field, params) for field in resolved_fields]
     fields_str = Base.join(fields_sql, ", ")
 
     # Replace "SELECT * FROM" with "SELECT fields FROM"
