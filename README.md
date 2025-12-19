@@ -154,7 +154,7 @@ using SQLSketch.Core
 using SQLSketch.Drivers
 
 # Import execution functions
-import SQLSketch.Core: fetch_all, fetch_one, fetch_maybe, sql, explain
+import SQLSketch.Core: fetch_all, fetch_one, fetch_maybe, execute_dml, sql
 
 # Connect to database
 driver = SQLiteDriver()
@@ -162,7 +162,7 @@ db = connect(driver, ":memory:")
 dialect = SQLiteDialect()
 registry = CodecRegistry()
 
-# Create table
+# Create tables
 execute(db, """
     CREATE TABLE users (
         id INTEGER PRIMARY KEY,
@@ -173,9 +173,51 @@ execute(db, """
     )
 """, [])
 
-# Build type-safe query with advanced features
-q = from(:users) |>
-    where(p_.status == "active") |>  # Placeholder syntax
+execute(db, """
+    CREATE TABLE orders (
+        id INTEGER PRIMARY KEY,
+        user_id INTEGER,
+        total REAL,
+        FOREIGN KEY (user_id) REFERENCES users(id)
+    )
+""", [])
+
+# ========================================
+# Basic Query - Explicit column references with col()
+# ========================================
+
+# col() makes table and column references explicit and clear
+q1 = from(:users) |>
+    where(col(:users, :status) == literal("active")) |>
+    select(NamedTuple, col(:users, :id), col(:users, :email))
+
+# Generated SQL:
+# SELECT `users`.`id`, `users`.`email`
+# FROM `users`
+# WHERE (`users`.`status` = 'active')
+
+# ========================================
+# Placeholder Syntax - Convenient sugar for single-table queries
+# ========================================
+
+# p_ is syntactic sugar: p_.column expands to col(inferred_table, :column)
+# More concise for simple queries, but table name is implicit
+q2 = from(:users) |>
+    where(p_.status == "active") |>
+    select(NamedTuple, p_.id, p_.email)
+
+# Generated SQL (same as q1):
+# SELECT `users`.`id`, `users`.`email`
+# FROM `users`
+# WHERE (`users`.`status` = 'active')
+
+# ========================================
+# Advanced Features - CASE, BETWEEN, LIKE
+# ========================================
+
+q3 = from(:users) |>
+    where(p_.age |> between(18, 65)) |>
+    where(p_.email |> like("%@gmail.com")) |>
     select(NamedTuple,
            p_.id,
            p_.email,
@@ -187,62 +229,103 @@ q = from(:users) |>
     order_by(p_.created_at; desc=true) |>
     limit(10)
 
-# Inspect SQL before execution
-sql_str = sql(dialect, q)
-println(sql_str)
-# => SELECT `users`.`id`, `users`.`email`,
-#    CASE WHEN (`users`.`age` < 18) THEN 'minor' WHEN (`users`.`age` < 65) THEN 'adult' ELSE 'senior' END
-#    FROM `users` WHERE (`users`.`status` = 'active') ORDER BY `users`.`created_at` DESC LIMIT 10
+# Generated SQL:
+# SELECT `users`.`id`, `users`.`email`,
+#   CASE WHEN (`users`.`age` < 18) THEN 'minor'
+#        WHEN (`users`.`age` < 65) THEN 'adult'
+#        ELSE 'senior' END
+# FROM `users`
+# WHERE ((`users`.`age` BETWEEN 18 AND 65) AND (`users`.`email` LIKE '%@gmail.com'))
+# ORDER BY `users`.`created_at` DESC
+# LIMIT 10
 
-# Advanced expressions
-q2 = from(:users) |>
-    where(p_.age |> between(18, 65)) |>  # BETWEEN operator
-    where(p_.email |> like("%@gmail.com")) |>  # LIKE operator
-    select(NamedTuple, p_.id, p_.email)
+# ========================================
+# JOIN Query - Explicit col() is important for clarity
+# ========================================
 
-# Subquery example
+# When joining tables, explicit col() makes it clear which table each column belongs to
+q4 = from(:users) |>
+    join(:orders, col(:orders, :user_id) == col(:users, :id)) |>
+    where(col(:users, :status) == literal("active")) |>
+    select(NamedTuple,
+           col(:users, :id),
+           col(:users, :email),
+           col(:orders, :total))
+
+# Generated SQL:
+# SELECT `users`.`id`, `users`.`email`, `orders`.`total`
+# FROM `users`
+# INNER JOIN `orders` ON (`orders`.`user_id` = `users`.`id`)
+# WHERE (`users`.`status` = 'active')
+
+# ========================================
+# Subquery Example
+# ========================================
+
 active_users = subquery(
     from(:users) |>
     where(p_.status == "active") |>
     select(NamedTuple, p_.id)
 )
 
-q3 = from(:orders) |>
-    where(in_subquery(p_.user_id, active_users)) |>  # IN subquery
-    select(NamedTuple, p_.id, p_.user_id)
+q5 = from(:orders) |>
+    where(in_subquery(p_.user_id, active_users)) |>
+    select(NamedTuple, p_.id, p_.user_id, p_.total)
 
-# Execute and get typed results
-users = fetch_all(db, dialect, registry, q)  # Returns Vector{NamedTuple}
+# Generated SQL:
+# SELECT `orders`.`id`, `orders`.`user_id`, `orders`.`total`
+# FROM `orders`
+# WHERE (`orders`.`user_id` IN (SELECT `users`.`id` FROM `users` WHERE (`users`.`status` = 'active')))
 
-# Or get exactly one result
-user = fetch_one(db, dialect, registry, q)  # Returns NamedTuple (errors if not exactly 1 row)
+# ========================================
+# Inspect SQL before execution
+# ========================================
 
-# Or maybe get one result
-maybe_user = fetch_maybe(db, dialect, registry, q)  # Returns Union{NamedTuple, Nothing}
+sql_str = sql(dialect, q4)
+println(sql_str)  # View the generated SQL
 
+# ========================================
+# Execute queries and get typed results
+# ========================================
+
+users = fetch_all(db, dialect, registry, q2)  # Returns Vector{NamedTuple}
+user = fetch_one(db, dialect, registry, q2)   # Returns NamedTuple (errors if not exactly 1 row)
+maybe_user = fetch_maybe(db, dialect, registry, q2)  # Returns Union{NamedTuple, Nothing}
+
+# ========================================
 # DML Operations (INSERT, UPDATE, DELETE)
-import SQLSketch.Core: execute_dml
+# ========================================
 
 # INSERT with literals
-insert_q = insert_into(:users, [:email, :active]) |>
-    values([[literal("alice@example.com"), literal(1)]])
+insert_q = insert_into(:users, [:email, :age, :status]) |>
+    values([[literal("alice@example.com"), literal(25), literal("active")]])
 execute_dml(db, dialect, insert_q)
+# Generated SQL:
+# INSERT INTO `users` (`email`, `age`, `status`) VALUES ('alice@example.com', 25, 'active')
 
-# INSERT with parameters
-insert_q = insert_into(:users, [:email, :active]) |>
-    values([[param(String, :email), param(Int, :active)]])
-execute_dml(db, dialect, insert_q, (email="bob@example.com", active=1))
+# INSERT with parameters (type-safe binding)
+insert_q2 = insert_into(:users, [:email, :age, :status]) |>
+    values([[param(String, :email), param(Int, :age), param(String, :status)]])
+execute_dml(db, dialect, insert_q2, (email="bob@example.com", age=30, status="active"))
+# Generated SQL:
+# INSERT INTO `users` (`email`, `age`, `status`) VALUES (?, ?, ?)
+# Params: ["bob@example.com", 30, "active"]
 
 # UPDATE with WHERE
 update_q = update(:users) |>
-    set(:active => param(Int, :active)) |>
+    set(:status => param(String, :status)) |>
     where(col(:users, :email) == param(String, :email))
-execute_dml(db, dialect, update_q, (active=0, email="alice@example.com"))
+execute_dml(db, dialect, update_q, (status="inactive", email="alice@example.com"))
+# Generated SQL:
+# UPDATE `users` SET `status` = ? WHERE (`users`.`email` = ?)
+# Params: ["inactive", "alice@example.com"]
 
 # DELETE with WHERE
 delete_q = delete_from(:users) |>
-    where(col(:users, :active) == literal(0))
+    where(col(:users, :status) == literal("inactive"))
 execute_dml(db, dialect, delete_q)
+# Generated SQL:
+# DELETE FROM `users` WHERE (`users`.`status` = 'inactive')
 
 close(db)
 ```

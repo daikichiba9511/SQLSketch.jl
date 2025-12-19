@@ -152,7 +152,7 @@ using SQLSketch.Core
 using SQLSketch.Drivers
 
 # 実行関数をインポート
-import SQLSketch.Core: fetch_all, fetch_one, fetch_maybe, sql, explain
+import SQLSketch.Core: fetch_all, fetch_one, fetch_maybe, execute_dml, sql
 
 # データベースに接続
 driver = SQLiteDriver()
@@ -171,9 +171,51 @@ execute(db, """
     )
 """, [])
 
-# 高度な機能を使った型安全なクエリを構築
-q = from(:users) |>
-    where(p_.status == "active") |>  # Placeholder 構文
+execute(db, """
+    CREATE TABLE orders (
+        id INTEGER PRIMARY KEY,
+        user_id INTEGER,
+        total REAL,
+        FOREIGN KEY (user_id) REFERENCES users(id)
+    )
+""", [])
+
+# ========================================
+# 基本クエリ - col() で明示的なカラム参照
+# ========================================
+
+# col() はテーブルとカラムの参照を明示的かつ明確にします
+q1 = from(:users) |>
+    where(col(:users, :status) == literal("active")) |>
+    select(NamedTuple, col(:users, :id), col(:users, :email))
+
+# 生成される SQL:
+# SELECT `users`.`id`, `users`.`email`
+# FROM `users`
+# WHERE (`users`.`status` = 'active')
+
+# ========================================
+# Placeholder 構文 - 単一テーブルクエリでの便利な糖衣構文
+# ========================================
+
+# p_ は糖衣構文: p_.column は col(推論されたテーブル, :column) に展開されます
+# シンプルなクエリではより簡潔ですが、テーブル名は暗黙的です
+q2 = from(:users) |>
+    where(p_.status == "active") |>
+    select(NamedTuple, p_.id, p_.email)
+
+# 生成される SQL（q1 と同じ）:
+# SELECT `users`.`id`, `users`.`email`
+# FROM `users`
+# WHERE (`users`.`status` = 'active')
+
+# ========================================
+# 高度な機能 - CASE、BETWEEN、LIKE
+# ========================================
+
+q3 = from(:users) |>
+    where(p_.age |> between(18, 65)) |>
+    where(p_.email |> like("%@gmail.com")) |>
     select(NamedTuple,
            p_.id,
            p_.email,
@@ -185,62 +227,103 @@ q = from(:users) |>
     order_by(p_.created_at; desc=true) |>
     limit(10)
 
-# 実行前に SQL を検査
-sql_str = sql(dialect, q)
-println(sql_str)
-# => SELECT `users`.`id`, `users`.`email`,
-#    CASE WHEN (`users`.`age` < 18) THEN 'minor' WHEN (`users`.`age` < 65) THEN 'adult' ELSE 'senior' END
-#    FROM `users` WHERE (`users`.`status` = 'active') ORDER BY `users`.`created_at` DESC LIMIT 10
+# 生成される SQL:
+# SELECT `users`.`id`, `users`.`email`,
+#   CASE WHEN (`users`.`age` < 18) THEN 'minor'
+#        WHEN (`users`.`age` < 65) THEN 'adult'
+#        ELSE 'senior' END
+# FROM `users`
+# WHERE ((`users`.`age` BETWEEN 18 AND 65) AND (`users`.`email` LIKE '%@gmail.com'))
+# ORDER BY `users`.`created_at` DESC
+# LIMIT 10
 
-# 高度な式の例
-q2 = from(:users) |>
-    where(p_.age |> between(18, 65)) |>  # BETWEEN 演算子
-    where(p_.email |> like("%@gmail.com")) |>  # LIKE 演算子
-    select(NamedTuple, p_.id, p_.email)
+# ========================================
+# JOIN クエリ - 明示的な col() が明確性のために重要
+# ========================================
 
+# テーブルを結合する場合、明示的な col() により各カラムがどのテーブルに属するか明確になります
+q4 = from(:users) |>
+    join(:orders, col(:orders, :user_id) == col(:users, :id)) |>
+    where(col(:users, :status) == literal("active")) |>
+    select(NamedTuple,
+           col(:users, :id),
+           col(:users, :email),
+           col(:orders, :total))
+
+# 生成される SQL:
+# SELECT `users`.`id`, `users`.`email`, `orders`.`total`
+# FROM `users`
+# INNER JOIN `orders` ON (`orders`.`user_id` = `users`.`id`)
+# WHERE (`users`.`status` = 'active')
+
+# ========================================
 # サブクエリの例
+# ========================================
+
 active_users = subquery(
     from(:users) |>
     where(p_.status == "active") |>
     select(NamedTuple, p_.id)
 )
 
-q3 = from(:orders) |>
-    where(in_subquery(p_.user_id, active_users)) |>  # IN サブクエリ
-    select(NamedTuple, p_.id, p_.user_id)
+q5 = from(:orders) |>
+    where(in_subquery(p_.user_id, active_users)) |>
+    select(NamedTuple, p_.id, p_.user_id, p_.total)
 
-# 実行して型付き結果を取得
-users = fetch_all(db, dialect, registry, q)  # Returns Vector{NamedTuple}
+# 生成される SQL:
+# SELECT `orders`.`id`, `orders`.`user_id`, `orders`.`total`
+# FROM `orders`
+# WHERE (`orders`.`user_id` IN (SELECT `users`.`id` FROM `users` WHERE (`users`.`status` = 'active')))
 
-# または、厳密に1件取得
-user = fetch_one(db, dialect, registry, q)  # Returns NamedTuple（1件でない場合エラー）
+# ========================================
+# 実行前に SQL を検査
+# ========================================
 
-# または、0件か1件取得
-maybe_user = fetch_maybe(db, dialect, registry, q)  # Returns Union{NamedTuple, Nothing}
+sql_str = sql(dialect, q4)
+println(sql_str)  # 生成された SQL を確認
 
+# ========================================
+# クエリを実行して型付き結果を取得
+# ========================================
+
+users = fetch_all(db, dialect, registry, q2)  # Vector{NamedTuple} を返す
+user = fetch_one(db, dialect, registry, q2)   # NamedTuple を返す（厳密に1件でない場合エラー）
+maybe_user = fetch_maybe(db, dialect, registry, q2)  # Union{NamedTuple, Nothing} を返す
+
+# ========================================
 # DML 操作（INSERT、UPDATE、DELETE）
-import SQLSketch.Core: execute_dml
+# ========================================
 
 # リテラルを使った INSERT
-insert_q = insert_into(:users, [:email, :active]) |>
-    values([[literal("alice@example.com"), literal(1)]])
+insert_q = insert_into(:users, [:email, :age, :status]) |>
+    values([[literal("alice@example.com"), literal(25), literal("active")]])
 execute_dml(db, dialect, insert_q)
+# 生成される SQL:
+# INSERT INTO `users` (`email`, `age`, `status`) VALUES ('alice@example.com', 25, 'active')
 
-# パラメータを使った INSERT
-insert_q = insert_into(:users, [:email, :active]) |>
-    values([[param(String, :email), param(Int, :active)]])
-execute_dml(db, dialect, insert_q, (email="bob@example.com", active=1))
+# パラメータを使った INSERT（型安全なバインディング）
+insert_q2 = insert_into(:users, [:email, :age, :status]) |>
+    values([[param(String, :email), param(Int, :age), param(String, :status)]])
+execute_dml(db, dialect, insert_q2, (email="bob@example.com", age=30, status="active"))
+# 生成される SQL:
+# INSERT INTO `users` (`email`, `age`, `status`) VALUES (?, ?, ?)
+# パラメータ: ["bob@example.com", 30, "active"]
 
 # WHERE 句付き UPDATE
 update_q = update(:users) |>
-    set(:active => param(Int, :active)) |>
+    set(:status => param(String, :status)) |>
     where(col(:users, :email) == param(String, :email))
-execute_dml(db, dialect, update_q, (active=0, email="alice@example.com"))
+execute_dml(db, dialect, update_q, (status="inactive", email="alice@example.com"))
+# 生成される SQL:
+# UPDATE `users` SET `status` = ? WHERE (`users`.`email` = ?)
+# パラメータ: ["inactive", "alice@example.com"]
 
 # WHERE 句付き DELETE
 delete_q = delete_from(:users) |>
-    where(col(:users, :active) == literal(0))
+    where(col(:users, :status) == literal("inactive"))
 execute_dml(db, dialect, delete_q)
+# 生成される SQL:
+# DELETE FROM `users` WHERE (`users`.`status` = 'inactive')
 
 close(db)
 ```
