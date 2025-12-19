@@ -1,0 +1,25 @@
+# Julia
+Manifest*.toml
+*.jl.cov
+*.jl.*.cov
+*.jl.mem
+deps/deps.jl
+
+# Editor/IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Documentation build
+/docs/build/
+/docs/site/
+
+# Test artifacts
+/test/tmp/
+/test/output/
