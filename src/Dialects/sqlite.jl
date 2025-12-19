@@ -30,7 +30,8 @@ using .Core: Dialect, Capability, CAP_CTE, CAP_RETURNING, CAP_UPSERT, CAP_WINDOW
 using .Core: Query, From, Where, Select, Join, OrderBy, Limit, Offset, Distinct, GroupBy,
              Having, InsertInto, InsertValues, Update, UpdateSet, UpdateWhere,
              DeleteFrom, DeleteWhere
-using .Core: SQLExpr, ColRef, Literal, Param, BinaryOp, UnaryOp, FuncCall, PlaceholderField
+using .Core: SQLExpr, ColRef, Literal, Param, BinaryOp, UnaryOp, FuncCall, PlaceholderField,
+             BetweenOp
 import .Core: compile, compile_expr, quote_identifier, placeholder, supports
 
 """
@@ -179,6 +180,13 @@ function resolve_placeholders(expr::FuncCall, table::Symbol)::FuncCall
     return FuncCall(expr.name, resolved_args)
 end
 
+function resolve_placeholders(expr::BetweenOp, table::Symbol)::BetweenOp
+    resolved_expr = resolve_placeholders(expr.expr, table)
+    resolved_low = resolve_placeholders(expr.low, table)
+    resolved_high = resolve_placeholders(expr.high, table)
+    return BetweenOp(resolved_expr, resolved_low, resolved_high, expr.negated)
+end
+
 """
     contains_placeholder(expr::SQLExpr) -> Bool
 
@@ -210,6 +218,10 @@ end
 
 function contains_placeholder(expr::FuncCall)::Bool
     return any(contains_placeholder(arg) for arg in expr.args)
+end
+
+function contains_placeholder(expr::BetweenOp)::Bool
+    return contains_placeholder(expr.expr) || contains_placeholder(expr.low) || contains_placeholder(expr.high)
 end
 
 """
@@ -334,6 +346,17 @@ function compile_expr(dialect::SQLiteDialect, expr::BinaryOp,
         "*"
     elseif expr.op == :/
         "/"
+    elseif expr.op == :LIKE
+        "LIKE"
+    elseif expr.op == :NOT_LIKE
+        "NOT LIKE"
+    elseif expr.op == :ILIKE
+        # SQLite doesn't have native ILIKE, emulate with UPPER
+        # Return special marker to handle differently
+        return "(UPPER($left_sql) LIKE UPPER($right_sql))"
+    elseif expr.op == :NOT_ILIKE
+        # SQLite doesn't have native NOT ILIKE, emulate with UPPER
+        return "(UPPER($left_sql) NOT LIKE UPPER($right_sql))"
     else
         string(expr.op)
     end
@@ -375,6 +398,19 @@ function compile_expr(dialect::SQLiteDialect, expr::PlaceholderField,
                       params::Vector{Symbol})::String
     error("PlaceholderField($(expr.column)) must be resolved to ColRef before compilation. " *
           "This is a bug in the query resolution logic.")
+end
+
+function compile_expr(dialect::SQLiteDialect, expr::BetweenOp,
+                      params::Vector{Symbol})::String
+    expr_sql = compile_expr(dialect, expr.expr, params)
+    low_sql = compile_expr(dialect, expr.low, params)
+    high_sql = compile_expr(dialect, expr.high, params)
+
+    if expr.negated
+        return "($expr_sql NOT BETWEEN $low_sql AND $high_sql)"
+    else
+        return "($expr_sql BETWEEN $low_sql AND $high_sql)"
+    end
 end
 
 #

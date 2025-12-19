@@ -312,6 +312,36 @@ Accepts any vector of Expr subtypes and converts to Vector{Expr}.
 """
 func(name::Symbol, args::Vector)::FuncCall = FuncCall(name, convert(Vector{SQLExpr}, args))
 
+# BETWEEN operator
+"""
+    BetweenOp(expr::SQLExpr, low::SQLExpr, high::SQLExpr, negated::Bool)
+
+Represents a BETWEEN or NOT BETWEEN operation in SQL.
+
+# Fields
+
+  - `expr::SQLExpr` – expression to test
+  - `low::SQLExpr` – lower bound (inclusive)
+  - `high::SQLExpr` – upper bound (inclusive)
+  - `negated::Bool` – true for NOT BETWEEN, false for BETWEEN
+
+# Example
+
+```julia
+between(col(:users, :age), literal(18), literal(65))
+# → age BETWEEN 18 AND 65
+
+not_between(col(:products, :price), param(Float64, :min), param(Float64, :max))
+# → price NOT BETWEEN ? AND ?
+```
+"""
+struct BetweenOp <: SQLExpr
+    expr::SQLExpr
+    low::SQLExpr
+    high::SQLExpr
+    negated::Bool
+end
+
 # Operator overloading for ergonomic expression construction
 # These allow natural Julia syntax to build expression ASTs
 
@@ -387,6 +417,115 @@ is_not_null(col(:users, :email))
 """
 is_not_null(expr::SQLExpr)::UnaryOp = UnaryOp(:IS_NOT_NULL, expr)
 
+# Pattern matching operators (LIKE/ILIKE)
+"""
+    like(expr::SQLExpr, pattern::SQLExpr) -> BinaryOp
+
+Pattern matching with LIKE operator.
+
+Supports SQL wildcards:
+- `%` matches any sequence of characters
+- `_` matches any single character
+
+# Example
+
+```julia
+like(col(:users, :email), literal("%@gmail.com"))
+# → WHERE users.email LIKE '%@gmail.com'
+```
+"""
+like(expr::SQLExpr, pattern::SQLExpr)::BinaryOp = BinaryOp(:LIKE, expr, pattern)
+like(expr::SQLExpr, pattern)::BinaryOp = BinaryOp(:LIKE, expr, literal(pattern))
+
+"""
+    not_like(expr::SQLExpr, pattern::SQLExpr) -> BinaryOp
+
+Negated pattern matching with NOT LIKE operator.
+
+# Example
+
+```julia
+not_like(col(:users, :email), literal("%@spam.com"))
+# → WHERE users.email NOT LIKE '%@spam.com'
+```
+"""
+not_like(expr::SQLExpr, pattern::SQLExpr)::BinaryOp = BinaryOp(:NOT_LIKE, expr, pattern)
+not_like(expr::SQLExpr, pattern)::BinaryOp = BinaryOp(:NOT_LIKE, expr, literal(pattern))
+
+"""
+    ilike(expr::SQLExpr, pattern::SQLExpr) -> BinaryOp
+
+Case-insensitive pattern matching with ILIKE operator (PostgreSQL).
+
+Note: SQLite will emulate this with UPPER() if needed.
+
+# Example
+
+```julia
+ilike(col(:users, :email), literal("%@GMAIL.COM"))
+# → WHERE users.email ILIKE '%@GMAIL.COM'
+```
+"""
+ilike(expr::SQLExpr, pattern::SQLExpr)::BinaryOp = BinaryOp(:ILIKE, expr, pattern)
+ilike(expr::SQLExpr, pattern)::BinaryOp = BinaryOp(:ILIKE, expr, literal(pattern))
+
+"""
+    not_ilike(expr::SQLExpr, pattern::SQLExpr) -> BinaryOp
+
+Negated case-insensitive pattern matching with NOT ILIKE operator (PostgreSQL).
+
+# Example
+
+```julia
+not_ilike(col(:users, :email), literal("%@SPAM.COM"))
+# → WHERE users.email NOT ILIKE '%@SPAM.COM'
+```
+"""
+not_ilike(expr::SQLExpr, pattern::SQLExpr)::BinaryOp = BinaryOp(:NOT_ILIKE, expr, pattern)
+not_ilike(expr::SQLExpr, pattern)::BinaryOp = BinaryOp(:NOT_ILIKE, expr, literal(pattern))
+
+# Range operators (BETWEEN)
+"""
+    between(expr::SQLExpr, low::SQLExpr, high::SQLExpr) -> BetweenOp
+
+Test if an expression is between two values (inclusive).
+
+# Example
+
+```julia
+between(col(:users, :age), literal(18), literal(65))
+# → WHERE users.age BETWEEN 18 AND 65
+
+between(col(:products, :price), param(Float64, :min), param(Float64, :max))
+# → WHERE products.price BETWEEN ? AND ?
+```
+"""
+between(expr::SQLExpr, low::SQLExpr, high::SQLExpr)::BetweenOp =
+    BetweenOp(expr, low, high, false)
+
+# Auto-wrapping for literals
+between(expr::SQLExpr, low, high)::BetweenOp =
+    BetweenOp(expr, literal(low), literal(high), false)
+
+"""
+    not_between(expr::SQLExpr, low::SQLExpr, high::SQLExpr) -> BetweenOp
+
+Test if an expression is NOT between two values.
+
+# Example
+
+```julia
+not_between(col(:users, :age), literal(0), literal(17))
+# → WHERE users.age NOT BETWEEN 0 AND 17
+```
+"""
+not_between(expr::SQLExpr, low::SQLExpr, high::SQLExpr)::BetweenOp =
+    BetweenOp(expr, low, high, true)
+
+# Auto-wrapping for literals
+not_between(expr::SQLExpr, low, high)::BetweenOp =
+    BetweenOp(expr, literal(low), literal(high), true)
+
 # Structural equality for testing
 # These are used by @test and other testing utilities
 Base.isequal(a::ColRef, b::ColRef)::Bool = a.table == b.table && a.column == b.column
@@ -397,6 +536,8 @@ Base.isequal(a::BinaryOp, b::BinaryOp)::Bool = a.op == b.op && isequal(a.left, b
                                                isequal(a.right, b.right)
 Base.isequal(a::UnaryOp, b::UnaryOp)::Bool = a.op == b.op && isequal(a.expr, b.expr)
 Base.isequal(a::FuncCall, b::FuncCall)::Bool = a.name == b.name && isequal(a.args, b.args)
+Base.isequal(a::BetweenOp, b::BetweenOp)::Bool = isequal(a.expr, b.expr) && isequal(a.low, b.low) &&
+                                                  isequal(a.high, b.high) && a.negated == b.negated
 
 # Hash functions for Dict/Set support
 Base.hash(a::ColRef, h::UInt)::UInt = hash((a.table, a.column), h)
@@ -406,6 +547,7 @@ Base.hash(a::PlaceholderField, h::UInt)::UInt = hash(a.column, h)
 Base.hash(a::BinaryOp, h::UInt)::UInt = hash((a.op, a.left, a.right), h)
 Base.hash(a::UnaryOp, h::UInt)::UInt = hash((a.op, a.expr), h)
 Base.hash(a::FuncCall, h::UInt)::UInt = hash((a.name, a.args), h)
+Base.hash(a::BetweenOp, h::UInt)::UInt = hash((a.expr, a.low, a.high, a.negated), h)
 
 # Future: Additional expression types
 # - IN operator (expr in [values...])

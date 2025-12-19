@@ -13,8 +13,9 @@ See `docs/roadmap.md` Phase 1 for implementation plan.
 """
 
 using Test
-using SQLSketch.Core: SQLExpr, ColRef, Literal, Param, BinaryOp, UnaryOp, FuncCall
+using SQLSketch.Core: SQLExpr, ColRef, Literal, Param, BinaryOp, UnaryOp, FuncCall, BetweenOp
 using SQLSketch.Core: col, literal, param, func, is_null, is_not_null
+using SQLSketch.Core: like, not_like, ilike, not_ilike, between, not_between
 
 @testset "Expression AST" begin
     @testset "Column References" begin
@@ -332,5 +333,85 @@ using SQLSketch.Core: col, literal, param, func, is_null, is_not_null
 
         f = func(:COUNT, [col(:users, :id)])
         @test !ismutable(f)
+    end
+
+    @testset "LIKE/ILIKE Operators" begin
+        # LIKE operator
+        expr = like(col(:users, :email), literal("%@gmail.com"))
+        @test expr isa BinaryOp
+        @test expr.op == :LIKE
+        @test isequal(expr.left, col(:users, :email))
+        @test isequal(expr.right, literal("%@gmail.com"))
+
+        # Auto-wrapping with literal
+        expr2 = like(col(:users, :name), "Alice%")
+        @test expr2 isa BinaryOp
+        @test expr2.op == :LIKE
+        @test isequal(expr2.right, literal("Alice%"))
+
+        # NOT LIKE operator
+        expr3 = not_like(col(:users, :email), literal("%@spam.com"))
+        @test expr3 isa BinaryOp
+        @test expr3.op == :NOT_LIKE
+
+        # ILIKE operator (case-insensitive)
+        expr4 = ilike(col(:users, :email), "%@GMAIL.COM")
+        @test expr4 isa BinaryOp
+        @test expr4.op == :ILIKE
+
+        # NOT ILIKE operator
+        expr5 = not_ilike(col(:users, :email), "%@SPAM.COM")
+        @test expr5 isa BinaryOp
+        @test expr5.op == :NOT_ILIKE
+
+        # Hash and equality
+        expr_a = like(col(:users, :email), "%@gmail.com")
+        expr_b = like(col(:users, :email), "%@gmail.com")
+        @test hash(expr_a) == hash(expr_b)
+        @test isequal(expr_a, expr_b)
+    end
+
+    @testset "BETWEEN Operator" begin
+        # Basic BETWEEN construction
+        expr = between(col(:users, :age), literal(18), literal(65))
+        @test expr isa BetweenOp
+        @test isequal(expr.expr, col(:users, :age))
+        @test isequal(expr.low, literal(18))
+        @test isequal(expr.high, literal(65))
+        @test expr.negated == false
+
+        # Auto-wrapping with literals
+        expr2 = between(col(:products, :price), 10.0, 100.0)
+        @test expr2 isa BetweenOp
+        @test isequal(expr2.low, literal(10.0))
+        @test isequal(expr2.high, literal(100.0))
+
+        # NOT BETWEEN
+        expr3 = not_between(col(:users, :age), 0, 17)
+        @test expr3 isa BetweenOp
+        @test expr3.negated == true
+
+        # With parameters
+        expr4 = between(col(:products, :price), param(Float64, :min), param(Float64, :max))
+        @test expr4 isa BetweenOp
+        @test expr4.low isa Param
+        @test expr4.high isa Param
+
+        # Hash and equality
+        expr_a = between(col(:users, :age), 18, 65)
+        expr_b = between(col(:users, :age), 18, 65)
+        @test hash(expr_a) == hash(expr_b)
+        @test isequal(expr_a, expr_b)
+
+        # Different values should not be equal
+        expr_c = between(col(:users, :age), 20, 70)
+        @test !isequal(expr_a, expr_c)
+
+        # Negated vs non-negated should not be equal
+        expr_d = not_between(col(:users, :age), 18, 65)
+        @test !isequal(expr_a, expr_d)
+
+        # Immutability
+        @test !ismutable(expr)
     end
 end

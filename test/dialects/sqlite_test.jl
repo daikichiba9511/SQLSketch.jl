@@ -9,6 +9,7 @@ using SQLSketch.Core: from, where, select, join, order_by, limit, offset, distin
                       group_by, having
 using SQLSketch.Core: insert_into, values, update, set, delete_from
 using SQLSketch.Core: SQLExpr, col, literal, param, func, is_null, is_not_null
+using SQLSketch.Core: like, not_like, ilike, not_ilike, between, not_between
 using SQLSketch.Core: compile, compile_expr, quote_identifier, placeholder, supports
 using SQLSketch: SQLiteDialect
 
@@ -597,6 +598,129 @@ end
             @test occursin("`active`", sql)
             @test occursin("AND", sql)
             @test params == [:date]
+        end
+    end
+
+    # Pattern Matching and Range Operators Tests
+    @testset "LIKE/ILIKE Operators" begin
+        dialect = SQLiteDialect()
+
+        @testset "LIKE operator" begin
+            q = from(:users) |>
+                where(like(col(:users, :email), literal("%@gmail.com")))
+            sql, params = compile(dialect, q)
+
+            @test occursin("WHERE", sql)
+            @test occursin("`users`.`email` LIKE '%@gmail.com'", sql)
+            @test isempty(params)
+        end
+
+        @testset "NOT LIKE operator" begin
+            q = from(:users) |>
+                where(not_like(col(:users, :email), literal("%@spam.com")))
+            sql, params = compile(dialect, q)
+
+            @test occursin("WHERE", sql)
+            @test occursin("`users`.`email` NOT LIKE '%@spam.com'", sql)
+            @test isempty(params)
+        end
+
+        @testset "LIKE with parameters" begin
+            q = from(:users) |>
+                where(like(col(:users, :name), param(String, :pattern)))
+            sql, params = compile(dialect, q)
+
+            @test occursin("WHERE", sql)
+            @test occursin("`users`.`name` LIKE ?", sql)
+            @test params == [:pattern]
+        end
+
+        @testset "ILIKE operator (case-insensitive)" begin
+            q = from(:users) |>
+                where(ilike(col(:users, :email), literal("%@GMAIL.COM")))
+            sql, params = compile(dialect, q)
+
+            # SQLite emulates ILIKE with UPPER
+            @test occursin("WHERE", sql)
+            @test occursin("UPPER(`users`.`email`) LIKE UPPER('%@GMAIL.COM')", sql)
+            @test isempty(params)
+        end
+
+        @testset "NOT ILIKE operator" begin
+            q = from(:users) |>
+                where(not_ilike(col(:users, :email), literal("%@SPAM.COM")))
+            sql, params = compile(dialect, q)
+
+            @test occursin("WHERE", sql)
+            @test occursin("UPPER(`users`.`email`) NOT LIKE UPPER('%@SPAM.COM')", sql)
+            @test isempty(params)
+        end
+
+        @testset "LIKE with wildcards" begin
+            q = from(:users) |>
+                where(like(col(:users, :name), literal("A_ice")))  # _ matches single char
+            sql, params = compile(dialect, q)
+
+            @test occursin("`users`.`name` LIKE 'A_ice'", sql)
+        end
+    end
+
+    @testset "BETWEEN Operator" begin
+        dialect = SQLiteDialect()
+
+        @testset "BETWEEN with literals" begin
+            q = from(:users) |>
+                where(between(col(:users, :age), literal(18), literal(65)))
+            sql, params = compile(dialect, q)
+
+            @test occursin("WHERE", sql)
+            @test occursin("`users`.`age` BETWEEN 18 AND 65", sql)
+            @test isempty(params)
+        end
+
+        @testset "BETWEEN with auto-wrapping" begin
+            q = from(:users) |>
+                where(between(col(:users, :age), 18, 65))
+            sql, params = compile(dialect, q)
+
+            @test occursin("`users`.`age` BETWEEN 18 AND 65", sql)
+            @test isempty(params)
+        end
+
+        @testset "NOT BETWEEN" begin
+            q = from(:users) |>
+                where(not_between(col(:users, :age), 0, 17))
+            sql, params = compile(dialect, q)
+
+            @test occursin("WHERE", sql)
+            @test occursin("`users`.`age` NOT BETWEEN 0 AND 17", sql)
+            @test isempty(params)
+        end
+
+        @testset "BETWEEN with parameters" begin
+            q = from(:products) |>
+                where(between(col(:products, :price), param(Float64, :min), param(Float64, :max)))
+            sql, params = compile(dialect, q)
+
+            @test occursin("WHERE", sql)
+            @test occursin("`products`.`price` BETWEEN ? AND ?", sql)
+            @test params == [:min, :max]
+        end
+
+        @testset "BETWEEN with floating point" begin
+            q = from(:products) |>
+                where(between(col(:products, :price), 9.99, 99.99))
+            sql, params = compile(dialect, q)
+
+            @test occursin("`products`.`price` BETWEEN 9.99 AND 99.99", sql)
+        end
+
+        @testset "BETWEEN with dates (as strings)" begin
+            q = from(:orders) |>
+                where(between(col(:orders, :created_at), literal("2024-01-01"), literal("2024-12-31")))
+            sql, params = compile(dialect, q)
+
+            @test occursin("`orders`.`created_at` BETWEEN '2024-01-01' AND '2024-12-31'", sql)
         end
     end
 end
