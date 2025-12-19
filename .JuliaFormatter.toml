@@ -1,32 +1,117 @@
 # JuliaFormatter configuration for SQLSketch.jl
+#
+# This file configures JuliaFormatter behavior.
+# To format: julia --project=. -e 'using JuliaFormatter; format(".")'
 
-# Basic formatting
+# ============================================================
+# Basic Formatting
+# ============================================================
+
+# indent = 4
+# Number of spaces per indentation level
+# Julia standard is 4 spaces
 indent = 4
+
+# margin = 92
+# Maximum line length in characters
+# Lines exceeding 92 characters will be broken when possible
 margin = 92
+
+# always_for_in = true
+# Enforce `for i in 1:10` instead of `for i = 1:10`
+# Uses `in` keyword consistently (Julia recommended style)
 always_for_in = true
+
+# whitespace_typedefs = true
+# Normalize whitespace in type definitions: `x::Int` (no spaces around `::`)
 whitespace_typedefs = true
+
+# whitespace_ops_in_indices = true
+# Add whitespace around operators in indices: `arr[i + 1]` (true) vs `arr[i+1]` (false)
 whitespace_ops_in_indices = true
 
-# Import formatting
+# ============================================================
+# Import/Using Formatting
+# ============================================================
+
+# import_to_using = false
+# Do not convert `import Foo` to `using Foo`
+# false: preserve import statements (respects explicit intent)
 import_to_using = false
+
+# pipe_to_function_call = false
+# Do not convert pipe operator `|>` to function calls
+# false: preserve `x |> f |> g` pipeline syntax
 pipe_to_function_call = false
 
-# Alignment
+# ============================================================
+# Alignment Settings
+# ============================================================
+
+# align_assignment = false
+# Do not vertically align assignment operators `=`
+# false results in:
+#   x = 1
+#   longer_name = 2
 align_assignment = false
+
+# align_struct_field = false
+# Do not vertically align `::` in struct field definitions
 align_struct_field = false
+
+# align_conditional = false
+# Do not vertically align ternary operators `? :`
 align_conditional = false
+
+# align_pair_arrow = false
+# Do not vertically align pair arrows `=>`
 align_pair_arrow = false
 
-# Line breaks
+# ============================================================
+# Line Breaks & Function Definition Style
+# ============================================================
+
+# short_to_long_function_def = false
+# Do not convert short function definitions `f(x) = x + 1` to long form
+# false: preserve short definitions as-is
 short_to_long_function_def = false
+
+# long_to_short_function_def = false
+# Do not convert long function definitions to short form `f(x) = ...`
+# false: preserve long definitions as-is
 long_to_short_function_def = false
+
+# always_use_return = false
+# Do not force explicit `return` at the end of functions
+# false: follow Julia convention - explicit return only when needed
 always_use_return = false
+
+# whitespace_in_kwargs = true
+# Add whitespace around `=` in keyword arguments: `f(x; a = 1)` (true) vs `f(x; a=1)` (false)
 whitespace_in_kwargs = true
 
-# Style preferences
+# ============================================================
+# Other Style Preferences
+# ============================================================
+
+# remove_extra_newlines = true
+# Remove excessive blank lines (3+ consecutive) and limit to maximum 2
 remove_extra_newlines = true
+
+# format_docstrings = true
+# Format code examples inside docstrings (""" ... """)
 format_docstrings = true
+
+# annotate_untyped_fields_with_any = false
+# Do not automatically add `::Any` to struct fields without type annotations
+# false: rely on type inference (standard Julia practice)
 annotate_untyped_fields_with_any = false
 
-# YAS style (standard Julia style)
+# ============================================================
+# Format Style
+# ============================================================
+
+# style = "yas"
+# YAS (Yet Another Style) - Standard Julia community style
+# Other option: "blue" (BlueStyle)
 style = "yas"
