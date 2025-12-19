@@ -1,0 +1,18 @@
+name = "SQLSketch"
+uuid = "b3e6e9d0-8c4e-4f3a-9d8e-9f5e6d7c8b9a"
+authors = ["daikichbia9511 <daikichiba.tech.ml@gmail.com>"]
+version = "0.1.0"
+
+[deps]
+# Core dependencies will be added as implementation progresses
+# Phase 4: SQLite.jl, DBInterface.jl
+# Phase 5: Dates, UUIDs
+
+[compat]
+julia = "1.9"
+
+[extras]
+Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
+
+[targets]
+test = ["Test"]
