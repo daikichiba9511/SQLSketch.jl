@@ -13,9 +13,8 @@ See `docs/roadmap.md` Phase 1 for implementation plan.
 """
 
 using Test
-
-# Load the expr module
-include("../../src/Core/expr.jl")
+using SQLSketch.Core: SQLExpr, ColRef, Literal, Param, BinaryOp, UnaryOp, FuncCall
+using SQLSketch.Core: col, literal, param, func, is_null, is_not_null
 
 @testset "Expression AST" begin
     @testset "Column References" begin
@@ -32,7 +31,7 @@ include("../../src/Core/expr.jl")
         @test c2.column == :title
 
         # Immutability
-        @test c isa Expr
+        @test c isa SQLExpr
     end
 
     @testset "Literals" begin
@@ -62,7 +61,7 @@ include("../../src/Core/expr.jl")
         @test l5.value === nothing
 
         # Type check
-        @test l1 isa Expr
+        @test l1 isa SQLExpr
     end
 
     @testset "Parameters" begin
@@ -87,7 +86,7 @@ include("../../src/Core/expr.jl")
         @test p4.type == Float64
 
         # Type check
-        @test p1 isa Expr
+        @test p1 isa SQLExpr
     end
 
     @testset "Binary Operators - Comparison" begin
@@ -241,7 +240,7 @@ include("../../src/Core/expr.jl")
         @test expr3.args[2] isa Literal
 
         # No-argument function
-        expr4 = func(:NOW, Expr[])
+        expr4 = func(:NOW, SQLExpr[])
         @test expr4 isa FuncCall
         @test expr4.name == :NOW
         @test length(expr4.args) == 0
@@ -249,7 +248,7 @@ include("../../src/Core/expr.jl")
         # Direct construction
         expr5 = FuncCall(:MAX, [col(:orders, :total)])
         @test expr5 isa FuncCall
-        @test expr5 isa Expr
+        @test expr5 isa SQLExpr
     end
 
     @testset "Expression Composition" begin
@@ -301,15 +300,15 @@ include("../../src/Core/expr.jl")
 
     @testset "Type Hierarchy" begin
         # All expression types should be subtypes of Expr
-        @test ColRef <: Expr
-        @test Literal <: Expr
-        @test Param <: Expr
-        @test BinaryOp <: Expr
-        @test UnaryOp <: Expr
-        @test FuncCall <: Expr
+        @test ColRef <: SQLExpr
+        @test Literal <: SQLExpr
+        @test Param <: SQLExpr
+        @test BinaryOp <: SQLExpr
+        @test UnaryOp <: SQLExpr
+        @test FuncCall <: SQLExpr
 
         # Test abstract type
-        @test isabstracttype(Expr)
+        @test isabstracttype(SQLExpr)
         @test !isabstracttype(ColRef)
         @test !isabstracttype(Literal)
     end

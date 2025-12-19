@@ -25,23 +25,32 @@ See `docs/roadmap.md` for implementation plan.
 """
 module SQLSketch
 
-# Core modules
-include("Core/expr.jl")
-include("Core/query.jl")
-include("Core/dialect.jl")
-include("Core/driver.jl")
-include("Core/codec.jl")
-include("Core/execute.jl")
-include("Core/transaction.jl")
-include("Core/migrations.jl")
+# Core submodule
+module Core
+    # Expression AST (Phase 1)
+    include("Core/expr.jl")
+    export SQLExpr, ColRef, Literal, Param, BinaryOp, UnaryOp, FuncCall
+    export col, literal, param, func
+    export is_null, is_not_null
 
-# Dialect implementations
-include("Dialects/sqlite.jl")
+    # Query AST (Phase 2)
+    include("Core/query.jl")
+    export Query, From, Where, Select, OrderBy, Limit, Offset, Distinct, GroupBy, Having, Join
+    export from, where, select, order_by, limit, offset, distinct, group_by, having, join
+end
 
-# Driver implementations
-include("Drivers/sqlite.jl")
+# Dialect implementations (not yet implemented)
+# include("Dialects/sqlite.jl")
 
-# Re-export Core APIs
-# TODO: Add exports as APIs are implemented
+# Driver implementations (not yet implemented)
+# include("Drivers/sqlite.jl")
+
+# Re-export everything from Core for convenience
+using .Core
+export SQLExpr, ColRef, Literal, Param, BinaryOp, UnaryOp, FuncCall
+export col, literal, param, func
+export is_null, is_not_null
+export Query, From, Where, Select, OrderBy, Limit, Offset, Distinct, GroupBy, Having, Join
+export from, where, select, order_by, limit, offset, distinct, group_by, having, join
 
 end # module SQLSketch

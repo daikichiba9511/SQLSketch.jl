@@ -11,7 +11,7 @@ using Test
     include("core/expr_test.jl")
 
     # Phase 2: Query AST
-    # include("core/query_test.jl")
+    include("core/query_test.jl")
 
     # Phase 3: Dialects
     # include("dialects/sqlite_test.jl")

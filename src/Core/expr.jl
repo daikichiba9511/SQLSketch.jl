@@ -41,7 +41,7 @@ Abstract base type for all SQL expressions.
 
 All expression subtypes must be immutable and inspectable.
 """
-abstract type Expr end
+abstract type SQLExpr end
 
 # Column reference
 """
@@ -58,7 +58,7 @@ Represents a column reference in SQL (e.g., `users.id`).
 col(:users, :email)  # → users.email
 ```
 """
-struct ColRef <: Expr
+struct ColRef <: SQLExpr
     table::Symbol
     column::Symbol
 end
@@ -85,7 +85,7 @@ literal("test")  # → 'test'
 literal(true)    # → TRUE or 1 (dialect-dependent)
 ```
 """
-struct Literal <: Expr
+struct Literal <: SQLExpr
     value::Any
 end
 
@@ -116,7 +116,7 @@ param(String, :email)  # → ? or \$1 (dialect-dependent)
 param(Int, :user_id)
 ```
 """
-struct Param <: Expr
+struct Param <: SQLExpr
     type::Type
     name::Symbol
 end
@@ -155,10 +155,10 @@ col(:users, :active) == literal(true) & col(:users, :verified) == literal(true)
 # → BinaryOp(:AND, BinaryOp(:=, ...), BinaryOp(:=, ...))
 ```
 """
-struct BinaryOp <: Expr
+struct BinaryOp <: SQLExpr
     op::Symbol
-    left::Expr
-    right::Expr
+    left::SQLExpr
+    right::SQLExpr
 end
 
 # Unary operator
@@ -180,9 +180,9 @@ is_null(col(:users, :deleted_at))
 # → UnaryOp(:NOT, ColRef(:users, :active))
 ```
 """
-struct UnaryOp <: Expr
+struct UnaryOp <: SQLExpr
     op::Symbol
-    expr::Expr
+    expr::SQLExpr
 end
 
 # Function call
@@ -204,9 +204,9 @@ func(:LOWER, [col(:users, :email)])
 # → LOWER(users.email)
 ```
 """
-struct FuncCall <: Expr
+struct FuncCall <: SQLExpr
     name::Symbol
-    args::Vector{Expr}
+    args::Vector{SQLExpr}
 end
 
 """
@@ -215,57 +215,57 @@ end
 Convenience constructor for function calls.
 Accepts any vector of Expr subtypes and converts to Vector{Expr}.
 """
-func(name::Symbol, args::Vector)::FuncCall = FuncCall(name, convert(Vector{Expr}, args))
+func(name::Symbol, args::Vector)::FuncCall = FuncCall(name, convert(Vector{SQLExpr}, args))
 
 # Operator overloading for ergonomic expression construction
 # These allow natural Julia syntax to build expression ASTs
 
 # Comparison operators
-Base.:(==)(left::Expr, right::Expr) = BinaryOp(:(=), left, right)
-Base.:(!=)(left::Expr, right::Expr) = BinaryOp(:!=, left, right)
-Base.:(<)(left::Expr, right::Expr) = BinaryOp(:<, left, right)
-Base.:(>)(left::Expr, right::Expr) = BinaryOp(:>, left, right)
-Base.:(<=)(left::Expr, right::Expr) = BinaryOp(:<=, left, right)
-Base.:(>=)(left::Expr, right::Expr) = BinaryOp(:>=, left, right)
+Base.:(==)(left::SQLExpr, right::SQLExpr) = BinaryOp(:(=), left, right)
+Base.:(!=)(left::SQLExpr, right::SQLExpr) = BinaryOp(:!=, left, right)
+Base.:(<)(left::SQLExpr, right::SQLExpr) = BinaryOp(:<, left, right)
+Base.:(>)(left::SQLExpr, right::SQLExpr) = BinaryOp(:>, left, right)
+Base.:(<=)(left::SQLExpr, right::SQLExpr) = BinaryOp(:<=, left, right)
+Base.:(>=)(left::SQLExpr, right::SQLExpr) = BinaryOp(:>=, left, right)
 
 # Auto-wrap literals when mixing Expr with Julia values
-Base.:(==)(left::Expr, right) = left == literal(right)
-Base.:(==)(left, right::Expr) = literal(left) == right
-Base.:(!=)(left::Expr, right) = left != literal(right)
-Base.:(!=)(left, right::Expr) = literal(left) != right
-Base.:(<)(left::Expr, right) = left < literal(right)
-Base.:(<)(left, right::Expr) = literal(left) < right
-Base.:(>)(left::Expr, right) = left > literal(right)
-Base.:(>)(left, right::Expr) = literal(left) > right
-Base.:(<=)(left::Expr, right) = left <= literal(right)
-Base.:(<=)(left, right::Expr) = literal(left) <= right
-Base.:(>=)(left::Expr, right) = left >= literal(right)
-Base.:(>=)(left, right::Expr) = literal(left) >= right
+Base.:(==)(left::SQLExpr, right) = left == literal(right)
+Base.:(==)(left, right::SQLExpr) = literal(left) == right
+Base.:(!=)(left::SQLExpr, right) = left != literal(right)
+Base.:(!=)(left, right::SQLExpr) = literal(left) != right
+Base.:(<)(left::SQLExpr, right) = left < literal(right)
+Base.:(<)(left, right::SQLExpr) = literal(left) < right
+Base.:(>)(left::SQLExpr, right) = left > literal(right)
+Base.:(>)(left, right::SQLExpr) = literal(left) > right
+Base.:(<=)(left::SQLExpr, right) = left <= literal(right)
+Base.:(<=)(left, right::SQLExpr) = literal(left) <= right
+Base.:(>=)(left::SQLExpr, right) = left >= literal(right)
+Base.:(>=)(left, right::SQLExpr) = literal(left) >= right
 
 # Logical operators (use & and | to avoid short-circuit evaluation)
-Base.:(&)(left::Expr, right::Expr) = BinaryOp(:AND, left, right)
-Base.:(|)(left::Expr, right::Expr) = BinaryOp(:OR, left, right)
-Base.:(!)(expr::Expr) = UnaryOp(:NOT, expr)
+Base.:(&)(left::SQLExpr, right::SQLExpr) = BinaryOp(:AND, left, right)
+Base.:(|)(left::SQLExpr, right::SQLExpr) = BinaryOp(:OR, left, right)
+Base.:(!)(expr::SQLExpr) = UnaryOp(:NOT, expr)
 
 # Arithmetic operators
-Base.:(+)(left::Expr, right::Expr) = BinaryOp(:+, left, right)
-Base.:(-)(left::Expr, right::Expr) = BinaryOp(:-, left, right)
-Base.:(*)(left::Expr, right::Expr) = BinaryOp(:*, left, right)
-Base.:(/)(left::Expr, right::Expr) = BinaryOp(:/, left, right)
+Base.:(+)(left::SQLExpr, right::SQLExpr) = BinaryOp(:+, left, right)
+Base.:(-)(left::SQLExpr, right::SQLExpr) = BinaryOp(:-, left, right)
+Base.:(*)(left::SQLExpr, right::SQLExpr) = BinaryOp(:*, left, right)
+Base.:(/)(left::SQLExpr, right::SQLExpr) = BinaryOp(:/, left, right)
 
 # Auto-wrap literals for arithmetic
-Base.:(+)(left::Expr, right) = left + literal(right)
-Base.:(+)(left, right::Expr) = literal(left) + right
-Base.:(-)(left::Expr, right) = left - literal(right)
-Base.:(-)(left, right::Expr) = literal(left) - right
-Base.:(*)(left::Expr, right) = left * literal(right)
-Base.:(*)(left, right::Expr) = literal(left) * right
-Base.:(/)(left::Expr, right) = left / literal(right)
-Base.:(/)(left, right::Expr) = literal(left) / right
+Base.:(+)(left::SQLExpr, right) = left + literal(right)
+Base.:(+)(left, right::SQLExpr) = literal(left) + right
+Base.:(-)(left::SQLExpr, right) = left - literal(right)
+Base.:(-)(left, right::SQLExpr) = literal(left) - right
+Base.:(*)(left::SQLExpr, right) = left * literal(right)
+Base.:(*)(left, right::SQLExpr) = literal(left) * right
+Base.:(/)(left::SQLExpr, right) = left / literal(right)
+Base.:(/)(left, right::SQLExpr) = literal(left) / right
 
 # Null checking helpers
 """
-    is_null(expr::Expr) -> UnaryOp
+    is_null(expr::SQLExpr) -> UnaryOp
 
 Check if an expression is NULL.
 
@@ -275,10 +275,10 @@ is_null(col(:users, :deleted_at))
 # → WHERE users.deleted_at IS NULL
 ```
 """
-is_null(expr::Expr)::UnaryOp = UnaryOp(:IS_NULL, expr)
+is_null(expr::SQLExpr)::UnaryOp = UnaryOp(:IS_NULL, expr)
 
 """
-    is_not_null(expr::Expr) -> UnaryOp
+    is_not_null(expr::SQLExpr) -> UnaryOp
 
 Check if an expression is NOT NULL.
 
@@ -288,7 +288,24 @@ is_not_null(col(:users, :email))
 # → WHERE users.email IS NOT NULL
 ```
 """
-is_not_null(expr::Expr)::UnaryOp = UnaryOp(:IS_NOT_NULL, expr)
+is_not_null(expr::SQLExpr)::UnaryOp = UnaryOp(:IS_NOT_NULL, expr)
+
+# Structural equality for testing
+# These are used by @test and other testing utilities
+Base.isequal(a::ColRef, b::ColRef)::Bool = a.table == b.table && a.column == b.column
+Base.isequal(a::Literal, b::Literal)::Bool = isequal(a.value, b.value)
+Base.isequal(a::Param, b::Param)::Bool = a.type == b.type && a.name == b.name
+Base.isequal(a::BinaryOp, b::BinaryOp)::Bool = a.op == b.op && isequal(a.left, b.left) && isequal(a.right, b.right)
+Base.isequal(a::UnaryOp, b::UnaryOp)::Bool = a.op == b.op && isequal(a.expr, b.expr)
+Base.isequal(a::FuncCall, b::FuncCall)::Bool = a.name == b.name && isequal(a.args, b.args)
+
+# Hash functions for Dict/Set support
+Base.hash(a::ColRef, h::UInt)::UInt = hash((a.table, a.column), h)
+Base.hash(a::Literal, h::UInt)::UInt = hash(a.value, h)
+Base.hash(a::Param, h::UInt)::UInt = hash((a.type, a.name), h)
+Base.hash(a::BinaryOp, h::UInt)::UInt = hash((a.op, a.left, a.right), h)
+Base.hash(a::UnaryOp, h::UInt)::UInt = hash((a.op, a.expr), h)
+Base.hash(a::FuncCall, h::UInt)::UInt = hash((a.name, a.args), h)
 
 # TODO: Add support for:
 # - IN operator (expr in [values...])
