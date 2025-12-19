@@ -6,28 +6,38 @@ Main test runner for SQLSketch.jl
 
 using Test
 
-@testset "SQLSketch.jl" begin
-    # Phase 1: Expression AST
-    include("core/expr_test.jl")
+@testset verbose = true "SQLSketch.jl" begin
+    @testset "Expression AST (Core.expr)" begin
+        include("core/expr_test.jl")
+    end
 
-    # Phase 2: Query AST
-    include("core/query_test.jl")
+    @testset "Query AST (Core.query)" begin
+        include("core/query_test.jl")
+    end
 
-    # Phase 3: Dialects
-    include("dialects/sqlite_test.jl")
+    @testset "SQLite Dialect (Dialects.sqlite)" begin
+        include("dialects/sqlite_test.jl")
+    end
 
-    # Phase 4: Drivers
-    include("drivers/sqlite_test.jl")
+    @testset "SQLite Driver (Drivers.sqlite)" begin
+        include("drivers/sqlite_test.jl")
+    end
 
-    # Phase 5: Codecs
-    include("core/codec_test.jl")
+    @testset "CodecRegistry (Core.codec)" begin
+        include("core/codec_test.jl")
+    end
 
-    # Phase 6: End-to-end Integration
-    # include("integration/end_to_end_test.jl")
+    @testset "End-to-End Integration (integration)" begin
+        include("integration/end_to_end_test.jl")
+    end
 
-    # Phase 7: Transactions
-    # include("core/transaction_test.jl")
+    # Future: Transactions
+    # @testset "Transactions (Core.transaction)" begin
+    #     include("core/transaction_test.jl")
+    # end
 
-    # Phase 8: Migrations
-    # include("core/migrations_test.jl")
+    # Future: Migrations
+    # @testset "Migrations (Core.migrations)" begin
+    #     include("core/migrations_test.jl")
+    # end
 end
