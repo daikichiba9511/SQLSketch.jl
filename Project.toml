@@ -4,15 +4,17 @@ authors = ["daikichbia9511 <daikichiba.tech.ml@gmail.com>"]
 version = "0.1.0"
 
 [deps]
-# Core dependencies will be added as implementation progresses
-# Phase 4: SQLite.jl, DBInterface.jl
-# Phase 5: Dates, UUIDs
+# Phase 4: Driver abstraction
+DBInterface = "a10d1c49-ce27-4219-8d33-6db1a4562965"
+SQLite = "0aa819cd-b072-5ff4-a722-6bc24af294d9"
+# Phase 5: Dates, UUIDs (to be added)
 
 [compat]
 julia = "1.9"
 
 [extras]
 Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
+Tables = "bd369af6-aec1-5ad0-b16a-f7cc5008161c"
 
 [targets]
-test = ["Test"]
+test = ["Test", "Tables"]

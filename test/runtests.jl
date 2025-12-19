@@ -14,10 +14,10 @@ using Test
     include("core/query_test.jl")
 
     # Phase 3: Dialects
-    # include("dialects/sqlite_test.jl")
+    include("dialects/sqlite_test.jl")
 
     # Phase 4: Drivers
-    # include("drivers/sqlite_test.jl")
+    include("drivers/sqlite_test.jl")
 
     # Phase 5: Codecs
     # include("core/codec_test.jl")

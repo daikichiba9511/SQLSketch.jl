@@ -43,13 +43,24 @@ module Core
     export Dialect, Capability
     export CAP_CTE, CAP_RETURNING, CAP_UPSERT, CAP_WINDOW, CAP_LATERAL, CAP_BULK_COPY, CAP_SAVEPOINT, CAP_ADVISORY_LOCK
     export compile, compile_expr, quote_identifier, placeholder, supports
+
+    # Driver abstraction (Phase 4)
+    include("Core/driver.jl")
+    export Driver, Connection
+    export connect, execute
 end
 
 # Dialect implementations
 include("Dialects/sqlite.jl")
 
-# Driver implementations (not yet implemented)
-# include("Drivers/sqlite.jl")
+# Driver implementations
+module Drivers
+    using SQLite
+    using DBInterface
+    using ..Core
+    include("Drivers/sqlite.jl")
+    export SQLiteDriver, SQLiteConnection
+end
 
 # Re-export everything from Core for convenience
 using .Core
@@ -61,8 +72,14 @@ export from, where, select, order_by, limit, offset, distinct, group_by, having,
 export Dialect, Capability
 export CAP_CTE, CAP_RETURNING, CAP_UPSERT, CAP_WINDOW, CAP_LATERAL, CAP_BULK_COPY, CAP_SAVEPOINT, CAP_ADVISORY_LOCK
 export compile, compile_expr, quote_identifier, placeholder, supports
+export Driver, Connection
+export connect, execute
 
 # Export Dialect implementations
 export SQLiteDialect
+
+# Re-export Driver implementations
+using .Drivers
+export SQLiteDriver, SQLiteConnection
 
 end # module SQLSketch

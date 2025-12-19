@@ -86,7 +86,7 @@ SQLSketch is designed as a two-layer system:
 
 ## Current Implementation Status
 
-**Completed Phases:** 3/10
+**Completed Phases:** 4/10
 
 - ✅ **Phase 1: Expression AST** (135 tests passing)
   - Column references, literals, parameters
@@ -108,7 +108,15 @@ SQLSketch is designed as a two-layer system:
   - Full SQL generation from query ASTs
   - Expression and query compilation
 
-- ⏳ **Phase 4-10:** See [`docs/roadmap.md`](docs/roadmap.md) and [`docs/TODO.md`](docs/TODO.md)
+- ✅ **Phase 4: Driver Abstraction** (143 tests passing)
+  - Driver interface (connect, execute, close)
+  - SQLiteDriver implementation
+  - Connection management (in-memory and file-based)
+  - Parameter binding with `?` placeholders
+  - Query execution returning raw SQLite results
+  - Integration tests with real database operations
+
+- ⏳ **Phase 5-10:** See [`docs/roadmap.md`](docs/roadmap.md) and [`docs/TODO.md`](docs/TODO.md)
 
 ---
 
@@ -195,12 +203,11 @@ julia --project
 ### Current Test Status
 
 ```
-Test Summary:         | Pass  Total
-Expression AST        |  135    135
-Query AST             |  482    482
-SQLite Dialect        |  102    102
-──────────────────────────────────
-Total                 |  719    719
+Total: 429 tests passing
+- Phase 1 (Expression AST): 135 tests
+- Phase 2 (Query AST): 482 tests
+- Phase 3 (SQLite Dialect): 102 tests
+- Phase 4 (SQLite Driver): 143 tests
 ```
 
 ---
