@@ -139,8 +139,8 @@ using SQLSketch
 using SQLSketch.Core
 using SQLSketch.Drivers
 
-# Import execution functions to avoid name conflicts with Base
-import SQLSketch.Core: all, one, maybeone, sql, explain
+# Import execution functions
+import SQLSketch.Core: fetch_all, fetch_one, fetch_maybe, sql, explain
 
 # Connect to database
 driver = SQLiteDriver()
@@ -171,13 +171,13 @@ println(sql_str)
 # => "SELECT `id`, `email` FROM `users` WHERE `active` = 1 ORDER BY `created_at` DESC LIMIT 10"
 
 # Execute and get typed results
-users = all(db, dialect, registry, q)  # Returns Vector{NamedTuple}
+users = fetch_all(db, dialect, registry, q)  # Returns Vector{NamedTuple}
 
 # Or get exactly one result
-user = one(db, dialect, registry, q)  # Returns NamedTuple (errors if not exactly 1 row)
+user = fetch_one(db, dialect, registry, q)  # Returns NamedTuple (errors if not exactly 1 row)
 
 # Or maybe get one result
-maybe_user = maybeone(db, dialect, registry, q)  # Returns Union{NamedTuple, Nothing}
+maybe_user = fetch_maybe(db, dialect, registry, q)  # Returns Union{NamedTuple, Nothing}
 
 close(db)
 ```

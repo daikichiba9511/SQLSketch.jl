@@ -277,7 +277,7 @@ The output type determines:
 
 * how rows are decoded
 * how validation is applied (if any)
-* what the user receives from `all`, `one`, or `maybeone`
+* what the user receives from `fetch_all`, `fetch_one`, or `fetch_maybe`
 
 The Core layer treats `OutT` as an opaque type and relies on
 constructors and codecs to enforce invariants.

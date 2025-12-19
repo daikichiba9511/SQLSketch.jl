@@ -261,9 +261,9 @@ decoded = decode(get_codec(registry, Union{Int, Missing}), missing)
 ### Tasks
 
 1. Implement query execution API:
-   - `all(conn, query)` → `Vector{OutT}`
-   - `one(conn, query)` → `OutT` (error if not exactly one row)
-   - `maybeone(conn, query)` → `Union{OutT, Nothing}`
+   - `fetch_all(conn, dialect, registry, query)` → `Vector{OutT}`
+   - `fetch_one(conn, dialect, registry, query)` → `OutT` (error if not exactly one row)
+   - `fetch_maybe(conn, dialect, registry, query)` → `Union{OutT, Nothing}`
 
 2. Integrate all components:
    - Query AST → Dialect → SQL
@@ -301,7 +301,7 @@ q = from(:users) |>
     where(col(:users, :email) == param(String, :email)) |>
     select(NamedTuple, col(:users, :id), col(:users, :email))
 
-result = all(db, q, (email="test@example.com",))
+result = fetch_all(db, dialect, registry, q, (email="test@example.com",))
 # → [(id=1, email="test@example.com")]
 ```
 

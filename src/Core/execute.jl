@@ -93,8 +93,8 @@ function bind_params(param_names::Vector{Symbol}, params::NamedTuple)::Vector
 end
 
 """
-    all(conn::Connection, dialect::Dialect, registry::CodecRegistry,
-        query::Query{T}, params::NamedTuple = NamedTuple()) -> Vector{T}
+    fetch_all(conn::Connection, dialect::Dialect, registry::CodecRegistry,
+              query::Query{T}, params::NamedTuple = NamedTuple()) -> Vector{T}
 
 Execute a query and fetch all rows.
 
@@ -117,15 +117,15 @@ q = from(:users) |>
     where(col(:users, :age) > param(Int, :min_age)) |>
     select(NamedTuple, col(:users, :id), col(:users, :name))
 
-results = all(db, dialect, registry, q, (min_age=25,))
+results = fetch_all(db, dialect, registry, q, (min_age=25,))
 # → Vector{NamedTuple}
 ```
 """
-function all(conn::Connection,
-             dialect::Dialect,
-             registry::CodecRegistry,
-             query::Query{T},
-             params::NamedTuple=NamedTuple())::Vector{T} where {T}
+function fetch_all(conn::Connection,
+                   dialect::Dialect,
+                   registry::CodecRegistry,
+                   query::Query{T},
+                   params::NamedTuple=NamedTuple())::Vector{T} where {T}
     # Compile query to SQL
     sql, param_names = compile(dialect, query)
 
@@ -146,8 +146,8 @@ function all(conn::Connection,
 end
 
 """
-    one(conn::Connection, dialect::Dialect, registry::CodecRegistry,
-        query::Query{T}, params::NamedTuple = NamedTuple()) -> T
+    fetch_one(conn::Connection, dialect::Dialect, registry::CodecRegistry,
+              query::Query{T}, params::NamedTuple = NamedTuple()) -> T
 
 Execute a query and fetch exactly one row.
 
@@ -175,16 +175,16 @@ q = from(:users) |>
     where(col(:users, :id) == param(Int, :id)) |>
     select(NamedTuple, col(:users, :id), col(:users, :email))
 
-user = one(db, dialect, registry, q, (id=1,))
+user = fetch_one(db, dialect, registry, q, (id=1,))
 # → NamedTuple (exactly one row)
 ```
 """
-function one(conn::Connection,
-             dialect::Dialect,
-             registry::CodecRegistry,
-             query::Query{T},
-             params::NamedTuple=NamedTuple())::T where {T}
-    results = all(conn, dialect, registry, query, params)
+function fetch_one(conn::Connection,
+                   dialect::Dialect,
+                   registry::CodecRegistry,
+                   query::Query{T},
+                   params::NamedTuple=NamedTuple())::T where {T}
+    results = fetch_all(conn, dialect, registry, query, params)
 
     if length(results) == 0
         error("Expected exactly one row, but got zero rows")
@@ -196,8 +196,8 @@ function one(conn::Connection,
 end
 
 """
-    maybeone(conn::Connection, dialect::Dialect, registry::CodecRegistry,
-             query::Query{T}, params::NamedTuple = NamedTuple()) -> Union{T, Nothing}
+    fetch_maybe(conn::Connection, dialect::Dialect, registry::CodecRegistry,
+                query::Query{T}, params::NamedTuple = NamedTuple()) -> Union{T, Nothing}
 
 Execute a query and fetch zero or one row.
 
@@ -225,16 +225,16 @@ q = from(:users) |>
     where(col(:users, :email) == param(String, :email)) |>
     select(NamedTuple, col(:users, :id), col(:users, :email))
 
-user = maybeone(db, dialect, registry, q, (email="test@example.com",))
+user = fetch_maybe(db, dialect, registry, q, (email="test@example.com",))
 # → NamedTuple or Nothing
 ```
 """
-function maybeone(conn::Connection,
-                  dialect::Dialect,
-                  registry::CodecRegistry,
-                  query::Query{T},
-                  params::NamedTuple=NamedTuple())::Union{T, Nothing} where {T}
-    results = all(conn, dialect, registry, query, params)
+function fetch_maybe(conn::Connection,
+                     dialect::Dialect,
+                     registry::CodecRegistry,
+                     query::Query{T},
+                     params::NamedTuple=NamedTuple())::Union{T, Nothing} where {T}
+    results = fetch_all(conn, dialect, registry, query, params)
 
     if length(results) == 0
         return nothing

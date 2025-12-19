@@ -62,7 +62,7 @@ export DateCodec, DateTimeCodec, UUIDCodec
 
 # Query Execution (Phase 6)
 include("Core/execute.jl")
-export all, one, maybeone
+export fetch_all, fetch_one, fetch_maybe
 export sql, explain
 end
 
@@ -97,7 +97,7 @@ export IntCodec, Float64Codec, StringCodec, BoolCodec
 export DateCodec, DateTimeCodec, UUIDCodec
 
 # Query execution (Phase 6)
-export all, one, maybeone
+export fetch_all, fetch_one, fetch_maybe
 export sql, explain
 
 # Export Dialect implementations

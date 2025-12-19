@@ -266,9 +266,9 @@ Task breakdown based on `design.md` and `roadmap.md`.
 ## Phase 6: End-to-End Integration ✅ COMPLETED
 
 ### Query Execution API ✅
-- [x] Implement `all(conn, query, params)` → `Vector{OutT}`
-- [x] Implement `one(conn, query, params)` → `OutT`
-- [x] Implement `maybeone(conn, query, params)` → `Union{OutT, Nothing}`
+- [x] Implement `fetch_all(conn, dialect, registry, query, params)` → `Vector{OutT}`
+- [x] Implement `fetch_one(conn, dialect, registry, query, params)` → `OutT`
+- [x] Implement `fetch_maybe(conn, dialect, registry, query, params)` → `Union{OutT, Nothing}`
 - [x] Implement parameter binding from NamedTuple
 - [x] Integrate Query → Compile → Execute → Map pipeline
 
@@ -287,12 +287,12 @@ Task breakdown based on `design.md` and `roadmap.md`.
 ### Tests ✅
 - [x] Create `test/integration/end_to_end_test.jl`
 - [x] Test full SELECT query execution
-- [x] Test `all()` with various query types
-- [x] Test `one()` with exactly one row
-- [x] Test `one()` error on zero rows
-- [x] Test `one()` error on multiple rows
-- [x] Test `maybeone()` with zero rows
-- [x] Test `maybeone()` with one row
+- [x] Test `fetch_all()` with various query types
+- [x] Test `fetch_one()` with exactly one row
+- [x] Test `fetch_one()` error on zero rows
+- [x] Test `fetch_one()` error on multiple rows
+- [x] Test `fetch_maybe()` with zero rows
+- [x] Test `fetch_maybe()` with one row
 - [x] Test complex queries (joins, aggregates)
 - [x] Test type conversion end-to-end
 - [x] Test parameter binding
