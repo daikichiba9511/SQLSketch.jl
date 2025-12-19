@@ -74,10 +74,117 @@ Database capabilities that may or may not be supported by a given dialect.
     CAP_ADVISORY_LOCK
 end
 
-# Placeholder functions - to be completed in Phase 3
+#
+# Dialect Interface Functions
+#
+# These functions must be implemented by all Dialect subtypes.
+#
 
-# TODO: Implement compile(dialect::Dialect, query::Query)
-# TODO: Implement compile_expr(dialect::Dialect, expr::Expr)
-# TODO: Implement quote_identifier(dialect::Dialect, name::Symbol)
-# TODO: Implement placeholder(dialect::Dialect, idx::Int)
-# TODO: Implement supports(dialect::Dialect, cap::Capability)
+"""
+    compile(dialect::Dialect, query::Query) -> (sql::String, params::Vector{Symbol})
+
+Compile a Query AST into a SQL string and parameter list.
+
+# Arguments
+- `dialect`: The SQL dialect to use for compilation
+- `query`: The query AST to compile
+
+# Returns
+- `sql`: The generated SQL string
+- `params`: A vector of parameter names in the order they appear in the SQL
+
+# Example
+```julia
+q = from(:users) |> where(col(:users, :id) == param(Int, :user_id))
+sql, params = compile(SQLiteDialect(), q)
+# sql    → "SELECT * FROM `users` WHERE `users`.`id` = ?"
+# params → [:user_id]
+```
+"""
+function compile end
+
+"""
+    compile_expr(dialect::Dialect, expr::SQLExpr, params::Vector{Symbol}) -> String
+
+Compile an Expression AST into a SQL fragment.
+
+This function is called recursively to build SQL expressions.
+When a `Param` is encountered, its name is appended to the `params` vector.
+
+# Arguments
+- `dialect`: The SQL dialect to use for compilation
+- `expr`: The expression AST to compile
+- `params`: A mutable vector to collect parameter names
+
+# Returns
+- A SQL fragment string
+
+# Example
+```julia
+expr = col(:users, :age) > literal(18)
+params = Symbol[]
+sql_fragment = compile_expr(SQLiteDialect(), expr, params)
+# → "`users`.`age` > 18"
+```
+"""
+function compile_expr end
+
+"""
+    quote_identifier(dialect::Dialect, name::Symbol) -> String
+
+Quote an identifier (table name, column name, alias) according to the dialect's rules.
+
+# Arguments
+- `dialect`: The SQL dialect
+- `name`: The identifier to quote
+
+# Returns
+- The quoted identifier
+
+# Examples
+```julia
+quote_identifier(SQLiteDialect(), :users)     # → "`users`"
+quote_identifier(PostgreSQLDialect(), :users) # → "\"users\""
+```
+"""
+function quote_identifier end
+
+"""
+    placeholder(dialect::Dialect, idx::Int) -> String
+
+Generate a parameter placeholder for the given index.
+
+# Arguments
+- `dialect`: The SQL dialect
+- `idx`: The 1-based parameter index
+
+# Returns
+- The placeholder string
+
+# Examples
+```julia
+placeholder(SQLiteDialect(), 1)     # → "?"
+placeholder(PostgreSQLDialect(), 1) # → "\$1"
+```
+"""
+function placeholder end
+
+"""
+    supports(dialect::Dialect, cap::Capability) -> Bool
+
+Check if the dialect supports a specific capability.
+
+# Arguments
+- `dialect`: The SQL dialect
+- `cap`: The capability to check
+
+# Returns
+- `true` if supported, `false` otherwise
+
+# Example
+```julia
+supports(SQLiteDialect(), CAP_CTE)       # → true
+supports(SQLiteDialect(), CAP_LATERAL)   # → false
+```
+"""
+function supports end

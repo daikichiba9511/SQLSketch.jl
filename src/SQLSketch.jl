@@ -37,10 +37,16 @@ module Core
     include("Core/query.jl")
     export Query, From, Where, Select, OrderBy, Limit, Offset, Distinct, GroupBy, Having, Join
     export from, where, select, order_by, limit, offset, distinct, group_by, having, join
+
+    # Dialect abstraction (Phase 3)
+    include("Core/dialect.jl")
+    export Dialect, Capability
+    export CAP_CTE, CAP_RETURNING, CAP_UPSERT, CAP_WINDOW, CAP_LATERAL, CAP_BULK_COPY, CAP_SAVEPOINT, CAP_ADVISORY_LOCK
+    export compile, compile_expr, quote_identifier, placeholder, supports
 end
 
-# Dialect implementations (not yet implemented)
-# include("Dialects/sqlite.jl")
+# Dialect implementations
+include("Dialects/sqlite.jl")
 
 # Driver implementations (not yet implemented)
 # include("Drivers/sqlite.jl")
@@ -52,5 +58,11 @@ export col, literal, param, func
 export is_null, is_not_null
 export Query, From, Where, Select, OrderBy, Limit, Offset, Distinct, GroupBy, Having, Join
 export from, where, select, order_by, limit, offset, distinct, group_by, having, join
+export Dialect, Capability
+export CAP_CTE, CAP_RETURNING, CAP_UPSERT, CAP_WINDOW, CAP_LATERAL, CAP_BULK_COPY, CAP_SAVEPOINT, CAP_ADVISORY_LOCK
+export compile, compile_expr, quote_identifier, placeholder, supports
+
+# Export Dialect implementations
+export SQLiteDialect
 
 end # module SQLSketch
