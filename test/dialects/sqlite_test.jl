@@ -10,6 +10,7 @@ using SQLSketch.Core: from, where, select, join, order_by, limit, offset, distin
 using SQLSketch.Core: insert_into, values, update, set, delete_from
 using SQLSketch.Core: SQLExpr, col, literal, param, func, is_null, is_not_null
 using SQLSketch.Core: like, not_like, ilike, not_ilike, between, not_between
+using SQLSketch.Core: in_list, not_in_list
 using SQLSketch.Core: compile, compile_expr, quote_identifier, placeholder, supports
 using SQLSketch: SQLiteDialect
 
@@ -721,6 +722,86 @@ end
             sql, params = compile(dialect, q)
 
             @test occursin("`orders`.`created_at` BETWEEN '2024-01-01' AND '2024-12-31'", sql)
+        end
+    end
+
+    @testset "IN Operator" begin
+        dialect = SQLiteDialect()
+
+        @testset "IN with auto-wrapped literals (strings)" begin
+            q = from(:users) |>
+                where(in_list(col(:users, :status), ["active", "pending", "verified"]))
+            sql, params = compile(dialect, q)
+
+            @test occursin("WHERE", sql)
+            @test occursin("`users`.`status` IN ('active', 'pending', 'verified')", sql)
+            @test isempty(params)
+        end
+
+        @testset "IN with auto-wrapped literals (integers)" begin
+            q = from(:users) |>
+                where(in_list(col(:users, :id), [1, 2, 3, 4, 5]))
+            sql, params = compile(dialect, q)
+
+            @test occursin("`users`.`id` IN (1, 2, 3, 4, 5)", sql)
+            @test isempty(params)
+        end
+
+        @testset "IN with explicit literals" begin
+            q = from(:users) |>
+                where(in_list(col(:users, :role), [literal("admin"), literal("moderator")]))
+            sql, params = compile(dialect, q)
+
+            @test occursin("`users`.`role` IN ('admin', 'moderator')", sql)
+            @test isempty(params)
+        end
+
+        @testset "NOT IN" begin
+            q = from(:users) |>
+                where(not_in_list(col(:users, :status), ["banned", "deleted"]))
+            sql, params = compile(dialect, q)
+
+            @test occursin("WHERE", sql)
+            @test occursin("`users`.`status` NOT IN ('banned', 'deleted')", sql)
+            @test isempty(params)
+        end
+
+        @testset "IN with parameters" begin
+            q = from(:users) |>
+                where(in_list(col(:users, :id), [param(Int, :id1), param(Int, :id2), param(Int, :id3)]))
+            sql, params = compile(dialect, q)
+
+            @test occursin("WHERE", sql)
+            @test occursin("`users`.`id` IN (?, ?, ?)", sql)
+            @test params == [:id1, :id2, :id3]
+        end
+
+        @testset "IN with single value" begin
+            q = from(:users) |>
+                where(in_list(col(:users, :status), ["active"]))
+            sql, params = compile(dialect, q)
+
+            @test occursin("`users`.`status` IN ('active')", sql)
+        end
+
+        @testset "IN in complex query" begin
+            q = from(:users) |>
+                where(in_list(col(:users, :role), ["admin", "moderator"]) &
+                      (col(:users, :active) == true)) |>
+                select(NamedTuple, col(:users, :id), col(:users, :email))
+            sql, params = compile(dialect, q)
+
+            @test occursin("`users`.`role` IN ('admin', 'moderator')", sql)
+            @test occursin("AND", sql)
+            @test occursin("`users`.`active` = 1", sql)
+        end
+
+        @testset "IN with mixed types (floats)" begin
+            q = from(:products) |>
+                where(in_list(col(:products, :discount), [0.1, 0.2, 0.5]))
+            sql, params = compile(dialect, q)
+
+            @test occursin("`products`.`discount` IN (0.1, 0.2, 0.5)", sql)
         end
     end
 end

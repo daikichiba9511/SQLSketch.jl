@@ -31,7 +31,7 @@ using .Core: Query, From, Where, Select, Join, OrderBy, Limit, Offset, Distinct,
              Having, InsertInto, InsertValues, Update, UpdateSet, UpdateWhere,
              DeleteFrom, DeleteWhere
 using .Core: SQLExpr, ColRef, Literal, Param, BinaryOp, UnaryOp, FuncCall, PlaceholderField,
-             BetweenOp
+             BetweenOp, InOp
 import .Core: compile, compile_expr, quote_identifier, placeholder, supports
 
 """
@@ -187,6 +187,12 @@ function resolve_placeholders(expr::BetweenOp, table::Symbol)::BetweenOp
     return BetweenOp(resolved_expr, resolved_low, resolved_high, expr.negated)
 end
 
+function resolve_placeholders(expr::InOp, table::Symbol)::InOp
+    resolved_expr = resolve_placeholders(expr.expr, table)
+    resolved_values = [resolve_placeholders(v, table) for v in expr.values]
+    return InOp(resolved_expr, resolved_values, expr.negated)
+end
+
 """
     contains_placeholder(expr::SQLExpr) -> Bool
 
@@ -222,6 +228,10 @@ end
 
 function contains_placeholder(expr::BetweenOp)::Bool
     return contains_placeholder(expr.expr) || contains_placeholder(expr.low) || contains_placeholder(expr.high)
+end
+
+function contains_placeholder(expr::InOp)::Bool
+    return contains_placeholder(expr.expr) || any(contains_placeholder(v) for v in expr.values)
 end
 
 """
@@ -410,6 +420,21 @@ function compile_expr(dialect::SQLiteDialect, expr::BetweenOp,
         return "($expr_sql NOT BETWEEN $low_sql AND $high_sql)"
     else
         return "($expr_sql BETWEEN $low_sql AND $high_sql)"
+    end
+end
+
+function compile_expr(dialect::SQLiteDialect, expr::InOp,
+                      params::Vector{Symbol})::String
+    expr_sql = compile_expr(dialect, expr.expr, params)
+
+    # Compile each value in the list
+    values_sql = [compile_expr(dialect, v, params) for v in expr.values]
+    values_list = Base.join(values_sql, ", ")
+
+    if expr.negated
+        return "($expr_sql NOT IN ($values_list))"
+    else
+        return "($expr_sql IN ($values_list))"
     end
 end
 

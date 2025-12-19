@@ -342,6 +342,38 @@ struct BetweenOp <: SQLExpr
     negated::Bool
 end
 
+# IN operator
+"""
+    InOp(expr::SQLExpr, values::Vector{SQLExpr}, negated::Bool)
+
+Represents an IN or NOT IN operation in SQL.
+
+# Fields
+
+  - `expr::SQLExpr` – expression to test
+  - `values::Vector{SQLExpr}` – list of values to match against
+  - `negated::Bool` – true for NOT IN, false for IN
+
+# Example
+
+```julia
+in_list(col(:users, :status), [literal("active"), literal("pending")])
+# → status IN ('active', 'pending')
+
+not_in_list(col(:users, :id), [literal(1), literal(2), literal(3)])
+# → id NOT IN (1, 2, 3)
+```
+
+# Note
+
+Currently supports literal values and parameters. Subquery support is deferred to Phase 2 future.
+"""
+struct InOp <: SQLExpr
+    expr::SQLExpr
+    values::Vector{SQLExpr}
+    negated::Bool
+end
+
 # Operator overloading for ergonomic expression construction
 # These allow natural Julia syntax to build expression ASTs
 
@@ -526,6 +558,79 @@ not_between(expr::SQLExpr, low::SQLExpr, high::SQLExpr)::BetweenOp =
 not_between(expr::SQLExpr, low, high)::BetweenOp =
     BetweenOp(expr, literal(low), literal(high), true)
 
+# List membership operators (IN)
+"""
+    in_list(expr::SQLExpr, values::Vector{SQLExpr}) -> InOp
+
+Test if an expression is in a list of values.
+
+# Example
+
+```julia
+in_list(col(:users, :status), [literal("active"), literal("pending")])
+# → WHERE users.status IN ('active', 'pending')
+
+in_list(col(:users, :id), [param(Int, :id1), param(Int, :id2)])
+# → WHERE users.id IN (?, ?)
+```
+"""
+in_list(expr::SQLExpr, values::Vector{SQLExpr})::InOp = InOp(expr, values, false)
+
+# Auto-wrapping for literal values
+"""
+    in_list(expr::SQLExpr, values::Vector) -> InOp
+
+Test if an expression is in a list of values (with auto-wrapping).
+
+# Example
+
+```julia
+in_list(col(:users, :status), ["active", "pending", "suspended"])
+# → WHERE users.status IN ('active', 'pending', 'suspended')
+
+in_list(col(:users, :id), [1, 2, 3, 4, 5])
+# → WHERE users.id IN (1, 2, 3, 4, 5)
+```
+"""
+function in_list(expr::SQLExpr, values::Vector)::InOp
+    # Convert all values to SQLExpr, but preserve existing SQLExpr objects
+    expr_values = SQLExpr[v isa SQLExpr ? v : literal(v) for v in values]
+    return InOp(expr, expr_values, false)
+end
+
+"""
+    not_in_list(expr::SQLExpr, values::Vector{SQLExpr}) -> InOp
+
+Test if an expression is NOT in a list of values.
+
+# Example
+
+```julia
+not_in_list(col(:users, :status), [literal("banned"), literal("deleted")])
+# → WHERE users.status NOT IN ('banned', 'deleted')
+```
+"""
+not_in_list(expr::SQLExpr, values::Vector{SQLExpr})::InOp = InOp(expr, values, true)
+
+# Auto-wrapping for literal values
+"""
+    not_in_list(expr::SQLExpr, values::Vector) -> InOp
+
+Test if an expression is NOT in a list of values (with auto-wrapping).
+
+# Example
+
+```julia
+not_in_list(col(:users, :role), ["guest", "anonymous"])
+# → WHERE users.role NOT IN ('guest', 'anonymous')
+```
+"""
+function not_in_list(expr::SQLExpr, values::Vector)::InOp
+    # Convert all values to SQLExpr, but preserve existing SQLExpr objects
+    expr_values = SQLExpr[v isa SQLExpr ? v : literal(v) for v in values]
+    return InOp(expr, expr_values, true)
+end
+
 # Structural equality for testing
 # These are used by @test and other testing utilities
 Base.isequal(a::ColRef, b::ColRef)::Bool = a.table == b.table && a.column == b.column
@@ -538,6 +643,8 @@ Base.isequal(a::UnaryOp, b::UnaryOp)::Bool = a.op == b.op && isequal(a.expr, b.e
 Base.isequal(a::FuncCall, b::FuncCall)::Bool = a.name == b.name && isequal(a.args, b.args)
 Base.isequal(a::BetweenOp, b::BetweenOp)::Bool = isequal(a.expr, b.expr) && isequal(a.low, b.low) &&
                                                   isequal(a.high, b.high) && a.negated == b.negated
+Base.isequal(a::InOp, b::InOp)::Bool = isequal(a.expr, b.expr) && isequal(a.values, b.values) &&
+                                       a.negated == b.negated
 
 # Hash functions for Dict/Set support
 Base.hash(a::ColRef, h::UInt)::UInt = hash((a.table, a.column), h)
@@ -548,11 +655,9 @@ Base.hash(a::BinaryOp, h::UInt)::UInt = hash((a.op, a.left, a.right), h)
 Base.hash(a::UnaryOp, h::UInt)::UInt = hash((a.op, a.expr), h)
 Base.hash(a::FuncCall, h::UInt)::UInt = hash((a.name, a.args), h)
 Base.hash(a::BetweenOp, h::UInt)::UInt = hash((a.expr, a.low, a.high, a.negated), h)
+Base.hash(a::InOp, h::UInt)::UInt = hash((a.expr, a.values, a.negated), h)
 
 # Future: Additional expression types
-# - IN operator (expr in [values...])
-# - BETWEEN operator
-# - LIKE operator
 # - Subquery expressions
 # - CASE expressions
 # - Type casting

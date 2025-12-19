@@ -13,9 +13,10 @@ See `docs/roadmap.md` Phase 1 for implementation plan.
 """
 
 using Test
-using SQLSketch.Core: SQLExpr, ColRef, Literal, Param, BinaryOp, UnaryOp, FuncCall, BetweenOp
+using SQLSketch.Core: SQLExpr, ColRef, Literal, Param, BinaryOp, UnaryOp, FuncCall, BetweenOp, InOp
 using SQLSketch.Core: col, literal, param, func, is_null, is_not_null
 using SQLSketch.Core: like, not_like, ilike, not_ilike, between, not_between
+using SQLSketch.Core: in_list, not_in_list
 
 @testset "Expression AST" begin
     @testset "Column References" begin
@@ -413,5 +414,75 @@ using SQLSketch.Core: like, not_like, ilike, not_ilike, between, not_between
 
         # Immutability
         @test !ismutable(expr)
+    end
+
+    @testset "IN Operator" begin
+        # Basic IN construction with SQLExpr values
+        expr = in_list(col(:users, :status), [literal("active"), literal("pending")])
+        @test expr isa InOp
+        @test isequal(expr.expr, col(:users, :status))
+        @test length(expr.values) == 2
+        @test expr.values[1] isa Literal
+        @test expr.values[1].value === "active"
+        @test expr.values[2] isa Literal
+        @test expr.values[2].value === "pending"
+        @test expr.negated === false
+
+        # Auto-wrapping with literal values (strings)
+        expr2 = in_list(col(:users, :role), ["admin", "moderator", "user"])
+        @test expr2 isa InOp
+        @test length(expr2.values) == 3
+        @test expr2.values[1].value === "admin"
+        @test expr2.values[2].value === "moderator"
+        @test expr2.values[3].value === "user"
+
+        # Auto-wrapping with literal values (integers)
+        expr3 = in_list(col(:users, :id), [1, 2, 3, 4, 5])
+        @test expr3 isa InOp
+        @test length(expr3.values) == 5
+        @test expr3.values[1].value === 1
+        @test expr3.values[5].value === 5
+
+        # NOT IN
+        expr4 = not_in_list(col(:users, :status), ["banned", "deleted"])
+        @test expr4 isa InOp
+        @test expr4.negated == true
+        @test length(expr4.values) == 2
+
+        # With parameters
+        expr5 = in_list(col(:users, :id), [param(Int, :id1), param(Int, :id2)])
+        @test expr5 isa InOp
+        @test expr5.values[1] isa Param
+        @test expr5.values[2] isa Param
+
+        # Empty list (edge case)
+        expr6 = in_list(col(:users, :id), SQLExpr[])
+        @test expr6 isa InOp
+        @test length(expr6.values) == 0
+
+        # Single value
+        expr7 = in_list(col(:users, :status), ["active"])
+        @test expr7 isa InOp
+        @test length(expr7.values) == 1
+
+        # Hash and equality
+        expr_a = in_list(col(:users, :status), ["active", "pending"])
+        expr_b = in_list(col(:users, :status), ["active", "pending"])
+        @test hash(expr_a) == hash(expr_b)
+        @test isequal(expr_a, expr_b)
+
+        # Different values should not be equal
+        expr_c = in_list(col(:users, :status), ["active", "banned"])
+        @test !isequal(expr_a, expr_c)
+
+        # Negated vs non-negated should not be equal
+        expr_d = not_in_list(col(:users, :status), ["active", "pending"])
+        @test !isequal(expr_a, expr_d)
+
+        # Immutability
+        @test !ismutable(expr)
+
+        # Type check
+        @test expr isa SQLExpr
     end
 end
