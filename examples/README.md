@@ -37,16 +37,20 @@ See script header for detailed usage documentation.
 julia --project=. examples/manual_integration_test.jl
 ```
 
+
 ## Quick Start
 
 ```bash
 # 1. Create test database
 julia --project=. examples/create_test_db.jl
 
-# 2. Run SQLite tests
+# 2. Run SQLite tests (native sqlite3)
 ./examples/test_sqlite.sh
 
-# 3. Inspect database manually
+# 3. Run integration test (in-memory, end-to-end)
+julia --project=. examples/manual_integration_test.jl
+
+# 4. Inspect database manually
 sqlite3 examples/test.db
 sqlite> .tables
 sqlite> .schema users
