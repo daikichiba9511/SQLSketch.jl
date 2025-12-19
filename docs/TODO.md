@@ -8,7 +8,7 @@ Task breakdown based on `design.md` and `roadmap.md`.
 - ⏳ Pending
 - 🔄 Blocked/Depends on other tasks
 
-**Last Updated:** 2025-12-18
+**Last Updated:** 2025-12-19
 
 ---
 
@@ -61,48 +61,48 @@ Task breakdown based on `design.md` and `roadmap.md`.
 
 ---
 
-## Phase 2: Query AST ⏳ PENDING
+## Phase 2: Query AST ✅ COMPLETED
 
-### Core Query Types ⏳
-- [ ] Define `Query{T}` abstract type
-- [ ] Implement `From{T}` struct
-- [ ] Implement `Where{T}` struct (shape-preserving)
-- [ ] Implement `Join{T}` struct (shape-preserving)
-- [ ] Implement `Select{OutT}` struct (shape-changing)
-- [ ] Implement `OrderBy{T}` struct (shape-preserving)
-- [ ] Implement `Limit{T}` struct (shape-preserving)
-- [ ] Implement `Offset{T}` struct (shape-preserving)
-- [ ] Implement `Distinct{T}` struct (shape-preserving)
-- [ ] Implement `GroupBy{T}` struct
-- [ ] Implement `Having{T}` struct
+### Core Query Types ✅
+- [x] Define `Query{T}` abstract type
+- [x] Implement `From{T}` struct
+- [x] Implement `Where{T}` struct (shape-preserving)
+- [x] Implement `Join{T}` struct (shape-preserving)
+- [x] Implement `Select{OutT}` struct (shape-changing)
+- [x] Implement `OrderBy{T}` struct (shape-preserving)
+- [x] Implement `Limit{T}` struct (shape-preserving)
+- [x] Implement `Offset{T}` struct (shape-preserving)
+- [x] Implement `Distinct{T}` struct (shape-preserving)
+- [x] Implement `GroupBy{T}` struct
+- [x] Implement `Having{T}` struct
 
-### Pipeline API ⏳
-- [ ] `from(table::Symbol)` → `From{NamedTuple}`
-- [ ] `where(q::Query, expr::Expr)` → `Where{T}`
-- [ ] `join(q::Query, table, on)` → `Join{T}`
-- [ ] `select(q::Query, OutT::Type, fields...)` → `Select{OutT}`
-- [ ] `order_by(q::Query, field::Expr; desc=false)` → `OrderBy{T}`
-- [ ] `limit(q::Query, n::Int)` → `Limit{T}`
-- [ ] `offset(q::Query, n::Int)` → `Offset{T}`
-- [ ] `distinct(q::Query)` → `Distinct{T}`
-- [ ] `group_by(q::Query, fields...)` → `GroupBy{T}`
-- [ ] `having(q::Query, expr::Expr)` → `Having{T}`
+### Pipeline API ✅
+- [x] `from(table::Symbol)` → `From{NamedTuple}`
+- [x] `where(q::Query, expr::Expr)` → `Where{T}`
+- [x] `join(q::Query, table, on)` → `Join{T}`
+- [x] `select(q::Query, OutT::Type, fields...)` → `Select{OutT}`
+- [x] `order_by(q::Query, field::Expr; desc=false)` → `OrderBy{T}`
+- [x] `limit(q::Query, n::Int)` → `Limit{T}`
+- [x] `offset(q::Query, n::Int)` → `Offset{T}`
+- [x] `distinct(q::Query)` → `Distinct{T}`
+- [x] `group_by(q::Query, fields...)` → `GroupBy{T}`
+- [x] `having(q::Query, expr::Expr)` → `Having{T}`
 
-### Query Composition ⏳
-- [ ] Implement pipeline chaining with `|>`
-- [ ] Type-safe query transformations
-- [ ] Shape-preserving vs shape-changing semantics
+### Query Composition ✅
+- [x] Implement pipeline chaining with `|>`
+- [x] Type-safe query transformations
+- [x] Shape-preserving vs shape-changing semantics
 
-### Tests ⏳
-- [ ] Create `test/core/query_test.jl`
-- [ ] Test `from()` construction
-- [ ] Test `where()` chaining
-- [ ] Test `select()` type changes
-- [ ] Test `join()` operations
-- [ ] Test `order_by()` operations
-- [ ] Test `limit()` and `offset()`
-- [ ] Test complex query pipelines
-- [ ] Test type safety and inference
+### Tests ✅
+- [x] Create `test/core/query_test.jl`
+- [x] Test `from()` construction
+- [x] Test `where()` chaining
+- [x] Test `select()` type changes
+- [x] Test `join()` operations
+- [x] Test `order_by()` operations
+- [x] Test `limit()` and `offset()`
+- [x] Test complex query pipelines
+- [x] Test type safety and inference
 
 ### Future Enhancements ⏳
 - [ ] Placeholder API (`_` for column references in queries)
@@ -112,51 +112,51 @@ Task breakdown based on `design.md` and `roadmap.md`.
 
 ---
 
-## Phase 3: Dialect Abstraction ⏳ PENDING
+## Phase 3: Dialect Abstraction ✅ COMPLETED
 
-### Dialect Interface ⏳
-- [ ] Define `Dialect` abstract type
-- [ ] Define `Capability` enum
-- [ ] `compile(dialect, query)` → `(sql, params)` interface
-- [ ] `compile_expr(dialect, expr)` → SQL fragment interface
-- [ ] `quote_identifier(dialect, name)` → quoted identifier
-- [ ] `placeholder(dialect, idx)` → parameter placeholder
-- [ ] `supports(dialect, capability)` → Bool
+### Dialect Interface ✅
+- [x] Define `Dialect` abstract type
+- [x] Define `Capability` enum
+- [x] `compile(dialect, query)` → `(sql, params)` interface
+- [x] `compile_expr(dialect, expr)` → SQL fragment interface
+- [x] `quote_identifier(dialect, name)` → quoted identifier
+- [x] `placeholder(dialect, idx)` → parameter placeholder
+- [x] `supports(dialect, capability)` → Bool
 
-### SQLite Dialect ⏳
-- [ ] Implement `SQLiteDialect` struct
-- [ ] Implement expression compilation
-  - [ ] Compile `ColRef`
-  - [ ] Compile `Literal`
-  - [ ] Compile `Param`
-  - [ ] Compile `BinaryOp`
-  - [ ] Compile `UnaryOp`
-  - [ ] Compile `FuncCall`
-- [ ] Implement query compilation
-  - [ ] Compile `From`
-  - [ ] Compile `Where`
-  - [ ] Compile `Select`
-  - [ ] Compile `Join`
-  - [ ] Compile `OrderBy`
-  - [ ] Compile `Limit` / `Offset`
-  - [ ] Compile `GroupBy` / `Having`
-  - [ ] Compile `Distinct`
-- [ ] Identifier quoting (backticks)
-- [ ] Placeholder syntax (`?`)
-- [ ] Capability reporting
-  - [ ] CTE support
-  - [ ] RETURNING support (SQLite 3.35+)
-  - [ ] UPSERT support
-  - [ ] Window functions
+### SQLite Dialect ✅
+- [x] Implement `SQLiteDialect` struct
+- [x] Implement expression compilation
+  - [x] Compile `ColRef`
+  - [x] Compile `Literal`
+  - [x] Compile `Param`
+  - [x] Compile `BinaryOp`
+  - [x] Compile `UnaryOp`
+  - [x] Compile `FuncCall`
+- [x] Implement query compilation
+  - [x] Compile `From`
+  - [x] Compile `Where`
+  - [x] Compile `Select`
+  - [x] Compile `Join`
+  - [x] Compile `OrderBy`
+  - [x] Compile `Limit` / `Offset`
+  - [x] Compile `GroupBy` / `Having`
+  - [x] Compile `Distinct`
+- [x] Identifier quoting (backticks)
+- [x] Placeholder syntax (`?`)
+- [x] Capability reporting
+  - [x] CTE support
+  - [x] RETURNING support (SQLite 3.35+)
+  - [x] UPSERT support
+  - [x] Window functions
 
-### Tests ⏳
-- [ ] Create `test/dialects/sqlite_test.jl`
-- [ ] Test expression compilation
-- [ ] Test query compilation (all query types)
-- [ ] Test identifier quoting edge cases
-- [ ] Test parameter ordering
-- [ ] Test capability reporting
-- [ ] Test SQL string generation (no DB required)
+### Tests ✅
+- [x] Create `test/dialects/sqlite_test.jl`
+- [x] Test expression compilation
+- [x] Test query compilation (all query types)
+- [x] Test identifier quoting edge cases
+- [x] Test parameter ordering
+- [x] Test capability reporting
+- [x] Test SQL string generation (no DB required)
 
 ### Future Enhancements ⏳
 - [ ] DDL compilation (CREATE TABLE, ALTER TABLE, etc.)
@@ -506,19 +506,23 @@ Task breakdown based on `design.md` and `roadmap.md`.
 
 ## Current Status Summary
 
-**Completed Phases:** 1/10
-**Total Tasks Completed:** ~30/400+
-**Current Phase:** Phase 2 (Query AST) ⏳
+**Completed Phases:** 3/10
+**Total Tasks Completed:** ~95/400+
+**Current Phase:** Phase 4 (Driver Abstraction) ⏳
 
 **Next Immediate Tasks:**
-1. Begin Phase 2: Query AST implementation
-2. Define Query{T} abstract type and core query nodes
-3. Implement pipeline API (from, where, select, etc.)
-4. Write comprehensive tests for query construction
+1. Begin Phase 4: Driver Abstraction implementation
+2. Define Driver and Connection abstract types
+3. Implement SQLite driver with connection management
+4. Implement query execution with parameter binding
+5. Write comprehensive tests for driver functionality
 
 **Blockers:** None
 
 **Notes:**
 - Phase 1 (Expression AST) completed successfully with 135 tests passing
-- Ready to proceed with Phase 2
-- Roadmap estimates 16-17 weeks for full Core layer implementation
+- Phase 2 (Query AST) completed successfully with 482 tests passing
+- Phase 3 (Dialect Abstraction) completed successfully with 102 tests passing
+- Total: 719 tests passing
+- SQLite dialect fully functional for SQL string generation
+- Ready to proceed with Phase 4 (Driver layer)

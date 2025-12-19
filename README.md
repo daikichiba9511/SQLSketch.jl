@@ -86,7 +86,7 @@ SQLSketch is designed as a two-layer system:
 
 ## Current Implementation Status
 
-**Completed Phases:** 1/10
+**Completed Phases:** 3/10
 
 - ✅ **Phase 1: Expression AST** (135 tests passing)
   - Column references, literals, parameters
@@ -94,32 +94,47 @@ SQLSketch is designed as a two-layer system:
   - Function calls
   - Type-safe composition
 
-- ⏳ **Phase 2-10:** See [`docs/roadmap.md`](docs/roadmap.md) and [`docs/TODO.md`](docs/TODO.md)
+- ✅ **Phase 2: Query AST** (482 tests passing)
+  - FROM, WHERE, SELECT, JOIN, ORDER BY
+  - LIMIT, OFFSET, DISTINCT, GROUP BY, HAVING
+  - Pipeline composition with `|>`
+  - Shape-preserving and shape-changing semantics
+  - Type-safe query transformations
+
+- ✅ **Phase 3: Dialect Abstraction** (102 tests passing)
+  - Dialect interface (compile, quote_identifier, placeholder, supports)
+  - Capability system for feature detection
+  - SQLite dialect implementation
+  - Full SQL generation from query ASTs
+  - Expression and query compilation
+
+- ⏳ **Phase 4-10:** See [`docs/roadmap.md`](docs/roadmap.md) and [`docs/TODO.md`](docs/TODO.md)
 
 ---
 
-## Example (Future API)
+## Example
 
 ```julia
 using SQLSketch
 
-# Connect to database
-db = connect(SQLiteDriver(), ":memory:")
-
 # Build query with type-safe composition
 q = from(:users) |>
     where(col(:users, :active) == true) |>
-    select(User, col(:users, :id), col(:users, :email)) |>
+    select(NamedTuple, col(:users, :id), col(:users, :email)) |>
     order_by(col(:users, :created_at), desc=true) |>
     limit(10)
 
-# Inspect SQL before execution
-println(sql(q))
-# => "SELECT `users`.`id`, `users`.`email` FROM `users`
-#     WHERE `users`.`active` = ? ORDER BY `users`.`created_at` DESC LIMIT 10"
+# Compile to SQL
+dialect = SQLiteDialect()
+sql, params = compile(dialect, q)
 
-# Execute and get typed results
-users = all(db, q)  # Returns Vector{User}
+println(sql)
+# => "SELECT `users`.`id`, `users`.`email` FROM `users`
+#     WHERE (`users`.`active` = 1) ORDER BY `users`.`created_at` DESC LIMIT 10"
+
+# Execute and get typed results (Phase 4+)
+# db = connect(SQLiteDriver(), ":memory:")
+# users = all(db, q)  # Returns Vector{NamedTuple}
 ```
 
 ---
@@ -130,22 +145,24 @@ users = all(db, q)  # Returns Vector{User}
 src/
   Core/              # Core layer implementation
     expr.jl          # Expression AST ✅
-    query.jl         # Query AST ⏳
-    dialect.jl       # Dialect abstraction ⏳
+    query.jl         # Query AST ✅
+    dialect.jl       # Dialect abstraction ✅
     driver.jl        # Driver abstraction ⏳
     codec.jl         # Type conversion ⏳
     execute.jl       # Query execution ⏳
     transaction.jl   # Transaction management ⏳
     migrations.jl    # Migration runner ⏳
   Dialects/          # Dialect implementations
-    sqlite.jl        # SQLite SQL generation ⏳
+    sqlite.jl        # SQLite SQL generation ✅
   Drivers/           # Driver implementations
     sqlite.jl        # SQLite execution ⏳
 
 test/                # Test suite
   core/
     expr_test.jl     # Expression tests ✅
+    query_test.jl    # Query tests ✅
   dialects/
+    sqlite_test.jl   # SQLite dialect tests ✅
   drivers/
   integration/
 
@@ -178,8 +195,12 @@ julia --project
 ### Current Test Status
 
 ```
-Test Summary:  | Pass  Total
-Expression AST |  135    135
+Test Summary:         | Pass  Total
+Expression AST        |  135    135
+Query AST             |  482    482
+SQLite Dialect        |  102    102
+──────────────────────────────────
+Total                 |  719    719
 ```
 
 ---
@@ -265,7 +286,7 @@ Future dependencies (will be added as implementation progresses):
 See [`docs/roadmap.md`](docs/roadmap.md) for the complete implementation plan.
 
 **Estimated Timeline:**
-- Phase 1-3 (Expressions, Queries, Dialect): 6 weeks ✅ (1/3 done)
+- Phase 1-3 (Expressions, Queries, Dialect): 6 weeks ✅ **COMPLETED**
 - Phase 4-6 (Driver, Codec, Integration): 6 weeks
 - Phase 7-8 (Transactions, Migrations): 2 weeks
 - Phase 9 (PostgreSQL): 2 weeks
