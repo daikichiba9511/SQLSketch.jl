@@ -35,8 +35,7 @@ using Test
         include("core/transaction_test.jl")
     end
 
-    # Future: Migrations
-    # @testset "Migrations (Core.migrations)" begin
-    #     include("core/migrations_test.jl")
-    # end
+    @testset "Migration Runner (Core.migrations)" begin
+        include("core/migrations_test.jl")
+    end
 end

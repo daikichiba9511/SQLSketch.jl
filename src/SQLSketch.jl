@@ -82,6 +82,15 @@ export transaction, savepoint
 include("Core/execute.jl")
 export fetch_all, fetch_one, fetch_maybe
 export sql, explain, execute_dml
+
+# Migration Runner (Phase 8)
+include("Core/migrations.jl")
+export Migration, MigrationStatus
+export migration_checksum
+export discover_migrations, parse_migration_file
+export apply_migration, apply_migrations
+export migration_status, validate_migration_checksums
+export generate_migration
 end
 
 # Dialect implementations
@@ -135,6 +144,14 @@ export sql, explain, execute_dml
 # Transaction management (Phase 7)
 export TransactionHandle
 export transaction, savepoint
+
+# Migration runner (Phase 8)
+export Migration, MigrationStatus
+export migration_checksum
+export discover_migrations, parse_migration_file
+export apply_migration, apply_migrations
+export migration_status, validate_migration_checksums
+export generate_migration
 
 # Export Dialect implementations
 export SQLiteDialect
