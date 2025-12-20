@@ -31,6 +31,8 @@ Placeholders are resolved in the dialect compilation layer via
 `resolve_placeholders()` in shared_helpers.jl.
 """
 
+# Import Core types using relative path
+# We're in SQLSketch.Extras, so ..Core refers to SQLSketch.Core
 using ..Core: SQLExpr
 
 # ============================================================================ #
