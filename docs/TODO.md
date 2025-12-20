@@ -213,8 +213,8 @@ Task breakdown based on `design.md` and `roadmap.md`.
 - [x] Window functions compilation - **Phase 8.5**
 - [x] Set operations compilation - **Phase 8.6**
 
-### Future Enhancements ⏳
-- [ ] DDL compilation (CREATE TABLE, ALTER TABLE, etc.)
+### DDL Support ✅ **Phase 10**
+- [x] DDL compilation (CREATE TABLE, ALTER TABLE, DROP TABLE, CREATE/DROP INDEX)
 
 ---
 
@@ -527,12 +527,15 @@ Task breakdown based on `design.md` and `roadmap.md`.
 - [x] UPSERT (ON CONFLICT) ✅ **Phase 8.7** (86 tests)
 - [ ] Recursive CTEs ⏳
 
-### DDL Support ⏳
-- [ ] CREATE TABLE
-- [ ] ALTER TABLE
-- [ ] DROP TABLE
-- [ ] CREATE INDEX
-- [ ] DDL compilation via Dialect
+### DDL Support ✅ **Phase 10** (227 tests)
+- [x] CREATE TABLE
+- [x] ALTER TABLE
+- [x] DROP TABLE
+- [x] CREATE INDEX / DROP INDEX
+- [x] DDL compilation via Dialect
+- [x] Column constraints (PRIMARY KEY, NOT NULL, UNIQUE, DEFAULT, CHECK, FOREIGN KEY)
+- [x] Table constraints (PRIMARY KEY, FOREIGN KEY, UNIQUE, CHECK)
+- [x] Portable column type system
 
 ### Performance ⏳
 - [ ] Prepared statement caching
@@ -573,14 +576,65 @@ Task breakdown based on `design.md` and `roadmap.md`.
 
 ---
 
+## Phase 10: DDL Support ✅ COMPLETED
+
+### DDL AST ✅
+- [x] Define DDL abstract type hierarchy
+- [x] Implement `CreateTable` struct
+- [x] Implement `AlterTable` struct
+- [x] Implement `DropTable` struct
+- [x] Implement `CreateIndex` struct
+- [x] Implement `DropIndex` struct
+- [x] Implement column constraint types
+- [x] Implement table constraint types
+- [x] Portable column type system
+
+### Pipeline API ✅
+- [x] `create_table(table; options...)` → CreateTable
+- [x] `add_column(table, name, type; constraints...)` with currying
+- [x] `add_primary_key(columns)` with currying
+- [x] `add_foreign_key(columns, ref_table, ref_columns)` with currying
+- [x] `add_unique(columns)` with currying
+- [x] `add_check(condition)` with currying
+- [x] `alter_table(table)` → AlterTable
+- [x] `add_alter_column`, `drop_alter_column`, `rename_alter_column` with currying
+- [x] `drop_table(table; options...)` → DropTable
+- [x] `create_index(name, table, columns; options...)` → CreateIndex
+- [x] `drop_index(name; options...)` → DropIndex
+
+### SQLite DDL Compilation ✅
+- [x] Compile `CreateTable` to SQL
+- [x] Compile `AlterTable` to SQL (limited support)
+- [x] Compile `DropTable` to SQL
+- [x] Compile `CreateIndex` to SQL
+- [x] Compile `DropIndex` to SQL
+- [x] Map portable column types to SQLite types
+- [x] Compile column constraints
+- [x] Compile table constraints
+
+### Tests ✅
+- [x] Create `test/core/ddl_test.jl` (156 tests)
+- [x] Test all DDL statement construction
+- [x] Test pipeline API and currying
+- [x] Test column and table constraints
+- [x] Test immutability
+- [x] Add DDL tests to `test/dialects/sqlite_test.jl` (71 tests)
+- [x] Test DDL compilation to SQL
+- [x] Test type mapping
+- [x] Test complex schema examples
+
+**Total DDL Tests:** 227 passing ✅
+
+---
+
 ## Current Status Summary
 
-**Completed Phases:** 8/10
-**Total Tasks Completed:** ~380/400+
-**Current Phase:** Phase 9 (PostgreSQL Dialect) ⏳
+**Completed Phases:** 9/11
+**Total Tasks Completed:** ~400/420+
+**Current Phase:** Phase 11 (PostgreSQL Dialect) ⏳
 
 **Next Immediate Tasks:**
-1. Begin Phase 9: PostgreSQL Dialect
+1. Begin Phase 11: PostgreSQL Dialect
 2. Implement PostgreSQLDialect (SQL generation)
 3. Implement PostgreSQLDriver (connection and execution)
 4. Implement PostgreSQL-specific codecs (UUID, JSONB, Arrays)
@@ -593,15 +647,15 @@ Task breakdown based on `design.md` and `roadmap.md`.
   - All major SQL expression types implemented (CAST, Subquery, CASE)
   - Placeholder API (`p_`) fully functional
   - Pattern matching (LIKE/ILIKE), BETWEEN, IN operators
-- Phase 2 (Query AST) completed successfully with **202 tests passing** ✅
+- Phase 2 (Query AST) completed successfully with **232 tests passing** ✅
   - Full DML support (INSERT, UPDATE, DELETE)
   - CTE (Common Table Expressions) support
   - RETURNING clause support
   - Curried pipeline API for natural SQL composition
-- Phase 3 (Dialect Abstraction) completed successfully with **215 tests passing** ✅
+- Phase 3 (Dialect Abstraction) completed successfully with **331 tests passing** ✅
   - Complete SQLite dialect implementation
   - All expression types compile correctly to SQL
-  - DML and CTE compilation
+  - DML, CTE, and DDL compilation
 - Phase 4 (Driver Abstraction) completed successfully with **41 tests passing** ✅
 - Phase 5 (CodecRegistry) completed successfully with **115 tests passing** ✅
 - Phase 6 (End-to-End Integration) completed successfully with **95 integration tests passing** ✅
@@ -631,11 +685,17 @@ Task breakdown based on `design.md` and `roadmap.md`.
   - Conflict target column specification
   - WHERE clause for conditional updates
   - Pipeline API with currying
-- **Total: 1383 tests passing** ✅
+- **Phase 10** (DDL Support) completed with **227 tests passing** ✅
+  - DDL AST (CreateTable, AlterTable, DropTable, CreateIndex, DropIndex)
+  - Column and table constraints
+  - Portable column type system
+  - Full SQLite DDL compilation
+  - Pipeline API with currying
+- **Total: 1610 tests passing** ✅
 - Full query execution pipeline operational
 - Type-safe parameter binding working
 - DML operations (INSERT/UPDATE/DELETE) with RETURNING support
 - Transaction and migration support fully implemented
 - Observability API (sql, explain) implemented
-- Advanced SQL features (Window Functions, Set Operations, UPSERT) implemented
-- Ready to proceed with Phase 9 (PostgreSQL Dialect)
+- Advanced SQL features (Window Functions, Set Operations, UPSERT, DDL) implemented
+- Ready to proceed with Phase 11 (PostgreSQL Dialect)

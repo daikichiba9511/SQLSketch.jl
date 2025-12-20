@@ -1388,3 +1388,437 @@ function compile(dialect::SQLiteDialect,
 
     return (sql, params)
 end
+
+#
+# DDL Compilation
+#
+
+using .Core: DDLStatement, CreateTable, AlterTable, DropTable, CreateIndex, DropIndex
+using .Core: ColumnDef, ColumnConstraint, PrimaryKeyConstraint, NotNullConstraint,
+             UniqueConstraint, DefaultConstraint, CheckConstraint, ForeignKeyConstraint
+using .Core: TableConstraint, TablePrimaryKey, TableForeignKey, TableUnique, TableCheck
+using .Core: AlterTableOp, AddColumn, DropColumn, RenameColumn, AddTableConstraint,
+             DropConstraint
+
+"""
+    compile_column_type(dialect::SQLiteDialect, type::Symbol) -> String
+
+Map portable column types to SQLite types.
+
+# Example
+```julia
+compile_column_type(SQLiteDialect(), :integer)  # → "INTEGER"
+compile_column_type(SQLiteDialect(), :text)     # → "TEXT"
+```
+"""
+function compile_column_type(dialect::SQLiteDialect, type::Symbol)::String
+    if type == :integer
+        return "INTEGER"
+    elseif type == :bigint
+        return "INTEGER"  # SQLite uses INTEGER for all integer types
+    elseif type == :real
+        return "REAL"
+    elseif type == :text
+        return "TEXT"
+    elseif type == :blob
+        return "BLOB"
+    elseif type == :boolean
+        return "INTEGER"  # SQLite uses INTEGER for booleans (0/1)
+    elseif type == :timestamp
+        return "TEXT"  # SQLite stores timestamps as TEXT or INTEGER
+    elseif type == :date
+        return "TEXT"  # SQLite stores dates as TEXT
+    elseif type == :uuid
+        return "TEXT"  # SQLite stores UUIDs as TEXT
+    elseif type == :json
+        return "TEXT"  # SQLite stores JSON as TEXT
+    else
+        error("Unknown column type: $type")
+    end
+end
+
+"""
+    compile_column_constraint(dialect::SQLiteDialect, constraint::ColumnConstraint, params::Vector{Symbol}) -> String
+
+Compile a column-level constraint to SQL.
+"""
+function compile_column_constraint(dialect::SQLiteDialect,
+                                    constraint::PrimaryKeyConstraint,
+                                    params::Vector{Symbol})::String
+    return "PRIMARY KEY"
+end
+
+function compile_column_constraint(dialect::SQLiteDialect,
+                                    constraint::NotNullConstraint,
+                                    params::Vector{Symbol})::String
+    return "NOT NULL"
+end
+
+function compile_column_constraint(dialect::SQLiteDialect,
+                                    constraint::UniqueConstraint,
+                                    params::Vector{Symbol})::String
+    return "UNIQUE"
+end
+
+function compile_column_constraint(dialect::SQLiteDialect,
+                                    constraint::DefaultConstraint,
+                                    params::Vector{Symbol})::String
+    value_sql = compile_expr(dialect, constraint.value, params)
+    return "DEFAULT $value_sql"
+end
+
+function compile_column_constraint(dialect::SQLiteDialect,
+                                    constraint::CheckConstraint,
+                                    params::Vector{Symbol})::String
+    condition_sql = compile_expr(dialect, constraint.condition, params)
+    return "CHECK ($condition_sql)"
+end
+
+function compile_column_constraint(dialect::SQLiteDialect,
+                                    constraint::ForeignKeyConstraint,
+                                    params::Vector{Symbol})::String
+    ref_table = quote_identifier(dialect, constraint.ref_table)
+    ref_column = quote_identifier(dialect, constraint.ref_column)
+    parts = ["REFERENCES $ref_table($ref_column)"]
+
+    if constraint.on_delete != :no_action
+        action = uppercase(string(constraint.on_delete))
+        action = replace(action, "_" => " ")
+        push!(parts, "ON DELETE $action")
+    end
+
+    if constraint.on_update != :no_action
+        action = uppercase(string(constraint.on_update))
+        action = replace(action, "_" => " ")
+        push!(parts, "ON UPDATE $action")
+    end
+
+    return Base.join(parts, " ")
+end
+
+"""
+    compile_column_def(dialect::SQLiteDialect, column::ColumnDef, params::Vector{Symbol}) -> String
+
+Compile a column definition to SQL.
+
+# Example
+```julia
+col = ColumnDef(:email, :text, [NotNullConstraint(), UniqueConstraint()])
+compile_column_def(SQLiteDialect(), col, Symbol[])
+# → "`email` TEXT NOT NULL UNIQUE"
+```
+"""
+function compile_column_def(dialect::SQLiteDialect, column::ColumnDef,
+                             params::Vector{Symbol})::String
+    name = quote_identifier(dialect, column.name)
+    type_sql = compile_column_type(dialect, column.type)
+    parts = [name, type_sql]
+
+    for constraint in column.constraints
+        constraint_sql = compile_column_constraint(dialect, constraint, params)
+        push!(parts, constraint_sql)
+    end
+
+    return Base.join(parts, " ")
+end
+
+"""
+    compile_table_constraint(dialect::SQLiteDialect, constraint::TableConstraint, params::Vector{Symbol}) -> String
+
+Compile a table-level constraint to SQL.
+"""
+function compile_table_constraint(dialect::SQLiteDialect,
+                                   constraint::TablePrimaryKey,
+                                   params::Vector{Symbol})::String
+    columns = [quote_identifier(dialect, col) for col in constraint.columns]
+    columns_str = Base.join(columns, ", ")
+
+    if constraint.name !== nothing
+        name = quote_identifier(dialect, constraint.name)
+        return "CONSTRAINT $name PRIMARY KEY ($columns_str)"
+    else
+        return "PRIMARY KEY ($columns_str)"
+    end
+end
+
+function compile_table_constraint(dialect::SQLiteDialect,
+                                   constraint::TableForeignKey,
+                                   params::Vector{Symbol})::String
+    columns = [quote_identifier(dialect, col) for col in constraint.columns]
+    columns_str = Base.join(columns, ", ")
+
+    ref_table = quote_identifier(dialect, constraint.ref_table)
+    ref_columns = [quote_identifier(dialect, col) for col in constraint.ref_columns]
+    ref_columns_str = Base.join(ref_columns, ", ")
+
+    parts = ["FOREIGN KEY ($columns_str) REFERENCES $ref_table($ref_columns_str)"]
+
+    if constraint.on_delete != :no_action
+        action = uppercase(string(constraint.on_delete))
+        action = replace(action, "_" => " ")
+        push!(parts, "ON DELETE $action")
+    end
+
+    if constraint.on_update != :no_action
+        action = uppercase(string(constraint.on_update))
+        action = replace(action, "_" => " ")
+        push!(parts, "ON UPDATE $action")
+    end
+
+    fk_sql = Base.join(parts, " ")
+
+    if constraint.name !== nothing
+        name = quote_identifier(dialect, constraint.name)
+        return "CONSTRAINT $name $fk_sql"
+    else
+        return fk_sql
+    end
+end
+
+function compile_table_constraint(dialect::SQLiteDialect,
+                                   constraint::TableUnique,
+                                   params::Vector{Symbol})::String
+    columns = [quote_identifier(dialect, col) for col in constraint.columns]
+    columns_str = Base.join(columns, ", ")
+
+    if constraint.name !== nothing
+        name = quote_identifier(dialect, constraint.name)
+        return "CONSTRAINT $name UNIQUE ($columns_str)"
+    else
+        return "UNIQUE ($columns_str)"
+    end
+end
+
+function compile_table_constraint(dialect::SQLiteDialect,
+                                   constraint::TableCheck,
+                                   params::Vector{Symbol})::String
+    condition_sql = compile_expr(dialect, constraint.condition, params)
+
+    if constraint.name !== nothing
+        name = quote_identifier(dialect, constraint.name)
+        return "CONSTRAINT $name CHECK ($condition_sql)"
+    else
+        return "CHECK ($condition_sql)"
+    end
+end
+
+"""
+    compile(dialect::SQLiteDialect, ddl::CreateTable) -> (String, Vector{Symbol})
+
+Compile a CREATE TABLE statement to SQL.
+
+# Example
+```julia
+ddl = create_table(:users) |>
+    add_column(:id, :integer, primary_key=true) |>
+    add_column(:email, :text, nullable=false)
+
+sql, params = compile(SQLiteDialect(), ddl)
+# sql → "CREATE TABLE `users` (`id` INTEGER PRIMARY KEY, `email` TEXT NOT NULL)"
+```
+"""
+function compile(dialect::SQLiteDialect,
+                 ddl::CreateTable)::Tuple{String, Vector{Symbol}}
+    params = Symbol[]
+
+    # Build CREATE TABLE clause
+    parts = ["CREATE"]
+
+    if ddl.temporary
+        push!(parts, "TEMPORARY")
+    end
+
+    push!(parts, "TABLE")
+
+    if ddl.if_not_exists
+        push!(parts, "IF NOT EXISTS")
+    end
+
+    table = quote_identifier(dialect, ddl.table)
+    push!(parts, table)
+
+    # Compile columns
+    column_defs = [compile_column_def(dialect, col, params) for col in ddl.columns]
+
+    # Compile table constraints
+    constraint_defs = [compile_table_constraint(dialect, con, params) for con in ddl.constraints]
+
+    # Combine columns and constraints
+    all_defs = vcat(column_defs, constraint_defs)
+    defs_str = Base.join(all_defs, ", ")
+
+    sql = Base.join(parts, " ") * " ($defs_str)"
+
+    return (sql, params)
+end
+
+"""
+    compile(dialect::SQLiteDialect, ddl::AlterTable) -> (String, Vector{Symbol})
+
+Compile an ALTER TABLE statement to SQL.
+
+Note: SQLite has limited ALTER TABLE support. Only ADD COLUMN and RENAME COLUMN
+are supported directly. Other operations may require table recreation.
+
+# Example
+```julia
+ddl = alter_table(:users) |>
+    add_alter_column(:age, :integer)
+
+sql, params = compile(SQLiteDialect(), ddl)
+# sql → "ALTER TABLE `users` ADD COLUMN `age` INTEGER"
+```
+"""
+function compile(dialect::SQLiteDialect,
+                 ddl::AlterTable)::Tuple{String, Vector{Symbol}}
+    params = Symbol[]
+
+    if isempty(ddl.operations)
+        error("AlterTable must have at least one operation")
+    end
+
+    # SQLite requires one ALTER TABLE per operation
+    # We'll compile the first operation and warn if there are more
+    if length(ddl.operations) > 1
+        @warn "SQLite only supports one ALTER TABLE operation at a time. Only the first operation will be compiled."
+    end
+
+    op = ddl.operations[1]
+    table = quote_identifier(dialect, ddl.table)
+
+    if op isa AddColumn
+        column_def = compile_column_def(dialect, op.column, params)
+        sql = "ALTER TABLE $table ADD COLUMN $column_def"
+    elseif op isa DropColumn
+        # SQLite doesn't support DROP COLUMN directly
+        error("SQLite does not support DROP COLUMN. Use table recreation instead.")
+    elseif op isa RenameColumn
+        old_name = quote_identifier(dialect, op.old_name)
+        new_name = quote_identifier(dialect, op.new_name)
+        sql = "ALTER TABLE $table RENAME COLUMN $old_name TO $new_name"
+    elseif op isa AddTableConstraint
+        error("SQLite does not support ADD CONSTRAINT directly. Define constraints at table creation.")
+    elseif op isa DropConstraint
+        error("SQLite does not support DROP CONSTRAINT directly.")
+    else
+        error("Unknown ALTER TABLE operation: $(typeof(op))")
+    end
+
+    return (sql, params)
+end
+
+"""
+    compile(dialect::SQLiteDialect, ddl::DropTable) -> (String, Vector{Symbol})
+
+Compile a DROP TABLE statement to SQL.
+
+# Example
+```julia
+ddl = drop_table(:users, if_exists=true)
+sql, params = compile(SQLiteDialect(), ddl)
+# sql → "DROP TABLE IF EXISTS `users`"
+```
+"""
+function compile(dialect::SQLiteDialect,
+                 ddl::DropTable)::Tuple{String, Vector{Symbol}}
+    params = Symbol[]
+
+    parts = ["DROP TABLE"]
+
+    if ddl.if_exists
+        push!(parts, "IF EXISTS")
+    end
+
+    table = quote_identifier(dialect, ddl.table)
+    push!(parts, table)
+
+    # Note: SQLite doesn't support CASCADE/RESTRICT in DROP TABLE
+    if ddl.cascade
+        @warn "SQLite does not support CASCADE in DROP TABLE. Ignoring cascade option."
+    end
+
+    sql = Base.join(parts, " ")
+
+    return (sql, params)
+end
+
+"""
+    compile(dialect::SQLiteDialect, ddl::CreateIndex) -> (String, Vector{Symbol})
+
+Compile a CREATE INDEX statement to SQL.
+
+# Example
+```julia
+ddl = create_index(:idx_users_email, :users, [:email], unique=true)
+sql, params = compile(SQLiteDialect(), ddl)
+# sql → "CREATE UNIQUE INDEX `idx_users_email` ON `users` (`email`)"
+```
+"""
+function compile(dialect::SQLiteDialect,
+                 ddl::CreateIndex)::Tuple{String, Vector{Symbol}}
+    params = Symbol[]
+
+    parts = ["CREATE"]
+
+    if ddl.unique
+        push!(parts, "UNIQUE")
+    end
+
+    push!(parts, "INDEX")
+
+    if ddl.if_not_exists
+        push!(parts, "IF NOT EXISTS")
+    end
+
+    name = quote_identifier(dialect, ddl.name)
+    push!(parts, name)
+
+    push!(parts, "ON")
+
+    table = quote_identifier(dialect, ddl.table)
+    push!(parts, table)
+
+    columns = [quote_identifier(dialect, col) for col in ddl.columns]
+    columns_str = Base.join(columns, ", ")
+    push!(parts, "($columns_str)")
+
+    # Partial index support (WHERE clause)
+    if ddl.where !== nothing
+        where_sql = compile_expr(dialect, ddl.where, params)
+        push!(parts, "WHERE $where_sql")
+    end
+
+    sql = Base.join(parts, " ")
+
+    return (sql, params)
+end
+
+"""
+    compile(dialect::SQLiteDialect, ddl::DropIndex) -> (String, Vector{Symbol})
+
+Compile a DROP INDEX statement to SQL.
+
+# Example
+```julia
+ddl = drop_index(:idx_users_email, if_exists=true)
+sql, params = compile(SQLiteDialect(), ddl)
+# sql → "DROP INDEX IF EXISTS `idx_users_email`"
+```
+"""
+function compile(dialect::SQLiteDialect,
+                 ddl::DropIndex)::Tuple{String, Vector{Symbol}}
+    params = Symbol[]
+
+    parts = ["DROP INDEX"]
+
+    if ddl.if_exists
+        push!(parts, "IF EXISTS")
+    end
+
+    name = quote_identifier(dialect, ddl.name)
+    push!(parts, name)
+
+    sql = Base.join(parts, " ")
+
+    return (sql, params)
+end

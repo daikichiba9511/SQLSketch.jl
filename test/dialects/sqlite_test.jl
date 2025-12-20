@@ -1147,3 +1147,297 @@ end
         end
     end
 end
+
+# DDL Compilation Tests
+
+using SQLSketch.Core: CreateTable, AlterTable, DropTable, CreateIndex, DropIndex
+using SQLSketch.Core: create_table, add_column, add_primary_key, add_foreign_key
+using SQLSketch.Core: add_unique, add_check
+using SQLSketch.Core: alter_table, add_alter_column, drop_alter_column, rename_alter_column
+using SQLSketch.Core: drop_table, create_index, drop_index
+
+@testset "SQLite Dialect - DDL Compilation" begin
+    dialect = SQLiteDialect()
+
+    @testset "CREATE TABLE - Basic" begin
+        # Empty table (no columns)
+        ddl = create_table(:users)
+        sql, params = compile(dialect, ddl)
+        @test sql == "CREATE TABLE `users` ()"
+        @test isempty(params)
+
+        # Single column
+        ddl = create_table(:users) |>
+              add_column(:id, :integer, primary_key=true)
+        sql, params = compile(dialect, ddl)
+        @test sql == "CREATE TABLE `users` (`id` INTEGER PRIMARY KEY)"
+        @test isempty(params)
+
+        # Multiple columns
+        ddl = create_table(:users) |>
+              add_column(:id, :integer, primary_key=true) |>
+              add_column(:email, :text, nullable=false)
+        sql, params = compile(dialect, ddl)
+        @test sql == "CREATE TABLE `users` (`id` INTEGER PRIMARY KEY, `email` TEXT NOT NULL)"
+        @test isempty(params)
+    end
+
+    @testset "CREATE TABLE - Column Types" begin
+        test_types = [
+            (:integer, "INTEGER"),
+            (:bigint, "INTEGER"),
+            (:real, "REAL"),
+            (:text, "TEXT"),
+            (:blob, "BLOB"),
+            (:boolean, "INTEGER"),
+            (:timestamp, "TEXT"),
+            (:date, "TEXT"),
+            (:uuid, "TEXT"),
+            (:json, "TEXT")
+        ]
+
+        for (col_type, expected_sql_type) in test_types
+            ddl = create_table(:test) |> add_column(:col, col_type)
+            sql, params = compile(dialect, ddl)
+            @test occursin(expected_sql_type, sql)
+        end
+    end
+
+    @testset "CREATE TABLE - Column Constraints" begin
+        # NOT NULL
+        ddl = create_table(:users) |> add_column(:email, :text, nullable=false)
+        sql, _ = compile(dialect, ddl)
+        @test occursin("NOT NULL", sql)
+
+        # UNIQUE
+        ddl = create_table(:users) |> add_column(:email, :text, unique=true)
+        sql, _ = compile(dialect, ddl)
+        @test occursin("UNIQUE", sql)
+
+        # DEFAULT with literal
+        ddl = create_table(:users) |> add_column(:active, :boolean, default=literal(true))
+        sql, params = compile(dialect, ddl)
+        @test occursin("DEFAULT", sql)
+        @test isempty(params)  # Literal is inline
+
+        # DEFAULT with current_timestamp
+        ddl = create_table(:users) |> add_column(:created_at, :timestamp, default=func(:CURRENT_TIMESTAMP, SQLExpr[]))
+        sql, _ = compile(dialect, ddl)
+        @test occursin("DEFAULT", sql)
+
+        # FOREIGN KEY (column-level)
+        ddl = create_table(:posts) |> add_column(:user_id, :integer, references=(:users, :id))
+        sql, _ = compile(dialect, ddl)
+        @test occursin("REFERENCES `users`(`id`)", sql)
+
+        # Multiple constraints on one column
+        ddl = create_table(:users) |>
+              add_column(:email, :text, nullable=false, unique=true)
+        sql, _ = compile(dialect, ddl)
+        @test occursin("NOT NULL", sql)
+        @test occursin("UNIQUE", sql)
+    end
+
+    @testset "CREATE TABLE - Table Constraints" begin
+        # PRIMARY KEY
+        ddl = create_table(:users) |>
+              add_column(:id, :integer) |>
+              add_primary_key([:id])
+        sql, _ = compile(dialect, ddl)
+        @test occursin("PRIMARY KEY (`id`)", sql)
+
+        # Composite PRIMARY KEY
+        ddl = create_table(:user_roles) |>
+              add_column(:user_id, :integer) |>
+              add_column(:role_id, :integer) |>
+              add_primary_key([:user_id, :role_id])
+        sql, _ = compile(dialect, ddl)
+        @test occursin("PRIMARY KEY (`user_id`, `role_id`)", sql)
+
+        # FOREIGN KEY with CASCADE
+        ddl = create_table(:posts) |>
+              add_column(:user_id, :integer) |>
+              add_foreign_key([:user_id], :users, [:id], on_delete=:cascade)
+        sql, _ = compile(dialect, ddl)
+        @test occursin("FOREIGN KEY (`user_id`) REFERENCES `users`(`id`)", sql)
+        @test occursin("ON DELETE CASCADE", sql)
+
+        # UNIQUE constraint
+        ddl = create_table(:users) |>
+              add_column(:email, :text) |>
+              add_unique([:email])
+        sql, _ = compile(dialect, ddl)
+        @test occursin("UNIQUE (`email`)", sql)
+
+        # CHECK constraint
+        ddl = create_table(:users) |>
+              add_column(:age, :integer) |>
+              add_check(col(:users, :age) >= literal(18))
+        sql, _ = compile(dialect, ddl)
+        @test occursin("CHECK (", sql)
+        @test occursin("`users`.`age`", sql)
+    end
+
+    @testset "CREATE TABLE - Options" begin
+        # IF NOT EXISTS
+        ddl = create_table(:users, if_not_exists=true) |>
+              add_column(:id, :integer)
+        sql, _ = compile(dialect, ddl)
+        @test occursin("IF NOT EXISTS", sql)
+        @test occursin("CREATE TABLE IF NOT EXISTS `users`", sql)
+
+        # TEMPORARY
+        ddl = create_table(:temp_data, temporary=true) |>
+              add_column(:id, :integer)
+        sql, _ = compile(dialect, ddl)
+        @test occursin("TEMPORARY", sql)
+        @test occursin("CREATE TEMPORARY TABLE `temp_data`", sql)
+
+        # Both options
+        ddl = create_table(:temp_cache, if_not_exists=true, temporary=true) |>
+              add_column(:key, :text)
+        sql, _ = compile(dialect, ddl)
+        @test occursin("CREATE TEMPORARY TABLE IF NOT EXISTS `temp_cache`", sql)
+    end
+
+    @testset "ALTER TABLE - ADD COLUMN" begin
+        ddl = alter_table(:users) |> add_alter_column(:age, :integer)
+        sql, params = compile(dialect, ddl)
+        @test sql == "ALTER TABLE `users` ADD COLUMN `age` INTEGER"
+        @test isempty(params)
+
+        # With constraints
+        ddl = alter_table(:users) |>
+              add_alter_column(:email_verified, :boolean, nullable=false, default=literal(false))
+        sql, _ = compile(dialect, ddl)
+        @test occursin("ALTER TABLE `users` ADD COLUMN `email_verified`", sql)
+        @test occursin("NOT NULL", sql)
+        @test occursin("DEFAULT", sql)
+    end
+
+    @testset "ALTER TABLE - RENAME COLUMN" begin
+        ddl = alter_table(:users) |> rename_alter_column(:old_name, :new_name)
+        sql, params = compile(dialect, ddl)
+        @test sql == "ALTER TABLE `users` RENAME COLUMN `old_name` TO `new_name`"
+        @test isempty(params)
+    end
+
+    @testset "ALTER TABLE - Unsupported Operations" begin
+        # DROP COLUMN not supported
+        ddl = alter_table(:users) |> drop_alter_column(:old_field)
+        @test_throws ErrorException compile(dialect, ddl)
+
+        # Multiple operations warning
+        ddl = alter_table(:users) |>
+              add_alter_column(:age, :integer) |>
+              rename_alter_column(:old_name, :new_name)
+        @test_logs (:warn,) compile(dialect, ddl)
+    end
+
+    @testset "DROP TABLE" begin
+        ddl = drop_table(:users)
+        sql, params = compile(dialect, ddl)
+        @test sql == "DROP TABLE `users`"
+        @test isempty(params)
+
+        # IF EXISTS
+        ddl = drop_table(:users, if_exists=true)
+        sql, _ = compile(dialect, ddl)
+        @test sql == "DROP TABLE IF EXISTS `users`"
+
+        # CASCADE (not supported, should warn)
+        ddl = drop_table(:users, cascade=true)
+        @test_logs (:warn,) compile(dialect, ddl)
+    end
+
+    @testset "CREATE INDEX" begin
+        # Basic index
+        ddl = create_index(:idx_users_email, :users, [:email])
+        sql, params = compile(dialect, ddl)
+        @test sql == "CREATE INDEX `idx_users_email` ON `users` (`email`)"
+        @test isempty(params)
+
+        # UNIQUE index
+        ddl = create_index(:idx_users_email, :users, [:email], unique=true)
+        sql, _ = compile(dialect, ddl)
+        @test sql == "CREATE UNIQUE INDEX `idx_users_email` ON `users` (`email`)"
+
+        # IF NOT EXISTS
+        ddl = create_index(:idx_users_email, :users, [:email], if_not_exists=true)
+        sql, _ = compile(dialect, ddl)
+        @test occursin("IF NOT EXISTS", sql)
+
+        # Composite index
+        ddl = create_index(:idx_user_email, :users, [:user_id, :email])
+        sql, _ = compile(dialect, ddl)
+        @test occursin("(`user_id`, `email`)", sql)
+
+        # Partial index (with WHERE)
+        ddl = create_index(:idx_active_users, :users, [:id],
+                          where=col(:users, :active) == literal(true))
+        sql, params = compile(dialect, ddl)
+        @test occursin("WHERE", sql)
+        @test occursin("`users`.`active`", sql)
+    end
+
+    @testset "DROP INDEX" begin
+        ddl = drop_index(:idx_users_email)
+        sql, params = compile(dialect, ddl)
+        @test sql == "DROP INDEX `idx_users_email`"
+        @test isempty(params)
+
+        # IF EXISTS
+        ddl = drop_index(:idx_users_email, if_exists=true)
+        sql, _ = compile(dialect, ddl)
+        @test sql == "DROP INDEX IF EXISTS `idx_users_email`"
+    end
+
+    @testset "Complex Schema Compilation" begin
+        # Complete users table
+        users = create_table(:users, if_not_exists=true) |>
+                add_column(:id, :integer, primary_key=true) |>
+                add_column(:email, :text, nullable=false) |>
+                add_column(:username, :text, nullable=false) |>
+                add_column(:created_at, :timestamp, default=func(:CURRENT_TIMESTAMP, SQLExpr[])) |>
+                add_unique([:email]) |>
+                add_unique([:username])
+
+        sql, params = compile(dialect, users)
+        @test occursin("CREATE TABLE IF NOT EXISTS `users`", sql)
+        @test occursin("`id` INTEGER PRIMARY KEY", sql)
+        @test occursin("`email` TEXT NOT NULL", sql)
+        @test occursin("`username` TEXT NOT NULL", sql)
+        @test occursin("UNIQUE (`email`)", sql)
+        @test occursin("UNIQUE (`username`)", sql)
+        @test isempty(params)
+
+        # Posts table with foreign key
+        posts = create_table(:posts) |>
+                add_column(:id, :integer, primary_key=true) |>
+                add_column(:user_id, :integer, nullable=false) |>
+                add_column(:title, :text, nullable=false) |>
+                add_column(:body, :text) |>
+                add_foreign_key([:user_id], :users, [:id], on_delete=:cascade)
+
+        sql, _ = compile(dialect, posts)
+        @test occursin("CREATE TABLE `posts`", sql)
+        @test occursin("FOREIGN KEY (`user_id`) REFERENCES `users`(`id`) ON DELETE CASCADE", sql)
+    end
+
+    @testset "Identifier Quoting in DDL" begin
+        # Table names with special characters
+        ddl = create_table(Symbol("user data")) |> add_column(:id, :integer)
+        sql, _ = compile(dialect, ddl)
+        @test occursin("`user data`", sql)
+
+        # Column names with special characters
+        ddl = create_table(:users) |> add_column(Symbol("email address"), :text)
+        sql, _ = compile(dialect, ddl)
+        @test occursin("`email address`", sql)
+
+        # Index names
+        ddl = create_index(Symbol("idx-users-email"), :users, [:email])
+        sql, _ = compile(dialect, ddl)
+        @test occursin("`idx-users-email`", sql)
+    end
+end

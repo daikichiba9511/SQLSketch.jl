@@ -617,7 +617,37 @@ insert_into(:users, [:id, :email, :version]) |>
 
 ---
 
-## Phase 10: Documentation (Week 17+)
+## Phase 10: DDL Support (Week 17)
+
+**Goal**: Type-safe schema definition with DDL operations.
+
+### Tasks
+
+1. ✅ Design DDL AST (CreateTable, AlterTable, DropTable, CreateIndex, DropIndex)
+2. ✅ Implement column constraints (PRIMARY KEY, NOT NULL, UNIQUE, DEFAULT, CHECK, FOREIGN KEY)
+3. ✅ Implement table constraints (PRIMARY KEY, FOREIGN KEY, UNIQUE, CHECK)
+4. ✅ Create portable column type system
+5. ✅ Implement pipeline API with currying
+6. ✅ Add DDL compilation to SQLite dialect
+7. ✅ Write comprehensive unit tests (156 tests)
+8. ✅ Write dialect-specific compilation tests (71 tests)
+9. ✅ Add docstrings to all public functions
+
+### Deliverables
+
+- ✅ `src/Core/ddl.jl` - DDL AST types and pipeline API
+- ✅ DDL compilation in `src/Dialects/sqlite.jl`
+- ✅ `test/core/ddl_test.jl` - DDL AST unit tests
+- ✅ DDL compilation tests in `test/dialects/sqlite_test.jl`
+- ✅ 227 total DDL tests
+
+### Status
+
+✅ **COMPLETED** - Full DDL support with type-safe schema definitions
+
+---
+
+## Phase 11: Documentation (Week 18+)
 
 **Goal**: User-facing documentation and examples.
 
@@ -644,7 +674,7 @@ insert_into(:users, [:id, :email, :version]) |>
 - Recursive CTEs (WITH RECURSIVE)
 - ~~UPSERT (INSERT ... ON CONFLICT)~~ ✅ **COMPLETED in Phase 8.7**
 - ~~Window Functions~~ ✅ **COMPLETED in Phase 8.5**
-- DDL operations (CREATE TABLE, ALTER TABLE, etc.)
+- ~~DDL operations (CREATE TABLE, ALTER TABLE, etc.)~~ ✅ **COMPLETED in Phase 10**
 - Easy Layer (Repository pattern, CRUD helpers)
 - Relation preloading
 - Schema definition macros
@@ -663,8 +693,9 @@ insert_into(:users, [:id, :email, :version]) |>
 | 1-3   | 6 weeks  | **M1**: Query construction and SQL generation (no database) | ✅ COMPLETED |
 | 4-6   | 6 weeks  | **M2**: Full SQLite integration with type safety | ✅ COMPLETED |
 | 7-8   | 2 weeks  | **M3**: Transactions and migrations | ✅ COMPLETED |
-| 9     | 2 weeks  | **M4**: PostgreSQL support (validation of abstraction) | ⏳ NEXT |
-| 10    | 2+ weeks | **M5**: Documentation and examples | ⏳ PENDING |
+| 10    | 1 week   | **M4**: DDL support with type-safe schema definitions | ✅ COMPLETED |
+| 11    | 2 weeks  | **M5**: PostgreSQL support (validation of abstraction) | ⏳ NEXT |
+| 12    | 2+ weeks | **M6**: Documentation and examples | ⏳ PENDING |
 
 ---
 

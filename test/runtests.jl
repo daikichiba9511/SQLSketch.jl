@@ -50,4 +50,8 @@ using Test
     @testset "Migration Runner (Core.migrations)" begin
         include("core/migrations_test.jl")
     end
+
+    @testset "DDL (Core.ddl)" begin
+        include("core/ddl_test.jl")
+    end
 end

@@ -102,6 +102,19 @@ export discover_migrations, parse_migration_file
 export apply_migration, apply_migrations
 export migration_status, validate_migration_checksums
 export generate_migration
+
+# DDL (Phase 10)
+include("Core/ddl.jl")
+export DDLStatement
+export ColumnType, ColumnConstraint, ColumnDef
+export PrimaryKeyConstraint, NotNullConstraint, UniqueConstraint, DefaultConstraint
+export CheckConstraint, ForeignKeyConstraint
+export TableConstraint, TablePrimaryKey, TableForeignKey, TableUnique, TableCheck
+export CreateTable, AlterTable, DropTable, CreateIndex, DropIndex
+export AlterTableOp, AddColumn, DropColumn, RenameColumn, AddTableConstraint, DropConstraint
+export create_table, add_column, add_primary_key, add_foreign_key, add_unique, add_check
+export alter_table, add_alter_column, drop_alter_column, rename_alter_column
+export drop_table, create_index, drop_index
 end # module Core
 
 # Dialect implementations
@@ -172,6 +185,18 @@ export discover_migrations, parse_migration_file
 export apply_migration, apply_migrations
 export migration_status, validate_migration_checksums
 export generate_migration
+
+# DDL (Phase 10)
+export DDLStatement
+export ColumnType, ColumnConstraint, ColumnDef
+export PrimaryKeyConstraint, NotNullConstraint, UniqueConstraint, DefaultConstraint
+export CheckConstraint, ForeignKeyConstraint
+export TableConstraint, TablePrimaryKey, TableForeignKey, TableUnique, TableCheck
+export CreateTable, AlterTable, DropTable, CreateIndex, DropIndex
+export AlterTableOp, AddColumn, DropColumn, RenameColumn, AddTableConstraint, DropConstraint
+export create_table, add_column, add_primary_key, add_foreign_key, add_unique, add_check
+export alter_table, add_alter_column, drop_alter_column, rename_alter_column
+export drop_table, create_index, drop_index
 
 # Export Dialect implementations
 export SQLiteDialect
