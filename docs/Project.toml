@@ -1,0 +1,6 @@
+[deps]
+SQLSketch = "b3e6e9d0-8c4e-4f3a-9d8e-9f5e6d7c8b9a"
+Documenter = "e30172f5-a6a5-5a46-863b-614d45cd2de4"
+
+[sources]
+SQLSketch = {path = "/Users/chibadaimare/work/sqlsketch"}

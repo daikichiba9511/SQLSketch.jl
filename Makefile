@@ -1,4 +1,4 @@
-.PHONY: help test lint format format-check clean all
+.PHONY: help test lint format format-check clean all docs docs-open docs-url
 
 # Default target
 help:
@@ -8,6 +8,9 @@ help:
 	@echo "  make lint          - Run JET static analysis"
 	@echo "  make format        - Format all Julia files"
 	@echo "  make format-check  - Check if files are formatted (CI)"
+	@echo "  make docs          - Build documentation"
+	@echo "  make docs-open     - Build and open documentation in browser"
+	@echo "  make docs-url      - Show documentation URL"
 	@echo "  make clean         - Remove temporary files"
 	@echo "  make all           - Run format, lint, and test"
 	@echo ""
@@ -34,6 +37,32 @@ clean:
 	find . -type f -name "*.jl.*.cov" -delete
 	find . -type f -name "*.jl.mem" -delete
 	rm -rf Manifest.toml.bak
+
+# Build documentation
+docs:
+	@echo "Building documentation..."
+	cd docs && julia --project=. make.jl
+	@echo "✓ Documentation built successfully!"
+	@echo "  Open: docs/build/index.html"
+
+# Build and open documentation
+docs-open: docs
+	@echo "Opening documentation in browser..."
+	@if [ "$$(uname)" = "Darwin" ]; then \
+		open docs/build/index.html; \
+	elif [ "$$(uname)" = "Linux" ]; then \
+		xdg-open docs/build/index.html; \
+	else \
+		echo "Please open docs/build/index.html manually"; \
+	fi
+
+# Show documentation URL
+docs-url:
+	@echo "Documentation location:"
+	@echo "  file://$(shell pwd)/docs/build/index.html"
+	@echo ""
+	@echo "GitHub repository:"
+	@echo "  https://github.com/daikichiba9511/SQLSketch.jl"
 
 # Run all checks (format, lint, test)
 all: format lint test
