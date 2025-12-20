@@ -4,7 +4,9 @@ using SQLSketch
 makedocs(
     sitename = "SQLSketch.jl",
     format = Documenter.HTML(
-        prettyurls = get(ENV, "CI", nothing) == "true"
+        prettyurls = get(ENV, "CI", nothing) == "true",
+        canonical = "https://daikichiba9511.github.io/SQLSketch.jl",
+        assets = String[],
     ),
     modules = [SQLSketch],
     pages = [
@@ -14,6 +16,12 @@ makedocs(
         "API Reference" => "api.md",
         "Design" => "design.md",
     ],
-    remotes = nothing,  # Disable remote source links for local development
+    repo = "https://github.com/daikichiba9511/SQLSketch.jl/blob/{commit}{path}#{line}",
     checkdocs = :none   # Don't check for missing docstrings
+)
+
+deploydocs(
+    repo = "github.com/daikichiba9511/SQLSketch.jl.git",
+    devbranch = "main",
+    push_preview = true,
 )
