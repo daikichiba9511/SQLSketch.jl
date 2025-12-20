@@ -60,9 +60,13 @@ DROP TABLE users;
 
 ```julia
 using SQLSketch
-using SQLSketch: apply_migrations, migration_status, generate_migration
+using SQLSketch.Extras: apply_migrations, migration_status, generate_migration
+using SQLSketch.Core: connect
+using SQLSketch.Dialects: SQLiteDialect
+using SQLSketch.Drivers: SQLiteDriver
 
-db = connect(SQLiteDriver(), "app.db")
+# Connect to database
+conn = connect(SQLiteDriver(), "app.db")
 dialect = SQLiteDialect()
 
 # Generate new migration
@@ -70,11 +74,11 @@ path = generate_migration("db/migrations", "create_users_table")
 # Creates: db/migrations/20250120150000_create_users_table.sql
 
 # Apply all pending migrations
-applied = apply_migrations(db, dialect, "db/migrations")
+applied = apply_migrations(conn, dialect, "db/migrations")
 println("Applied \$(length(applied)) migrations")
 
 # Check migration status
-status = migration_status(db, dialect, "db/migrations")
+status = migration_status(conn, dialect, "db/migrations")
 for s in status
     println("\$(s.migration.version) \$(s.migration.name): \$(s.applied ? "✓" : "✗")")
 end
@@ -176,7 +180,7 @@ This table tracks which migrations have been applied to the database.
 # Example
 
 ```julia
-create_migrations_table(db, dialect)
+create_migrations_table(conn, dialect)
 ```
 """
 function create_migrations_table(conn::Connection, dialect::Dialect)::Nothing
@@ -370,7 +374,7 @@ Dictionary mapping version → (checksum, applied_at)
 # Example
 
 ```julia
-applied = get_applied_migrations(db, dialect)
+applied = get_applied_migrations(conn, dialect)
 # → Dict("20250120150000" => ("a3b2c1...", DateTime(2025, 1, 20, 15, 0, 0)))
 ```
 """
@@ -442,7 +446,7 @@ Nothing
 
 ```julia
 migration = parse_migration_file("db/migrations/20250120150000_create_users.sql")
-apply_migration(db, dialect, migration)
+apply_migration(conn, dialect, migration)
 ```
 
 # Errors
@@ -500,7 +504,7 @@ Vector of migrations that were applied (empty if all migrations were already app
 # Example
 
 ```julia
-applied = apply_migrations(db, dialect, "db/migrations")
+applied = apply_migrations(conn, dialect, "db/migrations")
 println("Applied \$(length(applied)) migrations")
 ```
 
@@ -562,7 +566,7 @@ Vector of MigrationStatus structs, sorted by version (oldest first)
 # Example
 
 ```julia
-status = migration_status(db, dialect, "db/migrations")
+status = migration_status(conn, dialect, "db/migrations")
 for s in status
     applied_str = s.applied ? "✓" : "✗"
     println("\$applied_str \$(s.migration.version) \$(s.migration.name)")
@@ -610,7 +614,7 @@ Validate that all applied migrations have matching checksums.
 # Example
 
 ```julia
-if validate_migration_checksums(db, dialect, "db/migrations")
+if validate_migration_checksums(conn, dialect, "db/migrations")
     println("All migrations are valid")
 else
     println("WARNING: Some migrations have been modified!")

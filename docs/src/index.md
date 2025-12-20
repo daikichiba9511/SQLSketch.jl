@@ -204,10 +204,10 @@ q = set_union(q1, q2, all=false)  # UNION (deduplicated)
 using SQLSketch.Extras: apply_migrations, migration_status
 
 # Apply all pending migrations
-apply_migrations(driver, "migrations/")
+applied = apply_migrations(conn, dialect, "migrations/")
 
 # Check status
-status = migration_status(driver, "migrations/")
+status = migration_status(conn, dialect, "migrations/")
 ```
 
 ## Project Status
