@@ -13,7 +13,7 @@ based on the design document (`design.md`).
 - **Bottom-up**: Build foundational abstractions first
 - **Incremental**: Each phase should produce working, testable code
 - **SQLite-first**: Use SQLite for rapid iteration and testing
-- **Core-only initially**: Defer Easy layer until Core is stable
+- **Core-only initially**: Defer Extras layer until Core is stable
 
 ---
 
@@ -867,7 +867,7 @@ insert_into(:users, [:id, :email, :version]) |>
 - ~~UPSERT (INSERT ... ON CONFLICT)~~ ✅ **COMPLETED in Phase 8.7**
 - ~~Window Functions~~ ✅ **COMPLETED in Phase 8.5**
 - ~~DDL operations (CREATE TABLE, ALTER TABLE, etc.)~~ ✅ **COMPLETED in Phase 10**
-- Easy Layer (Repository pattern, CRUD helpers)
+- Extras Layer (Repository pattern, CRUD helpers)
 - Relation preloading
 - Schema definition macros
 - Query optimization hints

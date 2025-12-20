@@ -42,10 +42,10 @@ The code is serious; the positioning is not.
 
 ```mermaid
 flowchart TB
-  A[Application] --> E[Easy Layer (optional)]
+  A[Application] --> E[Extras Layer (optional)]
   E --> C[Core Layer (SQLSketch.Core)]
 
-  subgraph Easy Layer (optional)
+  subgraph Extras Layer (optional)
     E1[Repo / CRUD sugar]
     E2[Relations]
     E3[Validation integration]
@@ -72,14 +72,14 @@ flowchart TB
 Copy code
 ```
 
-## 5. Core vs Easy Layer
+## 5. Core vs Extras Layer
 
 SQLSketch.jl is intentionally designed as a **two-layer system**:
 
 - a small, stable **Core layer**
-- an optional, disposable **Easy layer**
+- an optional, disposable **Extras layer**
 
-This separation is fundamental to the project’s goals.
+This separation is fundamental to the project's goals.
 
 ---
 
@@ -114,17 +114,17 @@ The Core layer **does not** attempt to provide a full ORM experience.
 
 ---
 
-### 5.2 Easy Layer
+### 5.2 Extras Layer
 
-The Easy layer provides **convenience abstractions** built on top of the Core.
+The Extras layer provides **convenience abstractions** built on top of the Core.
 
 It exists to improve ergonomics, not to redefine semantics.
 
-The Easy layer is explicitly considered **optional and replaceable**.
+The Extras layer is explicitly considered **optional and replaceable**.
 
-#### Easy Layer Responsibilities
+#### Extras Layer Responsibilities
 
-Typical responsibilities of the Easy layer include:
+Typical responsibilities of the Extras layer include:
 
 - Repository patterns
 - CRUD helpers
@@ -133,7 +133,7 @@ Typical responsibilities of the Easy layer include:
 - DDL generation and diffing
 - Validation-related sugar
 
-All Easy-layer features must be expressible **purely in terms of Core APIs**.
+All Extras-layer features must be expressible **purely in terms of Core APIs**.
 
 ---
 
@@ -148,7 +148,7 @@ This separation allows SQLSketch.jl to:
 
 In other words:
 
-> **Core defines “what is possible”; Easy defines “what is convenient”.**
+> **Core defines "what is possible"; Extras defines "what is convenient".**
 
 ---
 
@@ -160,7 +160,7 @@ The Core layer is expected to be:
 - conservative in API changes
 - explicit about breaking changes
 
-The Easy layer is free to evolve, change, or even be rewritten entirely.
+The Extras layer is free to evolve, change, or even be rewritten entirely.
 
 This contract allows SQLSketch.jl to serve as a long-lived design exploration
 without locking users into premature abstractions.
@@ -797,7 +797,7 @@ The Core layer explicitly does **not**:
 - auto-generate migrations
 - manage online or zero-downtime migrations
 
-These higher-level concerns are intentionally left to the Easy layer
+These higher-level concerns are intentionally left to the Extras layer
 or external tooling.
 
 ---

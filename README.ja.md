@@ -56,7 +56,7 @@ SQLSketch は2層システムとして設計されています：
 
 ```
 ┌─────────────────────────────────┐
-│      Easy Layer (将来)          │  ← オプションの便利機能
+│      Extras Layer (将来)          │  ← オプションの便利機能
 │  Repository, CRUD, Relations    │
 └─────────────────────────────────┘
                ↓
@@ -74,7 +74,7 @@ SQLSketch は2層システムとして設計されています：
 - `Driver` – 接続と実行
 - `CodecRegistry` – 型変換
 
-### Easy Layer（将来）
+### Extras Layer（将来）
 - Repository パターン
 - CRUD ヘルパー
 - リレーションのプリロード

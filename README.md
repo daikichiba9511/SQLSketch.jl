@@ -59,7 +59,7 @@ SQLSketch is designed as a two-layer system:
 
 ```
 ┌─────────────────────────────────┐
-│      Easy Layer (future)        │  ← Optional convenience
+│      Extras Layer (future)        │  ← Optional convenience
 │  Repository, CRUD, Relations    │
 └─────────────────────────────────┘
                ↓
@@ -78,7 +78,7 @@ SQLSketch is designed as a two-layer system:
 - `Driver` – Connection and execution
 - `CodecRegistry` – Type conversion
 
-### Easy Layer (Future)
+### Extras Layer (Future)
 
 - Repository pattern
 - CRUD helpers

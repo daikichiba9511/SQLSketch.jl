@@ -811,7 +811,7 @@ Task breakdown based on `design.md` and `roadmap.md`.
 - [ ] MariaDB Dialect
 - [ ] DuckDB Dialect
 
-### Easy Layer ⏳
+### Extras Layer ⏳
 - [ ] Repository pattern
 - [ ] CRUD helpers
 - [ ] Relation preloading
