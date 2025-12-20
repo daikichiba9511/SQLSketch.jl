@@ -1187,3 +1187,273 @@ Base.isequal(a::With{T}, b::With{T}) where {T} = isequal(a.ctes, b.ctes) &&
 # Hash functions for CTE
 Base.hash(a::CTE, h::UInt) = hash((a.name, a.columns, a.query), h)
 Base.hash(a::With{T}, h::UInt) where {T} = hash((a.ctes, a.main_query), h)
+
+#
+# Set Operations (UNION, INTERSECT, EXCEPT) Query Types
+#
+
+"""
+    SetUnion{T}(left::Query{T}, right::Query{T}, all::Bool)
+
+Represents a UNION or UNION ALL set operation.
+
+UNION combines the results of two queries, removing duplicates by default.
+UNION ALL includes all rows from both queries, preserving duplicates.
+
+This is a **shape-preserving** operation – both queries must have the same output type `T`.
+
+# Type Parameter
+
+  - `T`: The output type (must be the same for both left and right queries)
+
+# Fields
+
+  - `left::Query{T}` – first query
+  - `right::Query{T}` – second query
+  - `all::Bool` – true for UNION ALL (keep duplicates), false for UNION (remove duplicates)
+
+# Example
+
+```julia
+q1 = from(:users) |> select(NamedTuple, col(:users, :email))
+q2 = from(:admins) |> select(NamedTuple, col(:admins, :email))
+
+# UNION (removes duplicates)
+q = union(q1, q2)
+
+# UNION ALL (keeps duplicates)
+q = union(q1, q2, all=true)
+```
+
+# Database Support
+
+  - SQLite: ✓
+  - PostgreSQL: ✓
+  - MySQL: ✓
+"""
+struct SetUnion{T} <: Query{T}
+    left::Query{T}
+    right::Query{T}
+    all::Bool
+end
+
+"""
+    SetIntersect{T}(left::Query{T}, right::Query{T}, all::Bool)
+
+Represents an INTERSECT or INTERSECT ALL set operation.
+
+INTERSECT returns only rows that appear in both queries.
+
+This is a **shape-preserving** operation – both queries must have the same output type `T`.
+
+# Type Parameter
+
+  - `T`: The output type (must be the same for both left and right queries)
+
+# Fields
+
+  - `left::Query{T}` – first query
+  - `right::Query{T}` – second query
+  - `all::Bool` – true for INTERSECT ALL (keep duplicates), false for INTERSECT
+
+# Example
+
+```julia
+q1 = from(:customers) |> select(NamedTuple, col(:customers, :id))
+q2 = from(:orders) |> select(NamedTuple, col(:orders, :customer_id))
+
+# Find customers who have placed orders
+q = intersect(q1, q2)
+```
+
+# Database Support
+
+  - SQLite: ✓
+  - PostgreSQL: ✓
+  - MySQL: ✗ (not supported)
+"""
+struct SetIntersect{T} <: Query{T}
+    left::Query{T}
+    right::Query{T}
+    all::Bool
+end
+
+"""
+    SetExcept{T}(left::Query{T}, right::Query{T}, all::Bool)
+
+Represents an EXCEPT or EXCEPT ALL set operation (also known as MINUS in some databases).
+
+EXCEPT returns rows from the left query that do not appear in the right query.
+
+This is a **shape-preserving** operation – both queries must have the same output type `T`.
+
+# Type Parameter
+
+  - `T`: The output type (must be the same for both left and right queries)
+
+# Fields
+
+  - `left::Query{T}` – first query
+  - `right::Query{T}` – second query
+  - `all::Bool` – true for EXCEPT ALL (keep duplicates), false for EXCEPT
+
+# Example
+
+```julia
+q1 = from(:all_users) |> select(NamedTuple, col(:all_users, :id))
+q2 = from(:banned_users) |> select(NamedTuple, col(:banned_users, :user_id))
+
+# Find users who are not banned
+q = except(q1, q2)
+```
+
+# Database Support
+
+  - SQLite: ✓
+  - PostgreSQL: ✓
+  - MySQL: ✗ (not supported)
+
+# Note
+
+MySQL uses MINUS instead of EXCEPT in some versions.
+"""
+struct SetExcept{T} <: Query{T}
+    left::Query{T}
+    right::Query{T}
+    all::Bool
+end
+
+#
+# Set Operations Pipeline API
+#
+
+"""
+    union(left::Query{T}, right::Query{T}; all::Bool=false)::SetUnion{T}
+
+Combines the results of two queries using UNION or UNION ALL.
+
+UNION removes duplicate rows, while UNION ALL preserves them.
+
+Can be used in two ways:
+
+  - Explicit: `union(query1, query2, all=false)`
+  - Pipeline: `query1 |> union(query2, all=false)`
+
+The curried form `union(query2; all=false)` returns a function suitable for pipeline composition.
+
+# Arguments
+
+  - `left::Query{T}` – first query
+  - `right::Query{T}` – second query
+  - `all::Bool` – true for UNION ALL, false for UNION (default)
+
+# Example
+
+```julia
+# Pipeline style
+q = from(:users) |> select(NamedTuple, col(:users, :email)) |>
+    union(from(:admins) |> select(NamedTuple, col(:admins, :email)))
+
+# UNION ALL
+q = from(:users) |> select(NamedTuple, col(:users, :email)) |>
+    union(from(:admins) |> select(NamedTuple, col(:admins, :email)), all=true)
+
+# Explicit style
+q1 = from(:users) |> select(NamedTuple, col(:users, :email))
+q2 = from(:admins) |> select(NamedTuple, col(:admins, :email))
+q = union(q1, q2)
+```
+"""
+function union(left::Query{T}, right::Query{T}; all::Bool = false)::SetUnion{T} where {T}
+    return SetUnion{T}(left, right, all)
+end
+
+# Curried version for pipeline composition
+union(right::Query{T}; all::Bool = false) where {T} = left -> union(left, right; all = all)
+
+"""
+    intersect(left::Query{T}, right::Query{T}; all::Bool=false)::SetIntersect{T}
+
+Returns only rows that appear in both queries using INTERSECT.
+
+Can be used in two ways:
+
+  - Explicit: `intersect(query1, query2)`
+  - Pipeline: `query1 |> intersect(query2)`
+
+The curried form `intersect(query2)` returns a function suitable for pipeline composition.
+
+# Arguments
+
+  - `left::Query{T}` – first query
+  - `right::Query{T}` – second query
+  - `all::Bool` – true for INTERSECT ALL, false for INTERSECT (default)
+
+# Example
+
+```julia
+q1 = from(:customers) |> select(NamedTuple, col(:customers, :id))
+q2 = from(:orders) |> select(NamedTuple, col(:orders, :customer_id))
+
+# Find customers who have placed orders
+q = q1 |> intersect(q2)
+```
+"""
+function intersect(left::Query{T}, right::Query{T}; all::Bool = false)::SetIntersect{T} where {T}
+    return SetIntersect{T}(left, right, all)
+end
+
+# Curried version for pipeline composition
+intersect(right::Query{T}; all::Bool = false) where {T} = left -> intersect(left, right;
+                                                                             all = all)
+
+"""
+    except(left::Query{T}, right::Query{T}; all::Bool=false)::SetExcept{T}
+
+Returns rows from the left query that do not appear in the right query using EXCEPT.
+
+Can be used in two ways:
+
+  - Explicit: `except(query1, query2)`
+  - Pipeline: `query1 |> except(query2)`
+
+The curried form `except(query2)` returns a function suitable for pipeline composition.
+
+# Arguments
+
+  - `left::Query{T}` – first query
+  - `right::Query{T}` – second query
+  - `all::Bool` – true for EXCEPT ALL, false for EXCEPT (default)
+
+# Example
+
+```julia
+q1 = from(:all_users) |> select(NamedTuple, col(:all_users, :id))
+q2 = from(:banned_users) |> select(NamedTuple, col(:banned_users, :user_id))
+
+# Find users who are not banned
+q = q1 |> except(q2)
+```
+"""
+function except(left::Query{T}, right::Query{T}; all::Bool = false)::SetExcept{T} where {T}
+    return SetExcept{T}(left, right, all)
+end
+
+# Curried version for pipeline composition
+except(right::Query{T}; all::Bool = false) where {T} = left -> except(left, right; all = all)
+
+# Structural Equality for Set Operations
+Base.isequal(a::SetUnion{T}, b::SetUnion{T}) where {T} = isequal(a.left, b.left) &&
+                                                          isequal(a.right, b.right) &&
+                                                          a.all == b.all
+Base.isequal(a::SetIntersect{T}, b::SetIntersect{T}) where {T} = isequal(a.left, b.left) &&
+                                                                  isequal(a.right, b.right) &&
+                                                                  a.all == b.all
+Base.isequal(a::SetExcept{T}, b::SetExcept{T}) where {T} = isequal(a.left, b.left) &&
+                                                            isequal(a.right, b.right) &&
+                                                            a.all == b.all
+
+# Hash functions for Set Operations
+Base.hash(a::SetUnion{T}, h::UInt) where {T} = hash((a.left, a.right, a.all), h)
+Base.hash(a::SetIntersect{T}, h::UInt) where {T} = hash((a.left, a.right, a.all), h)
+Base.hash(a::SetExcept{T}, h::UInt) where {T} = hash((a.left, a.right, a.all), h)

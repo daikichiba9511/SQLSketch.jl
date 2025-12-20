@@ -46,16 +46,18 @@ export row_number, rank, dense_rank, ntile
 export lag, lead, first_value, last_value, nth_value
 export win_sum, win_avg, win_min, win_max, win_count
 
-# Query AST (Phase 2 + DML + CTE)
+# Query AST (Phase 2 + DML + CTE + Set Operations)
 include("Core/query.jl")
 export Query, From, Where, Select, OrderBy, Limit, Offset, Distinct, GroupBy, Having, Join
 export InsertInto, InsertValues, Update, UpdateSet, UpdateWhere, DeleteFrom, DeleteWhere
 export Returning
 export CTE, With
+export SetUnion, SetIntersect, SetExcept
 export from, where, select, order_by, limit, offset, distinct, group_by, having, join
 export insert_into, values, update, set, delete_from
 export returning
 export cte, with
+export union, intersect, except
 # Aliases to avoid Base conflicts
 export innerjoin, leftjoin, rightjoin, fulljoin, insert_values
 
@@ -130,10 +132,12 @@ export Query, From, Where, Select, OrderBy, Limit, Offset, Distinct, GroupBy, Ha
 export InsertInto, InsertValues, Update, UpdateSet, UpdateWhere, DeleteFrom, DeleteWhere
 export Returning
 export CTE, With
+export SetUnion, SetIntersect, SetExcept
 export from, where, select, order_by, limit, offset, distinct, group_by, having, join
 export insert_into, values, update, set, delete_from
 export returning
 export cte, with
+export union, intersect, except
 # Aliases to avoid Base conflicts
 export innerjoin, leftjoin, rightjoin, fulljoin, insert_values
 export Dialect, Capability

@@ -29,7 +29,7 @@ using .Core: Dialect, Capability, CAP_CTE, CAP_RETURNING, CAP_UPSERT, CAP_WINDOW
              CAP_LATERAL, CAP_BULK_COPY, CAP_SAVEPOINT, CAP_ADVISORY_LOCK
 using .Core: Query, From, Where, Select, Join, OrderBy, Limit, Offset, Distinct, GroupBy,
              Having, InsertInto, InsertValues, Update, UpdateSet, UpdateWhere,
-             DeleteFrom, DeleteWhere, Returning, CTE, With
+             DeleteFrom, DeleteWhere, Returning, CTE, With, SetUnion, SetIntersect, SetExcept
 using .Core: SQLExpr, ColRef, Literal, Param, BinaryOp, UnaryOp, FuncCall, PlaceholderField,
              BetweenOp, InOp, Cast, Subquery, CaseExpr, WindowFunc, Over, WindowFrame
 import .Core: compile, compile_expr, quote_identifier, placeholder, supports
@@ -1192,6 +1192,118 @@ function compile(dialect::SQLiteDialect,
     # Combine: WITH cte1 AS (...), cte2 AS (...) main_query
     cte_clause = Base.join(cte_parts, ", ")
     sql = "WITH $cte_clause $main_sql"
+
+    return (sql, params)
+end
+
+#
+# Set Operations Compilation (UNION, INTERSECT, EXCEPT)
+#
+
+"""
+    compile(dialect::SQLiteDialect, query::SetUnion{T}) -> Tuple{String, Vector{Symbol}}
+
+Compile a UNION or UNION ALL set operation.
+
+# Example
+
+```julia
+q1 = from(:users) |> select(NamedTuple, col(:users, :email))
+q2 = from(:admins) |> select(NamedTuple, col(:admins, :email))
+q = union(q1, q2)
+sql, params = compile(SQLiteDialect(), q)
+# → "SELECT `users`.`email` FROM `users` UNION SELECT `admins`.`email` FROM `admins`"
+```
+"""
+function compile(dialect::SQLiteDialect,
+                 query::SetUnion{T})::Tuple{String, Vector{Symbol}} where {T}
+    params = Symbol[]
+
+    # Compile left query
+    left_sql, left_params = compile(dialect, query.left)
+    append!(params, left_params)
+
+    # Compile right query
+    right_sql, right_params = compile(dialect, query.right)
+    append!(params, right_params)
+
+    # Determine operator
+    op = query.all ? "UNION ALL" : "UNION"
+
+    # Combine with parentheses for clarity
+    sql = "($left_sql) $op ($right_sql)"
+
+    return (sql, params)
+end
+
+"""
+    compile(dialect::SQLiteDialect, query::SetIntersect{T}) -> Tuple{String, Vector{Symbol}}
+
+Compile an INTERSECT or INTERSECT ALL set operation.
+
+# Example
+
+```julia
+q1 = from(:customers) |> select(NamedTuple, col(:customers, :id))
+q2 = from(:orders) |> select(NamedTuple, col(:orders, :customer_id))
+q = intersect(q1, q2)
+sql, params = compile(SQLiteDialect(), q)
+# → "SELECT `customers`.`id` FROM `customers` INTERSECT SELECT `orders`.`customer_id` FROM `orders`"
+```
+"""
+function compile(dialect::SQLiteDialect,
+                 query::SetIntersect{T})::Tuple{String, Vector{Symbol}} where {T}
+    params = Symbol[]
+
+    # Compile left query
+    left_sql, left_params = compile(dialect, query.left)
+    append!(params, left_params)
+
+    # Compile right query
+    right_sql, right_params = compile(dialect, query.right)
+    append!(params, right_params)
+
+    # Determine operator (SQLite doesn't support INTERSECT ALL yet, but structure allows it)
+    op = query.all ? "INTERSECT ALL" : "INTERSECT"
+
+    # Combine with parentheses for clarity
+    sql = "($left_sql) $op ($right_sql)"
+
+    return (sql, params)
+end
+
+"""
+    compile(dialect::SQLiteDialect, query::SetExcept{T}) -> Tuple{String, Vector{Symbol}}
+
+Compile an EXCEPT or EXCEPT ALL set operation.
+
+# Example
+
+```julia
+q1 = from(:all_users) |> select(NamedTuple, col(:all_users, :id))
+q2 = from(:banned_users) |> select(NamedTuple, col(:banned_users, :user_id))
+q = except(q1, q2)
+sql, params = compile(SQLiteDialect(), q)
+# → "SELECT `all_users`.`id` FROM `all_users` EXCEPT SELECT `banned_users`.`user_id` FROM `banned_users`"
+```
+"""
+function compile(dialect::SQLiteDialect,
+                 query::SetExcept{T})::Tuple{String, Vector{Symbol}} where {T}
+    params = Symbol[]
+
+    # Compile left query
+    left_sql, left_params = compile(dialect, query.left)
+    append!(params, left_params)
+
+    # Compile right query
+    right_sql, right_params = compile(dialect, query.right)
+    append!(params, right_params)
+
+    # Determine operator (SQLite doesn't support EXCEPT ALL yet, but structure allows it)
+    op = query.all ? "EXCEPT ALL" : "EXCEPT"
+
+    # Combine with parentheses for clarity
+    sql = "($left_sql) $op ($right_sql)"
 
     return (sql, params)
 end
