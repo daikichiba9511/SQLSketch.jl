@@ -65,7 +65,7 @@ import Tables
 
         # Verify table exists by querying sqlite_master
         result = execute_sql(db,
-                         "SELECT name FROM sqlite_master WHERE type='table' AND name='users'")
+                             "SELECT name FROM sqlite_master WHERE type='table' AND name='users'")
         rows = Tables.rowtable(result)
         @test length(rows) == 1
         @test rows[1].name == "users"
@@ -115,7 +115,7 @@ import Tables
 
         # Verify with parameter binding in SELECT
         result = execute_sql(db, "SELECT email FROM users WHERE email = ?",
-                         ["param@example.com"])
+                             ["param@example.com"])
         rows = Tables.rowtable(result)
         @test length(rows) == 1
         @test rows[1].email == "param@example.com"
@@ -164,11 +164,14 @@ import Tables
               add_column(:email, :text)
         execute(db, dialect, ddl)
 
-        q1 = insert_into(:users, [:email]) |> insert_values([[literal("user1@example.com")]])
+        q1 = insert_into(:users, [:email]) |>
+             insert_values([[literal("user1@example.com")]])
         execute(db, dialect, q1)
-        q2 = insert_into(:users, [:email]) |> insert_values([[literal("user2@example.com")]])
+        q2 = insert_into(:users, [:email]) |>
+             insert_values([[literal("user2@example.com")]])
         execute(db, dialect, q2)
-        q3 = insert_into(:users, [:email]) |> insert_values([[literal("user3@example.com")]])
+        q3 = insert_into(:users, [:email]) |>
+             insert_values([[literal("user3@example.com")]])
         execute(db, dialect, q3)
 
         # Execute SELECT
@@ -198,11 +201,14 @@ import Tables
               add_column(:active, :integer)
         execute(db, dialect, ddl)
 
-        q1 = insert_into(:users, [:email, :active]) |> insert_values([[literal("active1@example.com"), literal(1)]])
+        q1 = insert_into(:users, [:email, :active]) |>
+             insert_values([[literal("active1@example.com"), literal(1)]])
         execute(db, dialect, q1)
-        q2 = insert_into(:users, [:email, :active]) |> insert_values([[literal("inactive@example.com"), literal(0)]])
+        q2 = insert_into(:users, [:email, :active]) |>
+             insert_values([[literal("inactive@example.com"), literal(0)]])
         execute(db, dialect, q2)
-        q3 = insert_into(:users, [:email, :active]) |> insert_values([[literal("active2@example.com"), literal(1)]])
+        q3 = insert_into(:users, [:email, :active]) |>
+             insert_values([[literal("active2@example.com"), literal(1)]])
         execute(db, dialect, q3)
 
         # Execute filtered SELECT
@@ -312,9 +318,11 @@ import Tables
                     add_column(:title, :text)
         execute(db, dialect, posts_ddl)
 
-        q1 = insert_into(:users, [:email]) |> insert_values([[literal("user1@example.com")]])
+        q1 = insert_into(:users, [:email]) |>
+             insert_values([[literal("user1@example.com")]])
         execute(db, dialect, q1)
-        q2 = insert_into(:users, [:email]) |> insert_values([[literal("user2@example.com")]])
+        q2 = insert_into(:users, [:email]) |>
+             insert_values([[literal("user2@example.com")]])
         execute(db, dialect, q2)
 
         q3 = insert_into(:posts, [:user_id, :title]) |>

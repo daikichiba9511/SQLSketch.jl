@@ -112,14 +112,15 @@ using Dates
 
             # Verify table was created
             query = execute_sql(db,
-                            "SELECT name FROM sqlite_master WHERE type='table' AND name='users'",
-                            [])
+                                "SELECT name FROM sqlite_master WHERE type='table' AND name='users'",
+                                [])
             result = [[row[i] for i in 1:length(propertynames(row))] for row in query]
             @test length(result) == 1
             @test result[1][1] == "users"
 
             # Verify migration was recorded
-            query = execute_sql(db, "SELECT version, name, checksum FROM schema_migrations", [])
+            query = execute_sql(db, "SELECT version, name, checksum FROM schema_migrations",
+                                [])
             result = [[row[i] for i in 1:length(propertynames(row))] for row in query]
             @test length(result) == 1
             @test result[1][1] == "20250120100000"
@@ -143,15 +144,15 @@ using Dates
 
             # Verify table was created
             query = execute_sql(db,
-                            "SELECT name FROM sqlite_master WHERE type='table' AND name='orders'",
-                            [])
+                                "SELECT name FROM sqlite_master WHERE type='table' AND name='orders'",
+                                [])
             result = [[row[i] for i in 1:length(propertynames(row))] for row in query]
             @test length(result) == 1
 
             # Verify index was created
             query = execute_sql(db,
-                            "SELECT name FROM sqlite_master WHERE type='index' AND name='idx_orders_user_id'",
-                            [])
+                                "SELECT name FROM sqlite_master WHERE type='index' AND name='idx_orders_user_id'",
+                                [])
             result = [[row[i] for i in 1:length(propertynames(row))] for row in query]
             @test length(result) == 1
         end
@@ -177,8 +178,8 @@ using Dates
 
             # Verify migration was NOT recorded (but schema_migrations table still exists)
             query = execute_sql(db,
-                            "SELECT COUNT(*) FROM schema_migrations WHERE version='20250120130000'",
-                            [])
+                                "SELECT COUNT(*) FROM schema_migrations WHERE version='20250120130000'",
+                                [])
             result = [[row[i] for i in 1:length(propertynames(row))] for row in query]
             @test result[1][1] == 0
         end
@@ -198,8 +199,8 @@ using Dates
 
             # Verify all tables were created
             query = execute_sql(db,
-                            "SELECT name FROM sqlite_master WHERE type='table' ORDER BY name",
-                            [])
+                                "SELECT name FROM sqlite_master WHERE type='table' ORDER BY name",
+                                [])
             result = [[row[i] for i in 1:length(propertynames(row))] for row in query]
             table_names = [row[1] for row in result]
             @test "users" in table_names
@@ -422,8 +423,8 @@ using Dates
 
             # Verify schema_migrations table exists
             query = execute_sql(db,
-                            "SELECT name FROM sqlite_master WHERE type='table' AND name='schema_migrations'",
-                            [])
+                                "SELECT name FROM sqlite_master WHERE type='table' AND name='schema_migrations'",
+                                [])
             result = [[row[i] for i in 1:length(propertynames(row))] for row in query]
             @test length(result) == 1
 
@@ -448,8 +449,8 @@ using Dates
 
             # Verify table exists only once
             query = execute_sql(db,
-                            "SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name='schema_migrations'",
-                            [])
+                                "SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name='schema_migrations'",
+                                [])
             result = [[row[i] for i in 1:length(propertynames(row))] for row in query]
             @test result[1][1] == 1
         end

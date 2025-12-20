@@ -32,7 +32,8 @@ using .Core: Query, From, Where, Select, Join, OrderBy, Limit, Offset, Distinct,
              DeleteFrom, DeleteWhere, Returning, CTE, With, SetUnion, SetIntersect,
              SetExcept,
              OnConflict
-using .Core: SQLExpr, ColRef, Literal, Param, RawExpr, BinaryOp, UnaryOp, FuncCall, PlaceholderField,
+using .Core: SQLExpr, ColRef, Literal, Param, RawExpr, BinaryOp, UnaryOp, FuncCall,
+             PlaceholderField,
              BetweenOp, InOp, Cast, Subquery, CaseExpr, WindowFunc, Over, WindowFrame
 import .Core: compile, compile_expr, quote_identifier, placeholder, supports
 using Dates

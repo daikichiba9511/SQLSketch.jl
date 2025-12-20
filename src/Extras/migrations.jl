@@ -473,7 +473,7 @@ function apply_migration(conn::Connection, dialect::Dialect, migration::Migratio
         VALUES (?, ?, ?, ?)
         """
         execute_sql(tx, insert_sql,
-                [migration.version, migration.name, now_str, migration.checksum])
+                    [migration.version, migration.name, now_str, migration.checksum])
     end
 
     return nothing

@@ -30,7 +30,8 @@ module SQLSketch
 module Core
 # Expression AST (Phase 1)
 include("Core/expr.jl")
-export SQLExpr, ColRef, Literal, Param, RawExpr, BinaryOp, UnaryOp, FuncCall, BetweenOp, InOp
+export SQLExpr, ColRef, Literal, Param, RawExpr, BinaryOp, UnaryOp, FuncCall, BetweenOp,
+       InOp
 export Cast, Subquery, CaseExpr
 export WindowFrame, Over, WindowFunc
 export col, literal, param, raw_expr, func
