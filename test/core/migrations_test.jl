@@ -111,7 +111,7 @@ using Dates
             apply_migration(db, dialect, migration)
 
             # Verify table was created
-            query = execute(db,
+            query = execute_sql(db,
                             "SELECT name FROM sqlite_master WHERE type='table' AND name='users'",
                             [])
             result = [[row[i] for i in 1:length(propertynames(row))] for row in query]
@@ -119,7 +119,7 @@ using Dates
             @test result[1][1] == "users"
 
             # Verify migration was recorded
-            query = execute(db, "SELECT version, name, checksum FROM schema_migrations", [])
+            query = execute_sql(db, "SELECT version, name, checksum FROM schema_migrations", [])
             result = [[row[i] for i in 1:length(propertynames(row))] for row in query]
             @test length(result) == 1
             @test result[1][1] == "20250120100000"
@@ -142,14 +142,14 @@ using Dates
             apply_migration(db, dialect, migration2)
 
             # Verify table was created
-            query = execute(db,
+            query = execute_sql(db,
                             "SELECT name FROM sqlite_master WHERE type='table' AND name='orders'",
                             [])
             result = [[row[i] for i in 1:length(propertynames(row))] for row in query]
             @test length(result) == 1
 
             # Verify index was created
-            query = execute(db,
+            query = execute_sql(db,
                             "SELECT name FROM sqlite_master WHERE type='index' AND name='idx_orders_user_id'",
                             [])
             result = [[row[i] for i in 1:length(propertynames(row))] for row in query]
@@ -176,7 +176,7 @@ using Dates
             @test_throws Exception apply_migration(db, dialect, invalid_migration)
 
             # Verify migration was NOT recorded (but schema_migrations table still exists)
-            query = execute(db,
+            query = execute_sql(db,
                             "SELECT COUNT(*) FROM schema_migrations WHERE version='20250120130000'",
                             [])
             result = [[row[i] for i in 1:length(propertynames(row))] for row in query]
@@ -197,7 +197,7 @@ using Dates
             @test applied[3].version == "20250120120000"
 
             # Verify all tables were created
-            query = execute(db,
+            query = execute_sql(db,
                             "SELECT name FROM sqlite_master WHERE type='table' ORDER BY name",
                             [])
             result = [[row[i] for i in 1:length(propertynames(row))] for row in query]
@@ -220,7 +220,7 @@ using Dates
             @test length(applied2) == 0
 
             # Verify migration count in database
-            query = execute(db, "SELECT COUNT(*) FROM schema_migrations", [])
+            query = execute_sql(db, "SELECT COUNT(*) FROM schema_migrations", [])
             result = [[row[i] for i in 1:length(propertynames(row))] for row in query]
             @test result[1][1] == 3
         end
@@ -421,14 +421,14 @@ using Dates
             apply_migration(db, dialect, migration)
 
             # Verify schema_migrations table exists
-            query = execute(db,
+            query = execute_sql(db,
                             "SELECT name FROM sqlite_master WHERE type='table' AND name='schema_migrations'",
                             [])
             result = [[row[i] for i in 1:length(propertynames(row))] for row in query]
             @test length(result) == 1
 
             # Verify schema
-            query = execute(db, "PRAGMA table_info(schema_migrations)", [])
+            query = execute_sql(db, "PRAGMA table_info(schema_migrations)", [])
             result = [[row[i] for i in 1:length(propertynames(row))] for row in query]
             column_names = [row[2] for row in result]
             @test "version" in column_names
@@ -447,7 +447,7 @@ using Dates
             SQLSketch.Extras.create_migrations_table(db, dialect)
 
             # Verify table exists only once
-            query = execute(db,
+            query = execute_sql(db,
                             "SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name='schema_migrations'",
                             [])
             result = [[row[i] for i in 1:length(propertynames(row))] for row in query]
@@ -466,10 +466,11 @@ using Dates
             apply_migration(db, dialect, migration)
 
             # Verify we can use the table
-            execute(db, "INSERT INTO users (email, name) VALUES (?, ?)",
-                    ["test@example.com", "Test User"])
+            q = insert_into(:users, [:email, :name]) |>
+                insert_values([[literal("test@example.com"), literal("Test User")]])
+            execute(db, dialect, q)
 
-            query = execute(db, "SELECT email FROM users", [])
+            query = execute_sql(db, "SELECT email FROM users", [])
             result = [[row[i] for i in 1:length(propertynames(row))] for row in query]
             @test length(result) == 1
             @test result[1][1] == "test@example.com"

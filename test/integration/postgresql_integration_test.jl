@@ -28,8 +28,8 @@ using SQLSketch.Core: cte, with, union, intersect, except
 using SQLSketch.Core: on_conflict_do_nothing, on_conflict_do_update
 using SQLSketch.Core: transaction, savepoint
 using SQLSketch.Core: create_table, add_column, drop_table, create_index, drop_index
-using SQLSketch.Core: compile, fetch_all, fetch_one, fetch_maybe, execute_dml, execute_ddl,
-                      sql
+using SQLSketch.Core: compile, fetch_all, fetch_one, fetch_maybe, execute, execute_sql,
+                      sql, ExecResult
 using SQLSketch.Core: CodecRegistry, register!
 using SQLSketch: PostgreSQLDialect, PostgreSQLDriver, SQLiteDialect, SQLiteDriver
 using Dates
@@ -64,8 +64,8 @@ Create test tables for integration testing.
 function setup_test_tables(conn, dialect)
     # Drop tables if they exist
     try
-        execute_ddl(conn, dialect, drop_table(:orders; if_exists = true, cascade = true))
-        execute_ddl(conn, dialect, drop_table(:users; if_exists = true, cascade = true))
+        execute(conn, dialect, drop_table(:orders; if_exists = true, cascade = true))
+        execute(conn, dialect, drop_table(:users; if_exists = true, cascade = true))
     catch
     end
 
@@ -78,7 +78,7 @@ function setup_test_tables(conn, dialect)
                 add_column(:active, :boolean; default = literal(true)) |>
                 add_column(:created_at, :timestamp)
 
-    execute_ddl(conn, dialect, users_ddl)
+    execute(conn, dialect, users_ddl)
 
     # Create orders table
     orders_ddl = create_table(:orders; if_not_exists = true) |>
@@ -88,7 +88,7 @@ function setup_test_tables(conn, dialect)
                  add_column(:status, :text) |>
                  add_column(:created_at, :timestamp)
 
-    execute_ddl(conn, dialect, orders_ddl)
+    execute(conn, dialect, orders_ddl)
 end
 
 """
@@ -108,7 +108,7 @@ function insert_test_data(conn, dialect)
             values([[literal(id), literal(email), literal(name), literal(age),
                      literal(active),
                      literal(created_at)]])
-        execute_dml(conn, dialect, q)
+        execute(conn, dialect, q)
     end
 
     # Insert orders
@@ -122,7 +122,7 @@ function insert_test_data(conn, dialect)
         q = insert_into(:orders, [:id, :user_id, :total, :status, :created_at]) |>
             values([[literal(id), literal(user_id), literal(total), literal(status),
                      literal(created_at)]])
-        execute_dml(conn, dialect, q)
+        execute(conn, dialect, q)
     end
 end
 
@@ -286,7 +286,7 @@ else
                               literal(31), literal(true)]]) |>
                      on_conflict_do_nothing()
 
-                affected = execute_dml(pg_conn, pg_dialect, q1)
+                affected = execute(pg_conn, pg_dialect, q1)
                 # Should not insert because id=1 already exists
 
                 # Verify Alice's name didn't change
@@ -304,7 +304,7 @@ else
                      on_conflict_do_update([:email], :name => col(:excluded, :name),
                                            :age => col(:excluded, :age))
 
-                execute_dml(pg_conn, pg_dialect, q2)
+                execute(pg_conn, pg_dialect, q2)
 
                 # Verify Alice's data was updated
                 result2 = fetch_one(pg_conn, pg_dialect, pg_registry, verify_q)
@@ -323,7 +323,7 @@ else
                     q = insert_into(:users, [:id, :email, :name, :age, :active]) |>
                         values([[literal(6), literal("frank@example.com"), literal("Frank"),
                                  literal(40), literal(true)]])
-                    execute_dml(tx, pg_dialect, q)
+                    execute(tx, pg_dialect, q)
                 end
 
                 # Verify Frank was inserted
@@ -340,7 +340,7 @@ else
                             values([[literal(7), literal("grace@example.com"),
                                      literal("Grace"),
                                      literal(45), literal(true)]])
-                        execute_dml(tx, pg_dialect, q)
+                        execute(tx, pg_dialect, q)
 
                         # Force an error to trigger rollback
                         error("Intentional error for rollback test")
@@ -361,7 +361,7 @@ else
                          values([[literal(8), literal("henry@example.com"),
                                   literal("Henry"),
                                   literal(50), literal(true)]])
-                    execute_dml(tx, pg_dialect, q1)
+                    execute(tx, pg_dialect, q1)
 
                     # Savepoint - try to insert Iris but rollback
                     try
@@ -370,7 +370,7 @@ else
                                  values([[literal(9), literal("iris@example.com"),
                                           literal("Iris"),
                                           literal(55), literal(true)]])
-                            execute_dml(sp, pg_dialect, q2)
+                            execute(sp, pg_dialect, q2)
 
                             error("Rollback to savepoint")
                         end

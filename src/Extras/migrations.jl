@@ -85,7 +85,7 @@ See `docs/design.md` Section 16 for detailed design rationale.
 
 using SHA
 using Dates
-using ..Core: Dialect, Connection, execute, transaction, TransactionHandle
+using ..Core: Dialect, Connection, execute_sql, transaction, TransactionHandle
 
 """
     Migration
@@ -185,7 +185,7 @@ function create_migrations_table(conn::Connection, dialect::Dialect)::Nothing
     SELECT name FROM sqlite_master
     WHERE type='table' AND name='schema_migrations'
     """
-    result = execute(conn, check_sql, [])
+    result = execute_sql(conn, check_sql, [])
 
     # If table doesn't exist, create it
     if isempty(result)
@@ -197,7 +197,7 @@ function create_migrations_table(conn::Connection, dialect::Dialect)::Nothing
             checksum TEXT NOT NULL
         )
         """
-        execute(conn, create_sql, [])
+        execute_sql(conn, create_sql, [])
     end
 
     return nothing
@@ -210,7 +210,7 @@ function create_migrations_table(tx::TransactionHandle, dialect::Dialect)::Nothi
     SELECT name FROM sqlite_master
     WHERE type='table' AND name='schema_migrations'
     """
-    result = execute(tx, check_sql, [])
+    result = execute_sql(tx, check_sql, [])
 
     # If table doesn't exist, create it
     if isempty(result)
@@ -222,7 +222,7 @@ function create_migrations_table(tx::TransactionHandle, dialect::Dialect)::Nothi
             checksum TEXT NOT NULL
         )
         """
-        execute(tx, create_sql, [])
+        execute_sql(tx, create_sql, [])
     end
 
     return nothing
@@ -381,7 +381,7 @@ function get_applied_migrations(conn::Connection,
 
     # Query applied migrations
     query_sql = "SELECT version, checksum, applied_at FROM schema_migrations ORDER BY version"
-    rows = execute(conn, query_sql, [])
+    rows = execute_sql(conn, query_sql, [])
 
     applied = Dict{String, Tuple{String, DateTime}}()
     for row in rows
@@ -406,7 +406,7 @@ function get_applied_migrations(tx::TransactionHandle,
 
     # Query applied migrations
     query_sql = "SELECT version, checksum, applied_at FROM schema_migrations ORDER BY version"
-    rows = execute(tx, query_sql, [])
+    rows = execute_sql(tx, query_sql, [])
 
     applied = Dict{String, Tuple{String, DateTime}}()
     for row in rows
@@ -462,7 +462,7 @@ function apply_migration(conn::Connection, dialect::Dialect, migration::Migratio
         for stmt in statements
             stmt_trimmed = String(strip(stmt))  # Convert to String to avoid SubString
             if !isempty(stmt_trimmed)
-                execute(tx, stmt_trimmed, [])
+                execute_sql(tx, stmt_trimmed, [])
             end
         end
 
@@ -472,7 +472,7 @@ function apply_migration(conn::Connection, dialect::Dialect, migration::Migratio
         INSERT INTO schema_migrations (version, name, applied_at, checksum)
         VALUES (?, ?, ?, ?)
         """
-        execute(tx, insert_sql,
+        execute_sql(tx, insert_sql,
                 [migration.version, migration.name, now_str, migration.checksum])
     end
 

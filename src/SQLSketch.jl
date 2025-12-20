@@ -30,10 +30,10 @@ module SQLSketch
 module Core
 # Expression AST (Phase 1)
 include("Core/expr.jl")
-export SQLExpr, ColRef, Literal, Param, BinaryOp, UnaryOp, FuncCall, BetweenOp, InOp
+export SQLExpr, ColRef, Literal, Param, RawExpr, BinaryOp, UnaryOp, FuncCall, BetweenOp, InOp
 export Cast, Subquery, CaseExpr
 export WindowFrame, Over, WindowFunc
-export col, literal, param, func
+export col, literal, param, raw_expr, func
 export is_null, is_not_null
 export like, not_like, ilike, not_ilike
 export between, not_between
@@ -72,7 +72,8 @@ export compile, compile_expr, quote_identifier, placeholder, supports
 # Driver abstraction (Phase 4)
 include("Core/driver.jl")
 export Driver, Connection
-export connect, execute
+export connect
+export execute_sql  # Low-level SQL execution (escape hatch)
 
 # CodecRegistry (Phase 5)
 include("Core/codec.jl")
@@ -91,7 +92,9 @@ export transaction, savepoint
 # Query Execution (Phase 6)
 include("Core/execute.jl")
 export fetch_all, fetch_one, fetch_maybe
-export sql, explain, execute_dml
+export sql, explain
+export execute, ExecResult  # Unified execution API
+# execute_dml is internal (not exported)
 
 # DDL (Phase 10)
 include("Core/ddl.jl")
@@ -105,7 +108,7 @@ export AlterTableOp, AddColumn, DropColumn, RenameColumn, AddTableConstraint, Dr
 export create_table, add_column, add_primary_key, add_foreign_key, add_unique, add_check
 export alter_table, add_alter_column, drop_alter_column, rename_alter_column
 export drop_table, create_index, drop_index
-export execute_ddl
+# execute_ddl is internal (not exported), use execute() instead
 end # module Core
 
 # Extras submodule - optional convenience features
@@ -180,7 +183,8 @@ export CAP_CTE, CAP_RETURNING, CAP_UPSERT, CAP_WINDOW, CAP_LATERAL, CAP_BULK_COP
        CAP_SAVEPOINT, CAP_ADVISORY_LOCK
 export compile, compile_expr, quote_identifier, placeholder, supports
 export Driver, Connection
-export connect, execute
+export connect
+export execute_sql  # Low-level SQL execution (escape hatch)
 export Codec, CodecRegistry
 export encode, decode
 export register!, get_codec
@@ -190,7 +194,8 @@ export DateCodec, DateTimeCodec, UUIDCodec
 
 # Query execution (Phase 6)
 export fetch_all, fetch_one, fetch_maybe
-export sql, explain, execute_dml
+export sql, explain
+export execute, ExecResult  # Unified execution API
 
 # Transaction management (Phase 7)
 export TransactionHandle
@@ -207,7 +212,6 @@ export AlterTableOp, AddColumn, DropColumn, RenameColumn, AddTableConstraint, Dr
 export create_table, add_column, add_primary_key, add_foreign_key, add_unique, add_check
 export alter_table, add_alter_column, drop_alter_column, rename_alter_column
 export drop_table, create_index, drop_index
-export execute_ddl
 
 # Export Dialect implementations
 export SQLiteDialect, PostgreSQLDialect

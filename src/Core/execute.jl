@@ -53,6 +53,56 @@ See `docs/design.md` Section 15 for detailed design rationale.
 # Note: This file is included in the Core module, so all types are already available
 # via the parent module scope
 
+"""
+    ExecResult
+
+Result of executing a statement with side effects (DML/DDL).
+
+# Fields
+
+  - `command_type::Symbol`: Type of command executed (:insert, :update, :delete, :create_table, :drop_table, :alter_table, :create_index, :drop_index, :unknown)
+  - `rowcount::Union{Int, Nothing}`: Number of rows affected (Nothing if unknown or not applicable)
+
+# Example
+
+```julia
+result = execute(conn, dialect, insert_query, params)
+println(result.command_type)  # :insert
+println(result.rowcount)      # Nothing (currently not implemented)
+```
+"""
+struct ExecResult
+    command_type::Symbol
+    rowcount::Union{Int, Nothing}
+end
+
+# Helper: Infer command type from Query (DML only)
+"""
+    infer_command_type(stmt::Query) -> Symbol
+
+Infer the command type from a Query AST node.
+
+Returns one of: :insert, :update, :delete, :unknown
+"""
+function infer_command_type(stmt::Query)::Symbol
+    # Check for RETURNING wrapper first
+    if stmt isa Returning
+        # Unwrap and check the source query
+        return infer_command_type(stmt.source)
+    end
+
+    # Check DML types
+    if stmt isa InsertValues || stmt isa InsertInto
+        return :insert
+    elseif stmt isa UpdateSet || stmt isa UpdateWhere || stmt isa Update
+        return :update
+    elseif stmt isa DeleteFrom || stmt isa DeleteWhere
+        return :delete
+    else
+        return :unknown
+    end
+end
+
 # Helper: Bind parameters from NamedTuple to Vector according to param order
 """
     bind_params(param_names::Vector{Symbol}, params::NamedTuple) -> Vector
@@ -133,7 +183,7 @@ function fetch_all(conn::Connection,
     param_values = bind_params(param_names, params)
 
     # Execute query
-    raw_result = execute(conn, sql, param_values)
+    raw_result = execute_sql(conn, sql, param_values)
 
     # Map rows to target type
     results = T[]
@@ -157,8 +207,8 @@ function fetch_all(tx::TransactionHandle,
     # Bind parameters
     param_values = bind_params(param_names, params)
 
-    # Execute query (will use TransactionHandle's execute() method)
-    raw_result = execute(tx, sql, param_values)
+    # Execute query (will use TransactionHandle's execute_sql() method)
+    raw_result = execute_sql(tx, sql, param_values)
 
     # Map rows to target type
     results = T[]
@@ -368,7 +418,7 @@ function explain(conn::Connection, dialect::Dialect, query::Query)::String
     explain_sql = "EXPLAIN QUERY PLAN $sql_str"
 
     # Execute EXPLAIN (no parameters needed for EXPLAIN)
-    raw_result = execute(conn, explain_sql, [])
+    raw_result = execute_sql(conn, explain_sql, [])
 
     # Collect results into a string
     lines = String[]
@@ -382,12 +432,14 @@ end
 
 """
     execute_dml(conn::Connection, dialect::Dialect, query::Query,
-                params::NamedTuple = NamedTuple()) -> Nothing
+                params::NamedTuple = NamedTuple()) -> ExecResult
 
 Execute a DML statement (INSERT, UPDATE, DELETE) without fetching results.
 
 This function is for DML operations that don't use RETURNING clauses.
 For DML with RETURNING, use `fetch_all`, `fetch_one`, or `fetch_maybe` instead.
+
+**Note:** This is an internal API. Most users should use the unified `execute()` API instead.
 
 # Arguments
 
@@ -398,7 +450,7 @@ For DML with RETURNING, use `fetch_all`, `fetch_one`, or `fetch_maybe` instead.
 
 # Returns
 
-Nothing
+ExecResult with command_type and rowcount (currently Nothing)
 
 # Example
 
@@ -406,49 +458,117 @@ Nothing
 # INSERT
 q = insert_into(:users, [:name, :email]) |>
     values([[literal("Alice"), literal("alice@example.com")]])
-execute_dml(db, dialect, q)
+result = execute_dml(db, dialect, q)
+# -> ExecResult(:insert, nothing)
 
 # UPDATE
 q = update(:users) |>
     set(:name => param(String, :name)) |>
     where(col(:users, :id) == param(Int, :id))
-execute_dml(db, dialect, q, (name = "Bob", id = 1))
+result = execute_dml(db, dialect, q, (name = "Bob", id = 1))
+# -> ExecResult(:update, nothing)
 
 # DELETE
 q = delete_from(:users) |>
     where(col(:users, :id) == param(Int, :id))
-execute_dml(db, dialect, q, (id=1))
+result = execute_dml(db, dialect, q, (id=1))
+# -> ExecResult(:delete, nothing)
 ```
 """
 function execute_dml(conn::Connection,
                      dialect::Dialect,
                      query::Query,
-                     params::NamedTuple = NamedTuple())::Nothing
+                     params::NamedTuple = NamedTuple())::ExecResult
     # Compile query to SQL
     sql, param_names = compile(dialect, query)
 
     # Bind parameters
     param_values = bind_params(param_names, params)
 
-    # Execute DML (no result to process)
-    execute(conn, sql, param_values)
+    # Execute DML
+    execute_sql(conn, sql, param_values)
 
-    return nothing
+    # Return execution result
+    return ExecResult(infer_command_type(query), nothing)
 end
 
 # Allow execute_dml to work with TransactionHandle
 function execute_dml(tx::TransactionHandle,
                      dialect::Dialect,
                      query::Query,
-                     params::NamedTuple = NamedTuple())::Nothing
+                     params::NamedTuple = NamedTuple())::ExecResult
     # Compile query to SQL
     sql, param_names = compile(dialect, query)
 
     # Bind parameters
     param_values = bind_params(param_names, params)
 
-    # Execute DML (no result to process)
-    execute(tx, sql, param_values)
+    # Execute DML
+    execute_sql(tx, sql, param_values)
 
-    return nothing
+    # Return execution result
+    return ExecResult(infer_command_type(query), nothing)
 end
+
+"""
+    execute(conn::Connection, dialect::Dialect, query::Query,
+            params::NamedTuple = NamedTuple()) -> ExecResult
+
+Unified API for executing DML statements (INSERT, UPDATE, DELETE) with side effects.
+
+This is the recommended API for all DML execution. Dispatches internally to `execute_dml`.
+
+# Arguments
+
+  - `conn`: Database connection
+  - `dialect`: SQL dialect for compilation
+  - `query`: DML query AST
+  - `params`: Named parameters for the query (default: empty NamedTuple)
+
+# Returns
+
+ExecResult containing:
+
+  - `command_type::Symbol`: Type of command executed (:insert, :update, :delete)
+  - `rowcount::Union{Int, Nothing}`: Number of rows affected (currently Nothing)
+
+# Example
+
+```julia
+# INSERT
+q = insert_into(:users, [:name, :email]) |>
+    values([[literal("Alice"), literal("alice@example.com")]])
+result = execute(conn, dialect, q)
+# -> ExecResult(:insert, nothing)
+
+# UPDATE
+q = update(:users) |>
+    set(:status => literal("inactive")) |>
+    where(col(:users, :age) > literal(100))
+result = execute(conn, dialect, q)
+# -> ExecResult(:update, nothing)
+
+# DELETE
+q = delete_from(:users) |>
+    where(col(:users, :status) == literal("deleted"))
+result = execute(conn, dialect, q)
+# -> ExecResult(:delete, nothing)
+```
+"""
+function execute(conn::Connection,
+                 dialect::Dialect,
+                 query::Query,
+                 params::NamedTuple = NamedTuple())::ExecResult
+    return execute_dml(conn, dialect, query, params)
+end
+
+# Allow execute with Query to work with TransactionHandle
+function execute(tx::TransactionHandle,
+                 dialect::Dialect,
+                 query::Query,
+                 params::NamedTuple = NamedTuple())::ExecResult
+    return execute_dml(tx, dialect, query, params)
+end
+
+# Note: For raw SQL execution, use execute_sql() directly.
+# execute() is reserved for AST-based execution (Query and DDLStatement).

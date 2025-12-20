@@ -32,7 +32,7 @@ See `docs/design.md` Section 10 for detailed design rationale.
 
 using SQLite
 using DBInterface
-import ..Core: Driver, Connection, connect, execute
+import ..Core: Driver, Connection, connect, execute_sql
 import ..Core: TransactionHandle, transaction, savepoint
 
 """
@@ -119,13 +119,13 @@ Execute a SQL statement against a SQLite database.
 execute(db, "CREATE TABLE users (id INTEGER PRIMARY KEY, email TEXT)")
 
 # DML with parameters
-execute(db, "INSERT INTO users (email) VALUES (?)", ["test@example.com"])
+execute_sql(db, "INSERT INTO users (email) VALUES (?)", ["test@example.com"])
 
 # Query
-result = execute(db, "SELECT * FROM users WHERE id = ?", [1])
+result = execute_sql(db, "SELECT * FROM users WHERE id = ?", [1])
 ```
 """
-function execute(conn::SQLiteConnection, sql::String, params::Vector = Any[])
+function execute_sql(conn::SQLiteConnection, sql::String, params::Vector = Any[])
     # Use DBInterface.execute for parameter binding
     # SQLite.jl automatically handles parameter binding with Vector
     return DBInterface.execute(conn.db, sql, params)
@@ -207,7 +207,7 @@ end
 """
 function transaction(f::Function, conn::SQLiteConnection)
     # 1. BEGIN TRANSACTION
-    execute(conn, "BEGIN TRANSACTION", [])
+    execute_sql(conn, "BEGIN TRANSACTION", [])
 
     tx = SQLiteTransaction(conn, Ref(true))
 
@@ -217,7 +217,7 @@ function transaction(f::Function, conn::SQLiteConnection)
 
         # 3. COMMIT on success
         if tx.active[]
-            execute(conn, "COMMIT", [])
+            execute_sql(conn, "COMMIT", [])
             tx.active[] = false
         end
 
@@ -226,7 +226,7 @@ function transaction(f::Function, conn::SQLiteConnection)
         # 4. ROLLBACK on exception
         if tx.active[]
             try
-                execute(conn, "ROLLBACK", [])
+                execute_sql(conn, "ROLLBACK", [])
             catch rollback_error
                 # Log rollback error but prioritize original exception
                 @warn "Failed to rollback transaction" exception = rollback_error
@@ -260,15 +260,15 @@ Throws an error if the transaction is no longer active (already committed/rolled
 
 ```julia
 transaction(db) do tx
-    execute(tx, "INSERT INTO users (email) VALUES (?)", ["alice@example.com"])
+    execute_sql(tx, "INSERT INTO users (email) VALUES (?)", ["alice@example.com"])
 end
 ```
 """
-function execute(tx::SQLiteTransaction, sql::String, params::Vector = Any[])
+function execute_sql(tx::SQLiteTransaction, sql::String, params::Vector = Any[])
     if !tx.active[]
         error("Transaction is no longer active (already committed or rolled back)")
     end
-    return execute(tx.conn, sql, params)
+    return execute_sql(tx.conn, sql, params)
 end
 
 """
@@ -292,10 +292,10 @@ The return value of the function `f`
 
 ```julia
 transaction(db) do tx
-    execute(tx, "INSERT INTO users (email) VALUES (?)", ["alice@example.com"])
+    execute_sql(tx, "INSERT INTO users (email) VALUES (?)", ["alice@example.com"])
 
     savepoint(tx, :sp1) do sp
-        execute(sp, "INSERT INTO orders (user_id, total) VALUES (?, ?)", [1, 100.0])
+        execute_sql(sp, "INSERT INTO orders (user_id, total) VALUES (?, ?)", [1, 100.0])
         # Rolls back to sp1 if error occurs
     end
 end
@@ -312,22 +312,22 @@ function savepoint(f::Function, tx::SQLiteTransaction, name::Symbol)
     savepoint_name = String(name)
 
     # 1. SAVEPOINT
-    execute(tx, "SAVEPOINT $savepoint_name", [])
+    execute_sql(tx, "SAVEPOINT $savepoint_name", [])
 
     try
         # 2. Execute user function
         result = f(tx)
 
         # 3. RELEASE savepoint on success
-        execute(tx, "RELEASE SAVEPOINT $savepoint_name", [])
+        execute_sql(tx, "RELEASE SAVEPOINT $savepoint_name", [])
 
         return result
     catch e
         # 4. ROLLBACK TO savepoint on exception
         try
-            execute(tx, "ROLLBACK TO SAVEPOINT $savepoint_name", [])
+            execute_sql(tx, "ROLLBACK TO SAVEPOINT $savepoint_name", [])
             # Note: Savepoint remains on stack after ROLLBACK TO, so release it
-            execute(tx, "RELEASE SAVEPOINT $savepoint_name", [])
+            execute_sql(tx, "RELEASE SAVEPOINT $savepoint_name", [])
         catch savepoint_error
             # Log savepoint error but prioritize original exception
             @warn "Failed to rollback to savepoint" exception = savepoint_error

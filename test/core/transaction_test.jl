@@ -14,7 +14,10 @@ using Test
 using SQLSketch
 using SQLSketch.Core
 using SQLSketch.Drivers
-import SQLSketch.Core: transaction, savepoint, TransactionHandle, fetch_all, execute_dml
+import SQLSketch.Core: transaction, savepoint, TransactionHandle, fetch_all, execute,
+                       execute_sql
+import SQLSketch.Core: update, set, delete_from, insert_into, insert_values, from,
+                       where, select, col, literal, raw_expr
 import Tables
 
 @testset "Transaction Management Tests" begin
@@ -25,64 +28,65 @@ import Tables
     registry = CodecRegistry()
 
     # Create test table
-    execute(db, """
-        CREATE TABLE users (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            email TEXT NOT NULL UNIQUE,
-            name TEXT,
-            balance INTEGER DEFAULT 0
-        )
-    """, [])
+    users_ddl = create_table(:users) |>
+                add_column(:id, :integer, primary_key = true) |>
+                add_column(:email, :text, nullable = false, unique = true) |>
+                add_column(:name, :text) |>
+                add_column(:balance, :integer, default = literal(0))
+    execute(db, dialect, users_ddl)
 
-    execute(db, """
-        CREATE TABLE orders (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            user_id INTEGER NOT NULL,
-            total REAL NOT NULL,
-            FOREIGN KEY (user_id) REFERENCES users(id)
-        )
-    """, [])
+    orders_ddl = create_table(:orders) |>
+                 add_column(:id, :integer, primary_key = true) |>
+                 add_column(:user_id, :integer, nullable = false) |>
+                 add_column(:total, :real, nullable = false) |>
+                 add_foreign_key([:user_id], :users, [:id])
+    execute(db, dialect, orders_ddl)
 
     @testset "Basic Transactions" begin
         @testset "Successful Commit" begin
             result = transaction(db) do tx
-                execute(tx, "INSERT INTO users (email, name) VALUES (?, ?)",
-                        ["alice@example.com", "Alice"])
-                execute(tx, "INSERT INTO users (email, name) VALUES (?, ?)",
-                        ["bob@example.com", "Bob"])
+                q1 = insert_into(:users, [:email, :name]) |>
+                     insert_values([[literal("alice@example.com"), literal("Alice")]])
+                execute(tx, dialect, q1)
+
+                q2 = insert_into(:users, [:email, :name]) |>
+                     insert_values([[literal("bob@example.com"), literal("Bob")]])
+                execute(tx, dialect, q2)
                 return "success"
             end
 
             @test result == "success"
 
             # Verify both inserts committed
-            rows = execute(db, "SELECT COUNT(*) as count FROM users", [])
+            rows = execute_sql(db, "SELECT COUNT(*) as count FROM users", [])
             count = Tables.rowtable(rows)[1].count
             @test count == 2
         end
 
         @testset "Rollback on Exception" begin
-            initial_count_result = execute(db, "SELECT COUNT(*) as count FROM users", [])
+            initial_count_result = execute_sql(db, "SELECT COUNT(*) as count FROM users", [])
             initial_count = Tables.rowtable(initial_count_result)[1].count
 
             @test_throws ErrorException begin
                 transaction(db) do tx
-                    execute(tx, "INSERT INTO users (email, name) VALUES (?, ?)",
-                            ["charlie@example.com", "Charlie"])
+                    q = insert_into(:users, [:email, :name]) |>
+                        insert_values([[literal("charlie@example.com"), literal("Charlie")]])
+                    execute(tx, dialect, q)
                     error("Something went wrong!")
                 end
             end
 
             # Verify rollback - count should be unchanged
-            rows = execute(db, "SELECT COUNT(*) as count FROM users", [])
+            rows = execute_sql(db, "SELECT COUNT(*) as count FROM users", [])
             count = Tables.rowtable(rows)[1].count
             @test count == initial_count
         end
 
         @testset "Return Value Passthrough" begin
             result = transaction(db) do tx
-                execute(tx, "INSERT INTO users (email, name) VALUES (?, ?)",
-                        ["david@example.com", "David"])
+                q = insert_into(:users, [:email, :name]) |>
+                    insert_values([[literal("david@example.com"), literal("David")]])
+                execute(tx, dialect, q)
                 return 42
             end
 
@@ -100,11 +104,16 @@ import Tables
 
     @testset "Query Execution Integration" begin
         # Cleanup
-        execute(db, "DELETE FROM users", [])
-        execute(db, "INSERT INTO users (email, name, balance) VALUES (?, ?, ?)",
-                ["alice@example.com", "Alice", 100])
-        execute(db, "INSERT INTO users (email, name, balance) VALUES (?, ?, ?)",
-                ["bob@example.com", "Bob", 200])
+        q_delete = delete_from(:users)
+        execute(db, dialect, q_delete)
+
+        q_insert1 = insert_into(:users, [:email, :name, :balance]) |>
+                    insert_values([[literal("alice@example.com"), literal("Alice"), literal(100)]])
+        execute(db, dialect, q_insert1)
+
+        q_insert2 = insert_into(:users, [:email, :name, :balance]) |>
+                    insert_values([[literal("bob@example.com"), literal("Bob"), literal(200)]])
+        execute(db, dialect, q_insert2)
 
         @testset "fetch_all within Transaction" begin
             users = transaction(db) do tx
@@ -140,11 +149,11 @@ import Tables
                                     literal("Charlie"),
                                     literal(300)]])
 
-                execute_dml(tx, dialect, q)
+                execute(tx, dialect, q)
             end
 
             # Verify insertion committed
-            rows = execute(db, "SELECT COUNT(*) as count FROM users WHERE email = ?",
+            rows = execute_sql(db, "SELECT COUNT(*) as count FROM users WHERE email = ?",
                            ["charlie@example.com"])
             count = Tables.rowtable(rows)[1].count
             @test count == 1
@@ -161,11 +170,11 @@ import Tables
                 # Insert new user
                 q2 = insert_into(:users, [:email, :name]) |>
                      insert_values([[literal("david@example.com"), literal("David")]])
-                execute_dml(tx, dialect, q2)
+                execute(tx, dialect, q2)
             end
 
             # Verify both operations committed
-            rows = execute(db, "SELECT COUNT(*) as count FROM users", [])
+            rows = execute_sql(db, "SELECT COUNT(*) as count FROM users", [])
             count = Tables.rowtable(rows)[1].count
             @test count >= 3
         end
@@ -173,57 +182,65 @@ import Tables
 
     @testset "Savepoints - Nested Transactions" begin
         # Cleanup
-        execute(db, "DELETE FROM orders", [])
-        execute(db, "DELETE FROM users", [])
-        execute(db, "INSERT INTO users (email, name, balance) VALUES (?, ?, ?)",
-                ["alice@example.com", "Alice", 1000])
+        execute(db, dialect, delete_from(:orders))
+        execute(db, dialect, delete_from(:users))
+
+        q_setup = insert_into(:users, [:email, :name, :balance]) |>
+                  insert_values([[literal("alice@example.com"), literal("Alice"), literal(1000)]])
+        execute(db, dialect, q_setup)
 
         @testset "Savepoint Success - Both Commit" begin
             transaction(db) do tx
-                execute(tx, "UPDATE users SET balance = balance - 100 WHERE email = ?",
-                        ["alice@example.com"])
+                q_update = update(:users) |>
+                           set(:balance => raw_expr("balance - 100")) |>
+                           where(col(:users, :email) == literal("alice@example.com"))
+                execute(tx, dialect, q_update)
 
                 savepoint(tx, :order_creation) do sp
-                    rows = execute(sp,
+                    rows = execute_sql(sp,
                                    "SELECT id FROM users WHERE email = ?",
                                    ["alice@example.com"])
                     user_id = Tables.rowtable(rows)[1].id
 
-                    execute(sp, "INSERT INTO orders (user_id, total) VALUES (?, ?)",
-                            [user_id, 100.0])
+                    q_insert = insert_into(:orders, [:user_id, :total]) |>
+                               insert_values([[literal(user_id), literal(100.0)]])
+                    execute(sp, dialect, q_insert)
                 end
             end
 
             # Verify both operations committed
-            balance_rows = execute(db, "SELECT balance FROM users WHERE email = ?",
+            balance_rows = execute_sql(db, "SELECT balance FROM users WHERE email = ?",
                                    ["alice@example.com"])
             balance = Tables.rowtable(balance_rows)[1].balance
             @test balance == 900
 
-            order_rows = execute(db, "SELECT COUNT(*) as count FROM orders", [])
+            order_rows = execute_sql(db, "SELECT COUNT(*) as count FROM orders", [])
             order_count = Tables.rowtable(order_rows)[1].count
             @test order_count == 1
         end
 
         @testset "Savepoint Rollback - Outer Commits" begin
-            initial_balance_rows = execute(db,
+            initial_balance_rows = execute_sql(db,
                                            "SELECT balance FROM users WHERE email = ?",
                                            ["alice@example.com"])
             initial_balance = Tables.rowtable(initial_balance_rows)[1].balance
 
             transaction(db) do tx
-                execute(tx, "UPDATE users SET balance = balance - 50 WHERE email = ?",
-                        ["alice@example.com"])
+                q_update = update(:users) |>
+                           set(:balance => raw_expr("balance - 50")) |>
+                           where(col(:users, :email) == literal("alice@example.com"))
+                execute(tx, dialect, q_update)
 
                 try
                     savepoint(tx, :risky_operation) do sp
-                        rows = execute(sp,
+                        rows = execute_sql(sp,
                                        "SELECT id FROM users WHERE email = ?",
                                        ["alice@example.com"])
                         user_id = Tables.rowtable(rows)[1].id
 
-                        execute(sp, "INSERT INTO orders (user_id, total) VALUES (?, ?)",
-                                [user_id, 50.0])
+                        q_insert = insert_into(:orders, [:user_id, :total]) |>
+                                   insert_values([[literal(user_id), literal(50.0)]])
+                        execute(sp, dialect, q_insert)
 
                         error("Risky operation failed!")
                     end
@@ -233,13 +250,13 @@ import Tables
             end
 
             # Outer transaction update should commit
-            balance_rows = execute(db, "SELECT balance FROM users WHERE email = ?",
+            balance_rows = execute_sql(db, "SELECT balance FROM users WHERE email = ?",
                                    ["alice@example.com"])
             balance = Tables.rowtable(balance_rows)[1].balance
             @test balance == initial_balance - 50
 
             # Savepoint insert should NOT commit
-            order_rows = execute(db, "SELECT COUNT(*) as count FROM orders", [])
+            order_rows = execute_sql(db, "SELECT COUNT(*) as count FROM orders", [])
             order_count = Tables.rowtable(order_rows)[1].count
             @test order_count == 1  # Still only the previous order
         end
@@ -248,19 +265,23 @@ import Tables
             transaction(db) do tx
                 # First savepoint
                 savepoint(tx, :sp1) do sp1
-                    execute(sp1, "UPDATE users SET balance = balance + 100 WHERE email = ?",
-                            ["alice@example.com"])
+                    q1 = update(:users) |>
+                         set(:balance => raw_expr("balance + 100")) |>
+                         where(col(:users, :email) == literal("alice@example.com"))
+                    execute(sp1, dialect, q1)
                 end
 
                 # Second savepoint
                 savepoint(tx, :sp2) do sp2
-                    execute(sp2, "UPDATE users SET name = ? WHERE email = ?",
-                            ["Alice Updated", "alice@example.com"])
+                    q2 = update(:users) |>
+                         set(:name => literal("Alice Updated")) |>
+                         where(col(:users, :email) == literal("alice@example.com"))
+                    execute(sp2, dialect, q2)
                 end
             end
 
             # Both savepoints should commit
-            rows = execute(db,
+            rows = execute_sql(db,
                            "SELECT balance, name FROM users WHERE email = ?",
                            ["alice@example.com"])
             user = Tables.rowtable(rows)[1]
@@ -269,49 +290,53 @@ import Tables
         end
 
         @testset "Nested Savepoints" begin
-            initial_balance_rows = execute(db,
+            initial_balance_rows = execute_sql(db,
                                            "SELECT balance FROM users WHERE email = ?",
                                            ["alice@example.com"])
             initial_balance = Tables.rowtable(initial_balance_rows)[1].balance
 
             transaction(db) do tx
                 savepoint(tx, :outer) do sp_outer
-                    execute(sp_outer,
-                            "UPDATE users SET balance = balance + 50 WHERE email = ?",
-                            ["alice@example.com"])
+                    q_outer = update(:users) |>
+                              set(:balance => raw_expr("balance + 50")) |>
+                              where(col(:users, :email) == literal("alice@example.com"))
+                    execute(sp_outer, dialect, q_outer)
 
                     savepoint(sp_outer, :inner) do sp_inner
-                        execute(sp_inner,
-                                "UPDATE users SET balance = balance + 25 WHERE email = ?",
-                                ["alice@example.com"])
+                        q_inner = update(:users) |>
+                                  set(:balance => raw_expr("balance + 25")) |>
+                                  where(col(:users, :email) == literal("alice@example.com"))
+                        execute(sp_inner, dialect, q_inner)
                     end
                 end
             end
 
             # Both nested savepoints should commit
-            balance_rows = execute(db, "SELECT balance FROM users WHERE email = ?",
+            balance_rows = execute_sql(db, "SELECT balance FROM users WHERE email = ?",
                                    ["alice@example.com"])
             balance = Tables.rowtable(balance_rows)[1].balance
             @test balance == initial_balance + 75
         end
 
         @testset "Inner Savepoint Rollback" begin
-            initial_balance_rows = execute(db,
+            initial_balance_rows = execute_sql(db,
                                            "SELECT balance FROM users WHERE email = ?",
                                            ["alice@example.com"])
             initial_balance = Tables.rowtable(initial_balance_rows)[1].balance
 
             transaction(db) do tx
                 savepoint(tx, :outer) do sp_outer
-                    execute(sp_outer,
-                            "UPDATE users SET balance = balance + 100 WHERE email = ?",
-                            ["alice@example.com"])
+                    q_outer = update(:users) |>
+                              set(:balance => raw_expr("balance + 100")) |>
+                              where(col(:users, :email) == literal("alice@example.com"))
+                    execute(sp_outer, dialect, q_outer)
 
                     try
                         savepoint(sp_outer, :inner) do sp_inner
-                            execute(sp_inner,
-                                    "UPDATE users SET balance = balance + 200 WHERE email = ?",
-                                    ["alice@example.com"])
+                            q_inner = update(:users) |>
+                                      set(:balance => raw_expr("balance + 200")) |>
+                                      where(col(:users, :email) == literal("alice@example.com"))
+                            execute(sp_inner, dialect, q_inner)
                             error("Inner failed!")
                         end
                     catch e
@@ -321,7 +346,7 @@ import Tables
             end
 
             # Outer savepoint should commit, inner should rollback
-            balance_rows = execute(db, "SELECT balance FROM users WHERE email = ?",
+            balance_rows = execute_sql(db, "SELECT balance FROM users WHERE email = ?",
                                    ["alice@example.com"])
             balance = Tables.rowtable(balance_rows)[1].balance
             @test balance == initial_balance + 100
@@ -334,30 +359,34 @@ import Tables
 
             transaction(db) do tx
                 tx_ref[] = tx
-                execute(tx, "INSERT INTO users (email, name) VALUES (?, ?)",
-                        ["temp@example.com", "Temp"])
+                q = insert_into(:users, [:email, :name]) |>
+                    insert_values([[literal("temp@example.com"), literal("Temp")]])
+                execute(tx, dialect, q)
             end
 
             # Try to use completed transaction
-            @test_throws ErrorException execute(tx_ref[], "SELECT 1", [])
+            @test_throws ErrorException execute_sql(tx_ref[], "SELECT 1", [])
         end
 
         @testset "SQL Error in Transaction" begin
-            initial_count_rows = execute(db, "SELECT COUNT(*) as count FROM users", [])
+            initial_count_rows = execute_sql(db, "SELECT COUNT(*) as count FROM users", [])
             initial_count = Tables.rowtable(initial_count_rows)[1].count
 
             @test_throws Exception begin
                 transaction(db) do tx
-                    execute(tx, "INSERT INTO users (email, name) VALUES (?, ?)",
-                            ["unique@example.com", "Unique"])
+                    q1 = insert_into(:users, [:email, :name]) |>
+                         insert_values([[literal("unique@example.com"), literal("Unique")]])
+                    execute(tx, dialect, q1)
+
                     # Duplicate email should fail (UNIQUE constraint)
-                    execute(tx, "INSERT INTO users (email, name) VALUES (?, ?)",
-                            ["unique@example.com", "Duplicate"])
+                    q2 = insert_into(:users, [:email, :name]) |>
+                         insert_values([[literal("unique@example.com"), literal("Duplicate")]])
+                    execute(tx, dialect, q2)
                 end
             end
 
             # Transaction should rollback - count unchanged
-            rows = execute(db, "SELECT COUNT(*) as count FROM users", [])
+            rows = execute_sql(db, "SELECT COUNT(*) as count FROM users", [])
             count = Tables.rowtable(rows)[1].count
             @test count == initial_count
         end
@@ -365,19 +394,17 @@ import Tables
 
     @testset "Isolation" begin
         # Cleanup
-        execute(db, "DELETE FROM users", [])
+        execute(db, dialect, delete_from(:users))
 
         # Create second connection for isolation testing
         db2 = connect(driver, ":memory:")
 
         # Copy schema to db2
-        execute(db2, """
-            CREATE TABLE users (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                email TEXT NOT NULL UNIQUE,
-                name TEXT
-            )
-        """, [])
+        users_ddl2 = create_table(:users) |>
+                     add_column(:id, :integer, primary_key = true) |>
+                     add_column(:email, :text, nullable = false, unique = true) |>
+                     add_column(:name, :text)
+        execute(db2, dialect, users_ddl2)
 
         # Note: SQLite in-memory databases are per-connection,
         # so true isolation testing requires file-based databases.
@@ -385,12 +412,13 @@ import Tables
 
         @testset "Changes Visible After Commit" begin
             transaction(db) do tx
-                execute(tx, "INSERT INTO users (email, name) VALUES (?, ?)",
-                        ["isolation@example.com", "Isolation Test"])
+                q = insert_into(:users, [:email, :name]) |>
+                    insert_values([[literal("isolation@example.com"), literal("Isolation Test")]])
+                execute(tx, dialect, q)
             end
 
             # After commit, changes are visible
-            rows = execute(db, "SELECT COUNT(*) as count FROM users", [])
+            rows = execute_sql(db, "SELECT COUNT(*) as count FROM users", [])
             count = Tables.rowtable(rows)[1].count
             @test count == 1
         end

@@ -133,6 +133,41 @@ Convenience constructor for bound parameters.
 """
 param(T::Type, name::Symbol)::Param = Param(T, name)
 
+# Raw SQL expression
+"""
+    RawExpr(sql::String)
+
+Represents a raw SQL expression that will be inserted directly into the compiled SQL.
+
+Use this for SQL expressions that cannot be represented with the query builder,
+such as database-specific functions or complex expressions.
+
+# Fields
+
+  - `sql::String` – raw SQL string to be inserted
+
+# Example
+
+```julia
+raw_expr("balance - 100")  # → balance - 100
+raw_expr("CURRENT_TIMESTAMP")  # → CURRENT_TIMESTAMP
+```
+
+# Warning
+
+Raw SQL expressions bypass query builder safety. Use with caution.
+"""
+struct RawExpr <: SQLExpr
+    sql::String
+end
+
+"""
+    raw_expr(sql::String) -> RawExpr
+
+Convenience constructor for raw SQL expressions.
+"""
+raw_expr(sql::String)::RawExpr = RawExpr(sql)
+
 # Binary operator
 """
     BinaryOp(op::Symbol, left::Expr, right::Expr)

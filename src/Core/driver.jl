@@ -85,9 +85,14 @@ function connect(driver::Driver, config)::Connection
 end
 
 """
-    execute(conn::Connection, sql::String, params::Vector=Any[]) -> result
+    execute_sql(conn::Connection, sql::String, params::Vector=Any[]) -> result
 
-Execute a SQL statement with optional parameters.
+Execute a raw SQL statement with optional parameters.
+
+This is a low-level API for direct SQL execution. It serves as an "escape hatch"
+for executing SQL that isn't supported by the query AST (e.g., PRAGMA, VACUUM, vendor-specific commands).
+
+Most users should use the high-level `execute()` API with query ASTs instead.
 
 # Arguments
 
@@ -102,11 +107,15 @@ Execute a SQL statement with optional parameters.
 # Example
 
 ```julia
-result = execute(db, "SELECT * FROM users WHERE id = ?", [42])
+# Execute PostgreSQL-specific command
+result = execute_sql(db, "VACUUM ANALYZE users", [])
+
+# Execute with parameters
+result = execute_sql(db, "SELECT * FROM users WHERE id = ?", [42])
 ```
 """
-function execute(conn::Connection, sql::String, params::Vector = Any[])
-    error("execute not implemented for $(typeof(conn))")
+function execute_sql(conn::Connection, sql::String, params::Vector = Any[])
+    error("execute_sql not implemented for $(typeof(conn))")
 end
 
 """

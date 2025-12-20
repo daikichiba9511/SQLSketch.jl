@@ -919,16 +919,47 @@ end
 # DDL Execution
 #
 
+# Helper: Infer command type from DDLStatement
 """
-    execute_ddl(conn, dialect, ddl_statement) -> Nothing
+    infer_command_type(stmt::DDLStatement) -> Symbol
+
+Infer the command type from a DDLStatement AST node.
+
+Returns one of: :create_table, :drop_table, :alter_table, :create_index, :drop_index
+"""
+function infer_command_type(stmt::DDLStatement)::Symbol
+    if stmt isa CreateTable
+        return :create_table
+    elseif stmt isa DropTable
+        return :drop_table
+    elseif stmt isa AlterTable
+        return :alter_table
+    elseif stmt isa CreateIndex
+        return :create_index
+    elseif stmt isa DropIndex
+        return :drop_index
+    else
+        return :unknown
+    end
+end
+
+"""
+    execute_ddl(conn, dialect, ddl_statement) -> ExecResult
 
 Execute a DDL (Data Definition Language) statement.
+
+**Note:** This is an internal API. Most users should use the unified `execute()` API instead.
 
 # Arguments
 
   - `conn::Connection`: Active database connection
   - `dialect::Dialect`: SQL dialect to use for compilation
   - `ddl_statement::DDLStatement`: DDL statement to execute (CREATE TABLE, DROP TABLE, etc.)
+
+# Returns
+
+ExecResult with command_type (:create_table, :drop_table, :alter_table, :create_index, :drop_index)
+and rowcount = nothing
 
 # Example
 
@@ -937,30 +968,87 @@ ddl = create_table(:users) |>
       add_column(:id, :integer; primary_key = true) |>
       add_column(:name, :text; nullable = false)
 
-execute_ddl(db, dialect, ddl)
+result = execute_ddl(db, dialect, ddl)
+# -> ExecResult(:create_table, nothing)
 ```
 """
 function execute_ddl(conn::Connection,
                      dialect::Dialect,
-                     ddl_statement::DDLStatement)::Nothing
+                     ddl_statement::DDLStatement)::ExecResult
     # Compile DDL to SQL (returns tuple (sql, params))
     sql, _params = compile(dialect, ddl_statement)
 
     # Execute DDL (no parameters needed)
-    execute(conn, sql, Any[])
+    execute_sql(conn, sql, Any[])
 
-    return nothing
+    # Return execution result
+    return ExecResult(infer_command_type(ddl_statement), nothing)
 end
 
 # Allow execute_ddl to work with TransactionHandle
 function execute_ddl(tx::TransactionHandle,
                      dialect::Dialect,
-                     ddl_statement::DDLStatement)::Nothing
+                     ddl_statement::DDLStatement)::ExecResult
     # Compile DDL to SQL (returns tuple (sql, params))
     sql, _params = compile(dialect, ddl_statement)
 
     # Execute DDL (no parameters needed)
-    execute(tx, sql, Any[])
+    execute_sql(tx, sql, Any[])
 
-    return nothing
+    # Return execution result
+    return ExecResult(infer_command_type(ddl_statement), nothing)
+end
+
+"""
+    execute(conn::Connection, dialect::Dialect, ddl::DDLStatement) -> ExecResult
+
+Unified API for executing DDL statements (CREATE TABLE, DROP TABLE, etc.) with side effects.
+
+This is the recommended API for all DDL execution. Dispatches internally to `execute_ddl`.
+
+# Arguments
+
+  - `conn`: Database connection
+  - `dialect`: SQL dialect for compilation
+  - `ddl`: DDL statement AST
+
+# Returns
+
+ExecResult containing:
+
+  - `command_type::Symbol`: Type of command executed (:create_table, :drop_table, etc.)
+  - `rowcount::Union{Int, Nothing}`: Always nothing for DDL
+
+# Example
+
+```julia
+# CREATE TABLE
+ddl = create_table(:users) |>
+      add_column(:id, :integer; primary_key = true) |>
+      add_column(:name, :text; nullable = false)
+result = execute(conn, dialect, ddl)
+# -> ExecResult(:create_table, nothing)
+
+# DROP TABLE
+ddl = drop_table(:users; if_exists = true)
+result = execute(conn, dialect, ddl)
+# -> ExecResult(:drop_table, nothing)
+
+# CREATE INDEX
+ddl = create_index(:idx_users_email) |> on(:users, :email)
+result = execute(conn, dialect, ddl)
+# -> ExecResult(:create_index, nothing)
+```
+"""
+function execute(conn::Connection,
+                 dialect::Dialect,
+                 ddl::DDLStatement)::ExecResult
+    return execute_ddl(conn, dialect, ddl)
+end
+
+# Allow execute with DDLStatement to work with TransactionHandle
+function execute(tx::TransactionHandle,
+                 dialect::Dialect,
+                 ddl::DDLStatement)::ExecResult
+    return execute_ddl(tx, dialect, ddl)
 end

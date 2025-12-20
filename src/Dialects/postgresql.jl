@@ -34,7 +34,7 @@ using .Core: Query, From, Where, Select, Join, OrderBy, Limit, Offset, Distinct,
              DeleteFrom, DeleteWhere, Returning, CTE, With, SetUnion, SetIntersect,
              SetExcept,
              OnConflict
-using .Core: SQLExpr, ColRef, Literal, Param, BinaryOp, UnaryOp, FuncCall, PlaceholderField,
+using .Core: SQLExpr, ColRef, Literal, Param, RawExpr, BinaryOp, UnaryOp, FuncCall, PlaceholderField,
              BetweenOp, InOp, Cast, Subquery, CaseExpr, WindowFunc, Over, WindowFrame
 import .Core: compile, compile_expr, quote_identifier, placeholder, supports
 using Dates
@@ -189,6 +189,12 @@ function compile_expr(dialect::PostgreSQLDialect, expr::Param,
                       params::Vector{Symbol})::String
     push!(params, expr.name)
     return placeholder(dialect, length(params))
+end
+
+# RawExpr: Return raw SQL without modification
+function compile_expr(dialect::PostgreSQLDialect, expr::RawExpr, params::Vector{Symbol})::String
+    # Return raw SQL directly without any escaping or quoting
+    return expr.sql
 end
 
 function compile_expr(dialect::PostgreSQLDialect, expr::BinaryOp,

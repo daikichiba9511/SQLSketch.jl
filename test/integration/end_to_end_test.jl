@@ -20,13 +20,15 @@ using UUIDs
 # Import from SQLSketch, avoiding Base name conflicts
 import SQLSketch
 import SQLSketch.Core
-import SQLSketch.Core: fetch_all, fetch_one, fetch_maybe, sql, explain, execute_dml
+import SQLSketch.Core: fetch_all, fetch_one, fetch_maybe, sql, explain
 import SQLSketch.Core: from, where, select, order_by, limit, offset, distinct, group_by,
                        having
 import SQLSketch.Core: col, literal, param, func
 import SQLSketch.Core: insert_into, update, set, delete_from
 import SQLSketch.Core: cte
-import SQLSketch.Core: connect, execute, close
+import SQLSketch.Core: connect, execute_sql, execute, close
+import SQLSketch.Core: ExecResult
+import SQLSketch.Core: create_table, add_column, add_foreign_key
 import SQLSketch: SQLiteDialect, CodecRegistry
 # Use aliases to avoid Base conflicts
 import SQLSketch.Core: innerjoin, insert_values, with
@@ -39,55 +41,62 @@ import SQLSketch.Core: innerjoin, insert_values, with
     registry = CodecRegistry()
 
     # Create test tables
-    execute(db, """
-        CREATE TABLE users (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            name TEXT NOT NULL,
-            email TEXT UNIQUE NOT NULL,
-            age INTEGER,
-            is_active INTEGER DEFAULT 1,
-            created_at TEXT
-        )
-    """, [])
+    users_ddl = create_table(:users) |>
+                add_column(:id, :integer, primary_key = true) |>
+                add_column(:name, :text, nullable = false) |>
+                add_column(:email, :text, unique = true, nullable = false) |>
+                add_column(:age, :integer) |>
+                add_column(:is_active, :integer, default = literal(1)) |>
+                add_column(:created_at, :text)
+    execute(db, dialect, users_ddl)
 
-    execute(db, """
-        CREATE TABLE posts (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            user_id INTEGER NOT NULL,
-            title TEXT NOT NULL,
-            content TEXT,
-            published INTEGER DEFAULT 0,
-            FOREIGN KEY (user_id) REFERENCES users(id)
-        )
-    """, [])
+    posts_ddl = create_table(:posts) |>
+                add_column(:id, :integer, primary_key = true) |>
+                add_column(:user_id, :integer, nullable = false) |>
+                add_column(:title, :text, nullable = false) |>
+                add_column(:content, :text) |>
+                add_column(:published, :integer, default = literal(0)) |>
+                add_foreign_key([:user_id], :users, [:id])
+    execute(db, dialect, posts_ddl)
 
-    execute(db, """
-        CREATE TABLE orders (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            user_id INTEGER NOT NULL,
-            total REAL NOT NULL,
-            status TEXT NOT NULL,
-            FOREIGN KEY (user_id) REFERENCES users(id)
-        )
-    """, [])
+    orders_ddl = create_table(:orders) |>
+                 add_column(:id, :integer, primary_key = true) |>
+                 add_column(:user_id, :integer, nullable = false) |>
+                 add_column(:total, :real, nullable = false) |>
+                 add_column(:status, :text, nullable = false) |>
+                 add_foreign_key([:user_id], :users, [:id])
+    execute(db, dialect, orders_ddl)
 
     # Insert test data
-    execute(db, "INSERT INTO users (name, email, age, is_active) VALUES (?, ?, ?, ?)",
-            ["Alice", "alice@example.com", 30, 1])
-    execute(db, "INSERT INTO users (name, email, age, is_active) VALUES (?, ?, ?, ?)",
-            ["Bob", "bob@example.com", 25, 1])
-    execute(db, "INSERT INTO users (name, email, age, is_active) VALUES (?, ?, ?, ?)",
-            ["Charlie", "charlie@example.com", 35, 0])
+    q1 = insert_into(:users, [:name, :email, :age, :is_active]) |>
+         insert_values([[literal("Alice"), literal("alice@example.com"), literal(30),
+                         literal(1)]])
+    execute(db, dialect, q1)
 
-    execute(db,
-            "INSERT INTO posts (user_id, title, content, published) VALUES (?, ?, ?, ?)",
-            [1, "First Post", "Hello World", 1])
-    execute(db,
-            "INSERT INTO posts (user_id, title, content, published) VALUES (?, ?, ?, ?)",
-            [1, "Second Post", "More content", 0])
-    execute(db,
-            "INSERT INTO posts (user_id, title, content, published) VALUES (?, ?, ?, ?)",
-            [2, "Bob's Post", "Bob's content", 1])
+    q2 = insert_into(:users, [:name, :email, :age, :is_active]) |>
+         insert_values([[literal("Bob"), literal("bob@example.com"), literal(25),
+                         literal(1)]])
+    execute(db, dialect, q2)
+
+    q3 = insert_into(:users, [:name, :email, :age, :is_active]) |>
+         insert_values([[literal("Charlie"), literal("charlie@example.com"), literal(35),
+                         literal(0)]])
+    execute(db, dialect, q3)
+
+    q4 = insert_into(:posts, [:user_id, :title, :content, :published]) |>
+         insert_values([[literal(1), literal("First Post"), literal("Hello World"),
+                         literal(1)]])
+    execute(db, dialect, q4)
+
+    q5 = insert_into(:posts, [:user_id, :title, :content, :published]) |>
+         insert_values([[literal(1), literal("Second Post"), literal("More content"),
+                         literal(0)]])
+    execute(db, dialect, q5)
+
+    q6 = insert_into(:posts, [:user_id, :title, :content, :published]) |>
+         insert_values([[literal(2), literal("Bob's Post"), literal("Bob's content"),
+                         literal(1)]])
+    execute(db, dialect, q6)
 
     @testset "Basic Query Execution - fetch_all()" begin
         # Simple SELECT all users
@@ -379,15 +388,15 @@ import SQLSketch.Core: innerjoin, insert_values, with
     # DML Operations Tests
     @testset "DML Operations" begin
         # Setup: Create a test table for DML operations
-        execute(db,
-                "CREATE TABLE dml_test (id INTEGER PRIMARY KEY, name TEXT, value INTEGER)",
-                [])
+        execute_sql(db,
+                    "CREATE TABLE dml_test (id INTEGER PRIMARY KEY, name TEXT, value INTEGER)",
+                    [])
 
         @testset "INSERT with literals" begin
             q = insert_into(:dml_test, [:name, :value]) |>
                 insert_values([[literal("test1"), literal(100)]])
 
-            execute_dml(db, dialect, q)
+            execute(db, dialect, q)
 
             # Verify insertion
             verify_q = from(:dml_test) |>
@@ -404,7 +413,7 @@ import SQLSketch.Core: innerjoin, insert_values, with
             q = insert_into(:dml_test, [:name, :value]) |>
                 insert_values([[param(String, :name), param(Int, :value)]])
 
-            execute_dml(db, dialect, q, (name = "test2", value = 200))
+            execute(db, dialect, q, (name = "test2", value = 200))
 
             # Verify insertion
             verify_q = from(:dml_test) |>
@@ -421,7 +430,7 @@ import SQLSketch.Core: innerjoin, insert_values, with
                 insert_values([[literal("test3"), literal(300)],
                                [literal("test4"), literal(400)]])
 
-            execute_dml(db, dialect, q)
+            execute(db, dialect, q)
 
             # Verify insertions
             verify_q = from(:dml_test) |>
@@ -437,7 +446,7 @@ import SQLSketch.Core: innerjoin, insert_values, with
                 set(:value => param(Int, :new_value)) |>
                 where(col(:dml_test, :name) == param(String, :name))
 
-            execute_dml(db, dialect, q, (new_value = 999, name = "test1"))
+            execute(db, dialect, q, (new_value = 999, name = "test1"))
 
             # Verify update
             verify_q = from(:dml_test) |>
@@ -453,7 +462,7 @@ import SQLSketch.Core: innerjoin, insert_values, with
             q = delete_from(:dml_test) |>
                 where(col(:dml_test, :name) == param(String, :name))
 
-            execute_dml(db, dialect, q, (name = "test2",))
+            execute(db, dialect, q, (name = "test2",))
 
             # Verify deletion
             verify_q = from(:dml_test) |>
@@ -468,7 +477,7 @@ import SQLSketch.Core: innerjoin, insert_values, with
             q = delete_from(:dml_test) |>
                 where(col(:dml_test, :value) < literal(500))
 
-            execute_dml(db, dialect, q)
+            execute(db, dialect, q)
 
             # Verify remaining rows
             verify_q = from(:dml_test) |> select(NamedTuple, col(:dml_test, :name))
@@ -480,16 +489,16 @@ import SQLSketch.Core: innerjoin, insert_values, with
         end
 
         # Cleanup DML test table
-        execute(db, "DROP TABLE dml_test", [])
+        execute_sql(db, "DROP TABLE dml_test", [])
     end
 
     @testset "CTE End-to-End Execution" begin
         # Setup fresh test data for CTE tests
-        execute(db, "DROP TABLE IF EXISTS orders", [])
-        execute(db, "DROP TABLE IF EXISTS posts", [])
-        execute(db, "DROP TABLE IF EXISTS users", [])
+        execute_sql(db, "DROP TABLE IF EXISTS orders", [])
+        execute_sql(db, "DROP TABLE IF EXISTS posts", [])
+        execute_sql(db, "DROP TABLE IF EXISTS users", [])
 
-        execute(db, """
+        execute_sql(db, """
             CREATE TABLE users (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 name TEXT NOT NULL,
@@ -500,7 +509,7 @@ import SQLSketch.Core: innerjoin, insert_values, with
             )
         """, [])
 
-        execute(db, """
+        execute_sql(db, """
             CREATE TABLE posts (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 user_id INTEGER NOT NULL,
@@ -511,7 +520,7 @@ import SQLSketch.Core: innerjoin, insert_values, with
             )
         """, [])
 
-        execute(db, """
+        execute_sql(db, """
             CREATE TABLE orders (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 user_id INTEGER NOT NULL,
@@ -521,15 +530,15 @@ import SQLSketch.Core: innerjoin, insert_values, with
             )
         """, [])
 
-        execute(db,
-                "INSERT INTO users (name, email, age, is_active) VALUES ('Alice', 'alice@example.com', 30, 1)",
-                [])
-        execute(db,
-                "INSERT INTO users (name, email, age, is_active) VALUES ('Bob', 'bob@example.com', 25, 0)",
-                [])
-        execute(db,
-                "INSERT INTO users (name, email, age, is_active) VALUES ('Charlie', 'charlie@example.com', 35, 1)",
-                [])
+        execute_sql(db,
+                    "INSERT INTO users (name, email, age, is_active) VALUES ('Alice', 'alice@example.com', 30, 1)",
+                    [])
+        execute_sql(db,
+                    "INSERT INTO users (name, email, age, is_active) VALUES ('Bob', 'bob@example.com', 25, 0)",
+                    [])
+        execute_sql(db,
+                    "INSERT INTO users (name, email, age, is_active) VALUES ('Charlie', 'charlie@example.com', 35, 1)",
+                    [])
 
         @testset "Simple CTE execution" begin
 
@@ -577,10 +586,20 @@ import SQLSketch.Core: innerjoin, insert_values, with
 
         @testset "Multiple CTEs with JOIN" begin
             # Ensure fresh test data
-            execute(db, "DELETE FROM orders", [])
-            execute(db,
-                    "INSERT INTO orders (user_id, total, status) VALUES (1, 150.0, 'completed'), (1, 200.0, 'pending'), (3, 300.0, 'completed')",
-                    [])
+            q_delete = delete_from(:orders)
+            execute(db, dialect, q_delete)
+
+            q_insert1 = insert_into(:orders, [:user_id, :total, :status]) |>
+                        insert_values([[literal(1), literal(150.0), literal("completed")]])
+            execute(db, dialect, q_insert1)
+
+            q_insert2 = insert_into(:orders, [:user_id, :total, :status]) |>
+                        insert_values([[literal(1), literal(200.0), literal("pending")]])
+            execute(db, dialect, q_insert2)
+
+            q_insert3 = insert_into(:orders, [:user_id, :total, :status]) |>
+                        insert_values([[literal(3), literal(300.0), literal("completed")]])
+            execute(db, dialect, q_insert3)
 
             # CTE1: active users
             cte1_query = from(:users) |> where(col(:users, :is_active) == literal(1))
