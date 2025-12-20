@@ -5,7 +5,17 @@ on:
     branches:
       - main
     tags: '*'
+    paths:
+      - 'docs/**'
+      - 'src/**'
+      - 'Project.toml'
+      - '.github/workflows/Documentation.yml'
   pull_request:
+    paths:
+      - 'docs/**'
+      - 'src/**'
+      - 'Project.toml'
+      - '.github/workflows/Documentation.yml'
 
 jobs:
   build:
