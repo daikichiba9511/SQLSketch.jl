@@ -93,15 +93,13 @@ export discover_migrations, parse_migration_file
 export apply_migration, apply_migrations
 export migration_status, validate_migration_checksums
 export generate_migration
-end
+end # module Core
 
 # Dialect implementations
 include("Dialects/sqlite.jl")
 
 # Driver implementations
 module Drivers
-using ..Core: Driver, Connection, connect, execute
-using ..Core: TransactionHandle, transaction, savepoint
 include("Drivers/sqlite.jl")
 export SQLiteDriver, SQLiteConnection
 end
