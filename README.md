@@ -601,11 +601,11 @@ See [`docs/roadmap.md`](docs/roadmap.md) for the complete implementation plan.
 **Progress:**
 - ✅ Phase 1-3 (Expressions, Queries, Dialect): 6 weeks - **COMPLETED**
 - ✅ Phase 4-6 (Driver, Codec, Integration): 6 weeks - **COMPLETED**
-- ⏳ Phase 7-8 (Transactions, Migrations): 2 weeks - **NEXT**
-- ⏳ Phase 9 (PostgreSQL): 2 weeks
+- ✅ Phase 7-8 (Transactions, Migrations): 2 weeks - **COMPLETED**
+- ⏳ Phase 9 (PostgreSQL): 2 weeks - **NEXT**
 - ⏳ Phase 10 (Documentation): 2+ weeks
 
-**Estimated Total:** ~18 weeks for Core layer (60% complete)
+**Estimated Total:** ~18 weeks for Core layer (80% complete)
 
 ---
 

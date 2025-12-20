@@ -128,10 +128,11 @@ Task breakdown based on `design.md` and `roadmap.md`.
 - [x] Test type safety and inference
 
 ### DML Operations ✅
-- [x] `INSERT INTO` statement (`insert_into`, `values`)
+- [x] `INSERT INTO` statement (`insert_into`, `insert_values`)
 - [x] `UPDATE` statement (`update`, `set`)
 - [x] `DELETE FROM` statement (`delete_from`)
 - [x] WHERE clause support for DML
+- [x] `RETURNING` clause support for DML (SQLite 3.35+)
 
 ### CTE Support ✅
 - [x] CTE (Common Table Expressions) support (WITH clause)
@@ -146,7 +147,7 @@ Task breakdown based on `design.md` and `roadmap.md`.
 ### Future Enhancements ⏳
 - [ ] UNION / INTERSECT / EXCEPT
 - [ ] Window functions (OVER clause)
-- [ ] UPSERT (ON CONFLICT) support
+- [ ] UPSERT (ON CONFLICT) support (ON CONFLICT DO UPDATE/NOTHING)
 
 ---
 
@@ -349,12 +350,12 @@ Task breakdown based on `design.md` and `roadmap.md`.
 - [x] INSERT execution via `execute_dml`
 - [x] UPDATE execution via `execute_dml`
 - [x] DELETE execution via `execute_dml`
+- [x] RETURNING clause support (fetch results from DML)
 
 ### Future Enhancements ⏳
 - [ ] Batch INSERT operations
 - [ ] Streaming results (large datasets)
 - [ ] Result pagination
-- [ ] RETURNING clause support
 
 ---
 
@@ -391,35 +392,42 @@ Task breakdown based on `design.md` and `roadmap.md`.
 
 ---
 
-## Phase 8: Migration Runner ⏳ PENDING
+## Phase 8: Migration Runner ✅ COMPLETED
 
-### Migration Infrastructure ⏳
-- [ ] Define migration file format (raw SQL)
-- [ ] `schema_migrations` table schema
-- [ ] `create_migrations_table(db)`
-- [ ] `discover_migrations(migrations_dir)` → sorted list
-- [ ] `apply_migration(db, migration)`
-- [ ] Track applied migrations
+### Migration Infrastructure ✅
+- [x] Define migration file format (raw SQL with UP/DOWN sections)
+- [x] `schema_migrations` table schema
+- [x] `create_migrations_table(db)`
+- [x] `discover_migrations(migrations_dir)` → sorted list
+- [x] `apply_migration(db, migration)`
+- [x] Track applied migrations with SHA256 checksums
 
-### Migration API ⏳
-- [ ] `apply_migrations(db, migrations_dir)`
-- [ ] `list_migrations(db)` → applied migrations
-- [ ] `migration_status(db, migrations_dir)` → pending vs applied
-- [ ] Idempotent migration application
+### Migration API ✅
+- [x] `apply_migrations(db, migrations_dir)`
+- [x] `generate_migration(dir, name)` → create new migration file
+- [x] `migration_status(db, migrations_dir)` → pending vs applied
+- [x] `validate_migration_checksums(db, migrations_dir)` → detect modifications
+- [x] Idempotent migration application
 
-### Tests ⏳
-- [ ] Create `test/core/migrations_test.jl`
-- [ ] Test initial schema creation
-- [ ] Test incremental migrations
-- [ ] Test idempotency (re-running same migrations)
-- [ ] Test migration ordering
-- [ ] Test tracking in `schema_migrations`
+### Tests ✅
+- [x] Create `test/core/migrations_test.jl`
+- [x] Test initial schema creation
+- [x] Test incremental migrations
+- [x] Test idempotency (re-running same migrations)
+- [x] Test migration ordering
+- [x] Test tracking in `schema_migrations`
+- [x] Test checksum validation
+- [x] Test transaction-wrapped execution
+
+**Total Migration Tests:** 79 passing ✅
 
 ### Future Enhancements ⏳
-- [ ] Migration rollback
+- [ ] Migration rollback (DOWN section execution)
 - [ ] Migration diffing
 - [ ] DDL-based migrations (not just raw SQL)
 - [ ] Online migrations
+
+**Note:** DOWN section format is supported, but automatic rollback execution is not yet implemented.
 
 ---
 
@@ -507,12 +515,12 @@ Task breakdown based on `design.md` and `roadmap.md`.
 - [ ] Validation integration
 - [ ] Schema definition macros
 
-### Query Features ⏳
-- [ ] Subqueries as expressions
-- [ ] CTEs (WITH clause)
-- [ ] Window functions
-- [ ] UNION / INTERSECT / EXCEPT
-- [ ] Recursive CTEs
+### Query Features
+- [x] Subqueries as expressions ✅
+- [x] CTEs (WITH clause) ✅
+- [ ] Window functions ⏳
+- [ ] UNION / INTERSECT / EXCEPT ⏳
+- [ ] Recursive CTEs ⏳
 
 ### DDL Support ⏳
 - [ ] CREATE TABLE
@@ -562,15 +570,16 @@ Task breakdown based on `design.md` and `roadmap.md`.
 
 ## Current Status Summary
 
-**Completed Phases:** 6/10
-**Total Tasks Completed:** ~290/400+
-**Current Phase:** Phase 7 (Transactions) ⏳
+**Completed Phases:** 8/10
+**Total Tasks Completed:** ~380/400+
+**Current Phase:** Phase 9 (PostgreSQL Dialect) ⏳
 
 **Next Immediate Tasks:**
-1. Begin Phase 7: Transaction Management
-2. Implement transaction API (transaction, commit, rollback)
-3. Wire transaction support into query execution
-4. Write comprehensive transaction tests
+1. Begin Phase 9: PostgreSQL Dialect
+2. Implement PostgreSQLDialect (SQL generation)
+3. Implement PostgreSQLDriver (connection and execution)
+4. Implement PostgreSQL-specific codecs (UUID, JSONB, Arrays)
+5. Write compatibility tests
 
 **Blockers:** None
 
@@ -579,18 +588,29 @@ Task breakdown based on `design.md` and `roadmap.md`.
   - All major SQL expression types implemented (CAST, Subquery, CASE)
   - Placeholder API (`p_`) fully functional
   - Pattern matching (LIKE/ILIKE), BETWEEN, IN operators
-- Phase 2 (Query AST) completed successfully with **85 tests passing** ✅
+- Phase 2 (Query AST) completed successfully with **202 tests passing** ✅
   - Full DML support (INSERT, UPDATE, DELETE)
+  - CTE (Common Table Expressions) support
+  - RETURNING clause support
   - Curried pipeline API for natural SQL composition
-- Phase 3 (Dialect Abstraction) completed successfully with **102 tests passing** ✅
+- Phase 3 (Dialect Abstraction) completed successfully with **215 tests passing** ✅
   - Complete SQLite dialect implementation
   - All expression types compile correctly to SQL
+  - DML and CTE compilation
 - Phase 4 (Driver Abstraction) completed successfully with **41 tests passing** ✅
-- Phase 5 (CodecRegistry) completed successfully with **112 tests passing** ✅
-- Phase 6 (End-to-End Integration) completed successfully with **54 integration tests passing** ✅
-- **Total: 662+ tests passing** ✅
+- Phase 5 (CodecRegistry) completed successfully with **115 tests passing** ✅
+- Phase 6 (End-to-End Integration) completed successfully with **95 integration tests passing** ✅
+- Phase 7 (Transactions) completed successfully with **26 tests passing** ✅
+  - Transaction API with automatic commit/rollback
+  - Savepoint support for nested transactions
+- Phase 8 (Migrations) completed successfully with **79 tests passing** ✅
+  - Migration discovery and application
+  - SHA256 checksum validation
+  - Transaction-wrapped execution
+- **Total: 1041 tests passing** ✅
 - Full query execution pipeline operational
 - Type-safe parameter binding working
-- DML operations (INSERT/UPDATE/DELETE) working
+- DML operations (INSERT/UPDATE/DELETE) with RETURNING support
+- Transaction and migration support fully implemented
 - Observability API (sql, explain) implemented
-- Ready to proceed with Phase 7 (Transactions)
+- Ready to proceed with Phase 9 (PostgreSQL Dialect)

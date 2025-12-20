@@ -58,42 +58,47 @@ expr = col(:users, :email) == param(String, :email)
 
 ---
 
-## Phase 2: Query AST (Week 3-4)
+## Phase 2: Query AST (Week 3-4) ✅ COMPLETED
 
 **Goal**: Define query structure types and pipeline API.
 
-### Tasks
+### Tasks ✅
 
 1. Define core query nodes:
-   - `From{T}` – table source
-   - `Where{T}` – filter condition (shape-preserving)
-   - `Join{T}` – join operation
-   - `Select{OutT}` – projection (shape-changing)
-   - `OrderBy{T}` – ordering (shape-preserving)
-   - `Limit{T}` – limit/offset (shape-preserving)
+   - `From{T}` – table source ✅
+   - `Where{T}` – filter condition (shape-preserving) ✅
+   - `Join{T}` – join operation ✅
+   - `Select{OutT}` – projection (shape-changing) ✅
+   - `OrderBy{T}` – ordering (shape-preserving) ✅
+   - `Limit{T}` – limit/offset (shape-preserving) ✅
+   - `GroupBy{T}`, `Having{T}`, `Distinct{T}` ✅
+   - **DML nodes**: `InsertInto`, `Update`, `DeleteFrom` ✅
+   - **CTE nodes**: `CTE`, `With{T}` ✅
+   - **RETURNING support** ✅
 
 2. Implement pipeline API:
-   - `from(table::Symbol)` → `From{NamedTuple}`
-   - `where(q, expr)` → shape-preserving transformation
-   - `select(q, OutT, fields...)` → shape-changing transformation
-   - `order_by(q, field; desc=false)`
-   - `limit(q, n)`
+   - `from(table::Symbol)` → `From{NamedTuple}` ✅
+   - `where(q, expr)` → shape-preserving transformation ✅
+   - `select(q, OutT, fields...)` → shape-changing transformation ✅
+   - `order_by(q, field; desc=false)` ✅
+   - `limit(q, n)` ✅
+   - **Curried versions for natural pipeline composition** ✅
 
 3. Define placeholder API (optional sugar):
-   - Placeholder type `_`
-   - Expansion to explicit `ColRef`
+   - Placeholder type `p_` ✅
+   - Expansion to explicit `ColRef` ✅
 
-4. Implement query composition (pipeline chaining with `|>`)
+4. Implement query composition (pipeline chaining with `|>`) ✅
 
-5. Write unit tests for query construction
+5. Write unit tests for query construction ✅
 
-### Deliverables
+### Deliverables ✅
 
-- `src/Core/query.jl`
-- `test/core/query_test.jl`
-- All tests passing
+- `src/Core/query.jl` ✅
+- `test/core/query_test.jl` ✅ (202 tests)
+- All tests passing ✅
 
-### Success Criteria
+### Success Criteria ✅
 
 ```julia
 # Should be able to write:
@@ -309,32 +314,32 @@ result = fetch_all(db, dialect, registry, q, (email="test@example.com",))
 
 ---
 
-## Phase 7: Transactions (Week 13)
+## Phase 7: Transactions (Week 13) ✅ COMPLETED
 
 **Goal**: Reliable transaction support.
 
-### Tasks
+### Tasks ✅
 
 1. Implement transaction API:
-   - `transaction(f, conn)` → commit on success, rollback on exception
-   - Transaction handles compatible with query execution
+   - `transaction(f, conn)` → commit on success, rollback on exception ✅
+   - Transaction handles compatible with query execution ✅
 
-2. Add isolation level support (if capabilities allow)
+2. Add isolation level support (if capabilities allow) - Future
 
-3. Add savepoint support (if capabilities allow)
+3. Add savepoint support (if capabilities allow) ✅
 
 4. Write tests:
-   - Commit on success
-   - Rollback on exception
-   - Nested transactions (if supported)
+   - Commit on success ✅
+   - Rollback on exception ✅
+   - Nested transactions (savepoints) ✅
 
-### Deliverables
+### Deliverables ✅
 
-- `src/Core/transaction.jl`
-- `test/core/transaction_test.jl`
-- All tests passing
+- `src/Core/transaction.jl` ✅
+- `test/core/transaction_test.jl` ✅ (26 tests)
+- All tests passing ✅
 
-### Success Criteria
+### Success Criteria ✅
 
 ```julia
 transaction(db) do tx
@@ -352,34 +357,38 @@ end
 
 ---
 
-## Phase 8: Migration Runner (Week 14)
+## Phase 8: Migration Runner (Week 14) ✅ COMPLETED
 
 **Goal**: Minimal schema management.
 
-### Tasks
+### Tasks ✅
 
 1. Implement migration runner:
-   - `apply_migrations(db, migrations_dir)`
-   - Track applied migrations in `schema_migrations` table
-   - Apply migrations in deterministic order
-   - Prevent re-application
+   - `apply_migrations(db, migrations_dir)` ✅
+   - `generate_migration(dir, name)` ✅
+   - Track applied migrations in `schema_migrations` table ✅
+   - Apply migrations in deterministic order ✅
+   - Prevent re-application ✅
+   - SHA256 checksum validation ✅
 
-2. Support raw SQL migrations
+2. Support raw SQL migrations ✅
 
-3. Support DDL operations compiled via Dialect (optional)
+3. Support DDL operations compiled via Dialect (optional) - Future
 
 4. Write tests:
-   - Initial schema creation
-   - Incremental migrations
-   - Idempotency
+   - Initial schema creation ✅
+   - Incremental migrations ✅
+   - Idempotency ✅
+   - Checksum validation ✅
+   - Transaction-wrapped execution ✅
 
-### Deliverables
+### Deliverables ✅
 
-- `src/Core/migrations.jl`
-- `test/core/migrations_test.jl`
-- All tests passing
+- `src/Core/migrations.jl` ✅
+- `test/core/migrations_test.jl` ✅ (79 tests)
+- All tests passing ✅
 
-### Success Criteria
+### Success Criteria ✅
 
 ```julia
 # migrations/001_create_users.sql
@@ -459,13 +468,13 @@ apply_migrations(db, "migrations/")
 
 ## Milestones
 
-| Phase | Duration | Milestone |
-|-------|----------|-----------|
-| 1-3   | 6 weeks  | **M1**: Query construction and SQL generation (no database) |
-| 4-6   | 6 weeks  | **M2**: Full SQLite integration with type safety |
-| 7-8   | 2 weeks  | **M3**: Transactions and migrations |
-| 9     | 2 weeks  | **M4**: PostgreSQL support (validation of abstraction) |
-| 10    | 2+ weeks | **M5**: Documentation and examples |
+| Phase | Duration | Milestone | Status |
+|-------|----------|-----------|--------|
+| 1-3   | 6 weeks  | **M1**: Query construction and SQL generation (no database) | ✅ COMPLETED |
+| 4-6   | 6 weeks  | **M2**: Full SQLite integration with type safety | ✅ COMPLETED |
+| 7-8   | 2 weeks  | **M3**: Transactions and migrations | ✅ COMPLETED |
+| 9     | 2 weeks  | **M4**: PostgreSQL support (validation of abstraction) | ⏳ NEXT |
+| 10    | 2+ weeks | **M5**: Documentation and examples | ⏳ PENDING |
 
 ---
 
