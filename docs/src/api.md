@@ -118,6 +118,23 @@ subquery
 
 ## Query Execution
 
+SQLSketch separates **data retrieval** from **side-effecting operations**.
+
+**Key distinction:**
+- Use **`fetch_*`** when you want to **retrieve data** (SELECT, INSERT/UPDATE/DELETE with RETURNING)
+- Use **`execute`** when you want to **produce side effects** without retrieving data (INSERT, UPDATE, DELETE, CREATE TABLE, etc.)
+
+**Quick reference:**
+
+| Function | Returns | Use Case |
+|----------|---------|----------|
+| `fetch_all(conn, query, T)` | `Vector{T}` | Get all rows |
+| `fetch_one(conn, query, T)` | `T` | Get exactly one row (error if 0 or >1) |
+| `fetch_maybe(conn, query, T)` | `Union{T, Nothing}` | Get optional row |
+| `execute(conn, query)` | `Int64` | Perform side effects (returns affected row count) |
+
+See [Design - Query Execution Model](design.md#13-query-execution-model) for detailed rationale.
+
 ### Fetching Results
 
 ```@docs

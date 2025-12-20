@@ -59,6 +59,86 @@ SQLSketch follows these core principles:
 
 See [Design](design.md) for detailed design rationale.
 
+## Architecture: Core vs Extras
+
+SQLSketch is structured in **two layers** with distinct purposes:
+
+### Core Layer - Minimal, Explicit, Stable
+
+The Core layer provides the **essential building blocks** for SQL interaction:
+
+- **Query and Expression AST** - Type-safe query construction
+- **Dialect abstraction** - PostgreSQL, SQLite support
+- **Driver abstraction** - Connection and execution
+- **CodecRegistry** - Type conversion between Julia and SQL
+- **Transaction management** - ACID guarantees
+- **DDL operations** - Schema creation and modification
+
+**Core principles:**
+- ✅ Type safety over convenience
+- ✅ Explicit over implicit
+- ✅ No magic, no hidden behavior
+- ✅ All operations are inspectable
+- ✅ Minimal dependencies
+
+**Example - Core only:**
+
+```julia
+using SQLSketch.Core
+
+# Explicit query construction
+q = from(:users) |>
+    where(col(:users, :id) == literal(42)) |>
+    select(NamedTuple, col(:users, :id), col(:users, :email))
+
+# Execute with explicit connection
+users = fetch_all(driver, q)
+```
+
+### Extras Layer - Convenient, Optional, Replaceable
+
+The Extras layer provides **convenience features** built **on top of Core**:
+
+**Current Extras:**
+- **Placeholder syntax** (`p_`) - Syntactic sugar for single-table queries
+- **Migration runner** - Timestamp-based schema migrations
+
+**Future Extras (planned):**
+- Repository pattern helpers
+- CRUD shortcuts
+- Query builder macros
+- Active Record-style wrappers
+
+**Extras principles:**
+- ✅ Built entirely on Core APIs
+- ✅ Optional - can be replaced with custom implementations
+- ✅ Convenience over purity
+- ✅ Can use "magic" for ergonomics
+
+**Example - Using Extras:**
+
+```julia
+using SQLSketch.Extras
+
+# Placeholder syntax sugar
+user_id = p_(:user_id, Int64)
+q = from(:users) |>
+    where(col(:users, :id) == user_id) |>
+    select(NamedTuple, col(:users, :id), col(:users, :email))
+
+# Execute with parameters
+user = fetch_one(driver, q, user_id => 42)
+```
+
+**Why this separation?**
+
+1. **Clarity of purpose**: Core is stable and minimal; Extras can evolve freely
+2. **Replaceability**: Don't like the Extras? Build your own on Core
+3. **Learning curve**: Start with Core for fundamentals, add Extras for productivity
+4. **Maintenance**: Core stays focused; Extras can experiment
+
+See [Design - Core vs Extras Layer](design.md#5-core-vs-extras-layer) for more details.
+
 ## Installation
 
 ```julia

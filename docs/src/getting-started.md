@@ -124,6 +124,88 @@ user = fetch_one(driver, q, user_id => 42)
 
 ## Core Concepts
 
+### Execute vs Fetch: Understanding Query Execution
+
+SQLSketch separates **side-effecting operations** from **data retrieval operations**.
+
+#### Use `execute` for Side Effects (No Data Returned)
+
+When you want to **modify data** or **change schema** without retrieving results:
+
+```julia
+# INSERT without RETURNING
+q = insert_into(:users, [:email, :name]) |>
+    values([literal("alice@example.com"), literal("Alice")])
+
+rows_affected = execute(driver, q)
+# → 1 (number of rows inserted)
+
+# UPDATE
+q = update(:users) |>
+    set(:active, literal(false)) |>
+    where(col(:users, :last_login) < literal(DateTime(2024, 1, 1)))
+
+rows_affected = execute(driver, q)
+# → 42 (number of rows updated)
+
+# CREATE TABLE
+q = create_table(:posts) |>
+    add_column(:id, :integer) |>
+    add_column(:title, :text) |>
+    primary_key(:id)
+
+execute(driver, q)
+# → 0 (DDL returns 0)
+```
+
+**Key points:**
+- Returns `Int64` (number of affected rows for DML, 0 for DDL)
+- Does **not** decode or return data rows
+- Use for: INSERT, UPDATE, DELETE (without RETURNING), CREATE TABLE, DROP TABLE, etc.
+
+#### Use `fetch_*` for Data Retrieval
+
+When you want to **retrieve data** from the database:
+
+```julia
+# SELECT query
+q = from(:users) |>
+    where(col(:users, :active) == literal(true)) |>
+    select(NamedTuple, col(:users, :id), col(:users, :email))
+
+users = fetch_all(driver, q)
+# → Vector{NamedTuple{(:id, :email), ...}}
+
+# INSERT with RETURNING
+q = insert_into(:users, [:email, :name]) |>
+    values([literal("bob@example.com"), literal("Bob")]) |>
+    returning(col(:users, :id))
+
+user_id = fetch_one(driver, q, Int64)
+# → 42 (the new user's ID)
+
+# Fetch optional result
+q = from(:users) |>
+    where(col(:users, :id) == literal(999)) |>
+    select(User, col(:users, :id), col(:users, :email), col(:users, :created_at))
+
+user = fetch_maybe(driver, q)
+# → nothing (if no user found) or User(...) (if found)
+```
+
+**Key points:**
+- `fetch_all(conn, query, T)` → `Vector{T}` (all rows)
+- `fetch_one(conn, query, T)` → `T` (exactly one row, error if 0 or >1)
+- `fetch_maybe(conn, query, T)` → `Union{T, Nothing}` (optional result)
+- Use for: SELECT, INSERT/UPDATE/DELETE with RETURNING
+
+**Why this separation?**
+
+1. **Intent clarity**: The function name tells you whether to expect data back
+2. **Type safety**: `fetch_*` requires an explicit result type
+3. **Performance**: `execute` skips unnecessary row decoding
+4. **Error prevention**: Using the wrong function makes the mistake obvious
+
 ### Query Building Styles
 
 SQLSketch provides flexible query building. Here are three approaches:

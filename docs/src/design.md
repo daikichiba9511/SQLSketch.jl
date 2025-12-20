@@ -700,7 +700,122 @@ and compatible with PostgreSQL production deployments.
 
 ---
 
-## 13. Transaction Model
+## 13. Query Execution Model
+
+SQLSketch.jl provides a clear separation between **side-effecting operations** and **data retrieval operations**.
+
+This distinction is fundamental to the execution API design.
+
+---
+
+### 13.1 Execute vs Fetch
+
+The execution layer provides two categories of functions:
+
+#### `execute` - Side Effects Only
+
+```julia
+execute(conn, query) -> Int64
+```
+
+**Purpose**: Execute SQL statements that produce **side effects** but do not return data.
+
+**Returns**: Number of affected rows (for DML) or 0 (for DDL).
+
+**Use cases**:
+- `INSERT` without `RETURNING`
+- `UPDATE` without `RETURNING`
+- `DELETE` without `RETURNING`
+- `CREATE TABLE`, `ALTER TABLE`, `DROP TABLE`
+- `CREATE INDEX`, `DROP INDEX`
+
+**Example**:
+
+```julia
+# Insert without retrieving data
+q = insert_into(:users, [:email, :name]) |>
+    values([literal("alice@example.com"), literal("Alice")])
+
+rows_affected = execute(conn, q)
+# → 1
+```
+
+#### `fetch_*` - Data Retrieval
+
+```julia
+fetch_all(conn, query, T) -> Vector{T}
+fetch_one(conn, query, T) -> T
+fetch_maybe(conn, query, T) -> Union{T, Nothing}
+```
+
+**Purpose**: Execute SQL statements that **return data**.
+
+**Returns**: Decoded rows as Julia values (structs, NamedTuples, etc.)
+
+**Use cases**:
+- `SELECT` queries
+- `INSERT`/`UPDATE`/`DELETE` with `RETURNING`
+
+**Example**:
+
+```julia
+# Retrieve data
+q = from(:users) |>
+    where(col(:users, :active) == literal(true)) |>
+    select(NamedTuple, col(:users, :id), col(:users, :email))
+
+users = fetch_all(conn, q, NamedTuple)
+# → [{id: 1, email: "alice@example.com"}, ...]
+
+# Insert with RETURNING
+q = insert_into(:users, [:email, :name]) |>
+    values([literal("bob@example.com"), literal("Bob")]) |>
+    returning(col(:users, :id))
+
+user_id = fetch_one(conn, q, Int64)
+# → 42
+```
+
+---
+
+### 13.2 Design Rationale
+
+This separation provides several benefits:
+
+1. **Intent clarity**: The function name signals whether you expect data back.
+
+2. **Type safety**: `fetch_*` requires explicit result type, preventing type errors.
+
+3. **Performance**: `execute` can skip row decoding overhead.
+
+4. **Error detection**: Using `execute` on a `SELECT` or `fetch_*` on a `CREATE TABLE` makes the mistake obvious.
+
+---
+
+### 13.3 Unified API
+
+Both `execute` and `fetch_*` accept the same connection types:
+
+- `Connection` (direct connection)
+- `TransactionHandle` (within a transaction)
+- `SavepointHandle` (within a savepoint)
+
+This means you can use the same code pattern regardless of transaction context:
+
+```julia
+# Direct execution
+execute(conn, insert_query)
+
+# Within transaction
+transaction(conn) do tx
+    execute(tx, insert_query)  # Same API
+    users = fetch_all(tx, select_query, User)  # Same API
+end
+```
+
+---
+
+## 14. Transaction Model
 
 Transaction handling is a **Core responsibility** in SQLSketch.jl.
 
@@ -713,7 +828,7 @@ Transactions are designed to be:
 
 ---
 
-### 13.1 Transaction Semantics
+### 14.1 Transaction Semantics
 
 Transactions follow a simple and strict rule:
 
@@ -733,7 +848,7 @@ If any operation inside the block fails, all changes are rolled back.
 
 ---
 
-### 13.2 Transaction Handles
+### 14.2 Transaction Handles
 
 Transaction handles are designed to be **connection-compatible**.
 
@@ -746,7 +861,7 @@ This simplifies application code and avoids branching logic.
 
 ---
 
-### 13.3 Isolation and Advanced Features
+### 14.3 Isolation and Advanced Features
 
 Transaction options such as:
 
@@ -760,7 +875,7 @@ Unsupported options result in early, descriptive errors.
 
 ---
 
-### 13.4 Rationale
+### 14.4 Rationale
 
 By keeping transaction semantics simple and explicit,
 SQLSketch.jl avoids:
@@ -773,7 +888,7 @@ The transaction model favors clarity and correctness
 over maximum flexibility, which aligns with the project’s
 experimental and educational goals.
 
-## 14. DDL and Migration Design
+## 15. DDL and Migration Design
 
 SQLSketch.jl treats schema management as a necessary but carefully
 scoped responsibility.
@@ -889,7 +1004,7 @@ SQLSketch.jl avoids:
 This design keeps schema management explicit, inspectable,
 and aligned with the project’s exploratory nature.
 
-## 15. Observability
+## 16. Observability
 
 SQLSketch.jl is designed to make database interactions **observable by default**.
 
@@ -934,14 +1049,14 @@ instrumenting internal code paths.
 
 ---
 
-## 16. Testing Strategy
+## 17. Testing Strategy
 
 Testing is structured to reflect the layered architecture
 and multi-database goals of SQLSketch.jl.
 
 ---
 
-### 16.1 Unit Tests
+### 17.1 Unit Tests
 
 Unit tests focus on **pure logic** and do not require a database.
 
@@ -956,7 +1071,7 @@ These tests are fast and form the bulk of the test suite.
 
 ---
 
-### 16.2 Integration Tests (SQLite)
+### 17.2 Integration Tests (SQLite)
 
 Integration tests use **SQLite in-memory databases**.
 
@@ -972,7 +1087,7 @@ SQLite enables fast, deterministic tests suitable for CI environments.
 
 ---
 
-### 16.3 Compatibility Tests (PostgreSQL / MySQL)
+### 17.3 Compatibility Tests (PostgreSQL / MySQL)
 
 A small number of compatibility tests are run against
 PostgreSQL and MySQL.
@@ -989,7 +1104,7 @@ to avoid slowing down development.
 
 ---
 
-## 17. Project Positioning
+## 18. Project Positioning
 
 SQLSketch.jl is intentionally positioned as:
 
@@ -1029,7 +1144,7 @@ This flexibility is a deliberate design choice.
 
 ---
 
-## 18. Summary
+## 19. Summary
 
 SQLSketch.jl explores how to build a **typed, composable SQL core**
 without becoming a full ORM.
