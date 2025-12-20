@@ -1008,7 +1008,8 @@ end
         @testset "INSERT...RETURNING with parameters" begin
             q = insert_into(:users, [:email, :name]) |>
                 values([[param(String, :email), param(String, :name)]]) |>
-                returning(NamedTuple, col(:users, :id), col(:users, :email), col(:users, :name))
+                returning(NamedTuple, col(:users, :id), col(:users, :email),
+                          col(:users, :name))
 
             sql, params = compile(dialect, q)
 
@@ -1028,7 +1029,8 @@ end
             @test occursin("INSERT INTO `users` (`email`)", sql)
             @test occursin("VALUES (?)", sql)
             # Placeholders should be resolved to explicit col(:users, ...)
-            @test occursin("RETURNING `users`.`id`, `users`.`email`, `users`.`created_at`", sql)
+            @test occursin("RETURNING `users`.`id`, `users`.`email`, `users`.`created_at`",
+                           sql)
             @test params == [:email]
         end
 
@@ -1112,7 +1114,8 @@ end
 
             @test occursin("DELETE FROM `users`", sql)
             @test occursin("WHERE (`users`.`created_at` < ?)", sql)
-            @test occursin("RETURNING `users`.`id`, `users`.`email`, `users`.`created_at`", sql)
+            @test occursin("RETURNING `users`.`id`, `users`.`email`, `users`.`created_at`",
+                           sql)
             @test params == [:cutoff_date]
         end
 

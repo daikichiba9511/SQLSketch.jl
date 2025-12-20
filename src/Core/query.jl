@@ -993,17 +993,23 @@ end
 
 # Structural Equality for DML
 Base.isequal(a::InsertInto{T}, b::InsertInto{T}) where {T} = a.table == b.table &&
-                                                              a.columns == b.columns
-Base.isequal(a::InsertValues{T}, b::InsertValues{T}) where {T} = isequal(a.source, b.source) &&
-                                                                  isequal(a.rows, b.rows)
+                                                             a.columns == b.columns
+Base.isequal(a::InsertValues{T}, b::InsertValues{T}) where {T} = isequal(a.source,
+                                                                         b.source) &&
+                                                                 isequal(a.rows, b.rows)
 Base.isequal(a::Update{T}, b::Update{T}) where {T} = a.table == b.table
 Base.isequal(a::UpdateSet{T}, b::UpdateSet{T}) where {T} = isequal(a.source, b.source) &&
-                                                            isequal(a.assignments, b.assignments)
-Base.isequal(a::UpdateWhere{T}, b::UpdateWhere{T}) where {T} = isequal(a.source, b.source) &&
-                                                                isequal(a.condition, b.condition)
+                                                           isequal(a.assignments,
+                                                                   b.assignments)
+Base.isequal(a::UpdateWhere{T}, b::UpdateWhere{T}) where {T} = isequal(a.source,
+                                                                       b.source) &&
+                                                               isequal(a.condition,
+                                                                       b.condition)
 Base.isequal(a::DeleteFrom{T}, b::DeleteFrom{T}) where {T} = a.table == b.table
-Base.isequal(a::DeleteWhere{T}, b::DeleteWhere{T}) where {T} = isequal(a.source, b.source) &&
-                                                                isequal(a.condition, b.condition)
+Base.isequal(a::DeleteWhere{T}, b::DeleteWhere{T}) where {T} = isequal(a.source,
+                                                                       b.source) &&
+                                                               isequal(a.condition,
+                                                                       b.condition)
 
 # Hash functions for DML
 Base.hash(a::InsertInto{T}, h::UInt) where {T} = hash((a.table, a.columns), h)
@@ -1128,8 +1134,10 @@ q = insert_into(:users, [:email]) |>
 returning(OutT::Type, fields...) = q -> returning(q, OutT, fields...)
 
 # Structural Equality for RETURNING
-Base.isequal(a::Returning{OutT}, b::Returning{OutT}) where {OutT} = isequal(a.source, b.source) &&
-                                                                     isequal(a.fields, b.fields)
+Base.isequal(a::Returning{OutT}, b::Returning{OutT}) where {OutT} = isequal(a.source,
+                                                                            b.source) &&
+                                                                    isequal(a.fields,
+                                                                            b.fields)
 
 # Hash function for RETURNING
 Base.hash(a::Returning{OutT}, h::UInt) where {OutT} = hash((a.source, a.fields), h)

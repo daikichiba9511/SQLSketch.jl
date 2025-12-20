@@ -660,7 +660,7 @@ end
     @testset "RETURNING clause" begin
         @testset "Returning constructor with INSERT" begin
             insert_q = insert_into(:users, [:email]) |>
-                values([[literal("test@example.com")]])
+                       values([[literal("test@example.com")]])
             fields = [col(:users, :id), col(:users, :email)]
             q = Returning{NamedTuple}(insert_q, fields)
 
@@ -672,8 +672,8 @@ end
 
         @testset "Returning constructor with UPDATE" begin
             update_q = update(:users) |>
-                set(:status => literal("active")) |>
-                where(col(:users, :id) == param(Int, :id))
+                       set(:status => literal("active")) |>
+                       where(col(:users, :id) == param(Int, :id))
             fields = [col(:users, :id), col(:users, :status)]
             q = Returning{NamedTuple}(update_q, fields)
 
@@ -684,7 +684,7 @@ end
 
         @testset "Returning constructor with DELETE" begin
             delete_q = delete_from(:users) |>
-                where(col(:users, :status) == literal("inactive"))
+                       where(col(:users, :status) == literal("inactive"))
             fields = [col(:users, :id), col(:users, :email)]
             q = Returning{NamedTuple}(delete_q, fields)
 
@@ -695,7 +695,7 @@ end
 
         @testset "returning() helper with explicit version" begin
             insert_q = insert_into(:users, [:email]) |>
-                values([[literal("test@example.com")]])
+                       values([[literal("test@example.com")]])
             q = returning(insert_q, NamedTuple, col(:users, :id), col(:users, :email))
 
             @test q isa Returning{NamedTuple}
@@ -726,7 +726,7 @@ end
         @testset "RETURNING type changes output type (shape-changing)" begin
             # INSERT returns NamedTuple
             insert_q = insert_into(:users, [:email]) |>
-                values([[literal("test@example.com")]])
+                       values([[literal("test@example.com")]])
             @test insert_q isa Query{NamedTuple}
 
             # RETURNING changes type to specified OutT
@@ -742,7 +742,7 @@ end
 
         @testset "RETURNING structural equality" begin
             insert_q = insert_into(:users, [:email]) |>
-                values([[literal("test@example.com")]])
+                       values([[literal("test@example.com")]])
             r1 = returning(insert_q, NamedTuple, col(:users, :id), col(:users, :email))
             r2 = returning(insert_q, NamedTuple, col(:users, :id), col(:users, :email))
 
@@ -754,14 +754,15 @@ end
 
             # Different source
             different_insert = insert_into(:users, [:name]) |>
-                values([[literal("Alice")]])
-            r4 = returning(different_insert, NamedTuple, col(:users, :id), col(:users, :email))
+                               values([[literal("Alice")]])
+            r4 = returning(different_insert, NamedTuple, col(:users, :id),
+                           col(:users, :email))
             @test !isequal(r1, r4)
         end
 
         @testset "RETURNING hash function" begin
             insert_q = insert_into(:users, [:email]) |>
-                values([[literal("test@example.com")]])
+                       values([[literal("test@example.com")]])
             r1 = returning(insert_q, NamedTuple, col(:users, :id), col(:users, :email))
             r2 = returning(insert_q, NamedTuple, col(:users, :id), col(:users, :email))
 
@@ -776,28 +777,28 @@ end
         @testset "RETURNING with UPDATE SET variations" begin
             # UPDATE without WHERE
             q1 = update(:users) |>
-                set(:status => literal("active")) |>
-                returning(NamedTuple, col(:users, :id))
+                 set(:status => literal("active")) |>
+                 returning(NamedTuple, col(:users, :id))
             @test q1 isa Returning{NamedTuple}
 
             # UPDATE with WHERE
             q2 = update(:users) |>
-                set(:status => literal("active")) |>
-                where(col(:users, :id) == param(Int, :id)) |>
-                returning(NamedTuple, col(:users, :id), col(:users, :status))
+                 set(:status => literal("active")) |>
+                 where(col(:users, :id) == param(Int, :id)) |>
+                 returning(NamedTuple, col(:users, :id), col(:users, :status))
             @test q2 isa Returning{NamedTuple}
         end
 
         @testset "RETURNING with DELETE variations" begin
             # DELETE without WHERE
             q1 = delete_from(:users) |>
-                returning(NamedTuple, col(:users, :id))
+                 returning(NamedTuple, col(:users, :id))
             @test q1 isa Returning{NamedTuple}
 
             # DELETE with WHERE
             q2 = delete_from(:users) |>
-                where(col(:users, :status) == literal("inactive")) |>
-                returning(NamedTuple, col(:users, :id), col(:users, :email))
+                 where(col(:users, :status) == literal("inactive")) |>
+                 returning(NamedTuple, col(:users, :id), col(:users, :email))
             @test q2 isa Returning{NamedTuple}
         end
     end
