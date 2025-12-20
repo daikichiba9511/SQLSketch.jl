@@ -498,16 +498,16 @@ julia --project
 ### Current Test Status
 
 ```
-Total: 662+ tests passing ✅
+Total: 1041 tests passing ✅
 
-Phase 1 (Expression AST):        268 tests (CAST, Subquery, CASE, BETWEEN, IN, LIKE)
-Phase 2 (Query AST):              85 tests (includes DML: INSERT/UPDATE/DELETE)
-Phase 3 (Dialect Abstraction):   102 tests (includes DML compilation + all expressions)
-Phase 4 (Driver Abstraction):     41 tests
-Phase 5 (CodecRegistry):         112 tests
-Phase 6 (End-to-End Integration): 54 tests (includes DML execution)
-Phase 7 (Transactions):           ⏳ Not yet implemented
-Phase 8 (Migrations):             ⏳ Not yet implemented
+Phase 1 (Expression AST):         268 tests (CAST, Subquery, CASE, BETWEEN, IN, LIKE)
+Phase 2 (Query AST):              202 tests (DML, CTE, RETURNING)
+Phase 3 (Dialect Abstraction):    215 tests (DML + CTE compilation, all expressions)
+Phase 4 (Driver Abstraction):      41 tests
+Phase 5 (CodecRegistry):          115 tests
+Phase 6 (End-to-End Integration):  95 tests (DML execution, CTE)
+Phase 7 (Transactions):            26 tests (transaction, savepoint, rollback)
+Phase 8 (Migrations):              79 tests (discovery, application, checksum validation)
 ```
 
 ---

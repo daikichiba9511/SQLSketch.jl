@@ -486,13 +486,13 @@ julia --project
 Total: 1041 tests passing ✅
 
 Phase 1 (Expression AST):         268 tests (CAST、Subquery、CASE、BETWEEN、IN、LIKE)
-Phase 2 (Query AST):              202 tests (DML: INSERT/UPDATE/DELETE を含む、CTE サポート)
-Phase 3 (Dialect Abstraction):    215 tests (DML コンパイル + すべての式型 + CTE)
+Phase 2 (Query AST):              202 tests (DML、CTE、RETURNING)
+Phase 3 (Dialect Abstraction):    215 tests (DML + CTE コンパイル、すべての式型)
 Phase 4 (Driver Abstraction):      41 tests
 Phase 5 (CodecRegistry):          115 tests
-Phase 6 (End-to-End Integration):  95 tests (DML 実行を含む)
+Phase 6 (End-to-End Integration):  95 tests (DML 実行、CTE)
 Phase 7 (Transactions):            26 tests (transaction、savepoint、ロールバック)
-Phase 8 (Migrations):              79 tests (検出、適用、ステータス、チェックサム検証)
+Phase 8 (Migrations):              79 tests (検出、適用、チェックサム検証)
 ```
 
 ---
