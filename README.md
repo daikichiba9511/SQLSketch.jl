@@ -687,15 +687,60 @@ sql(q)  # Show me the SQL
 
 ### 2. Logical Evaluation Order
 
-Query construction follows SQL's logical order:
+Query construction follows SQL's **logical evaluation order**, not its syntactic order.
+
+#### SQL Logical Evaluation Order (what SQL actually does)
+
 ```
-FROM → WHERE → SELECT → ORDER BY → LIMIT
+1. WITH (CTE)              — Define common table expressions
+2. FROM                    — Identify source tables
+3. JOIN                    — Combine tables (INNER, LEFT, RIGHT, FULL)
+4. WHERE                   — Filter rows before grouping
+5. GROUP BY                — Group rows for aggregation
+6. HAVING                  — Filter groups after aggregation
+7. Window Functions        — Compute over partitions (OVER clause)
+8. SELECT                  — Project columns (shape-changing)
+9. DISTINCT                — Remove duplicate rows
+10. Set Operations         — Combine queries (UNION, INTERSECT, EXCEPT)
+11. ORDER BY               — Sort result rows
+12. LIMIT / OFFSET         — Restrict result set size
 ```
 
-Not SQL's syntactic order:
+SQLSketch.jl pipeline API follows this logical order:
+
+```julia
+# Example query using logical evaluation order
+q = with(:recent_orders,
+         from(:orders) |>
+         where(col(:orders, :created_at) > literal("2024-01-01"))) |>
+    from(:recent_orders) |>
+    innerjoin(:users, col(:recent_orders, :user_id) == col(:users, :id)) |>
+    where(col(:users, :active) == literal(true)) |>
+    group_by(col(:users, :id), col(:users, :email)) |>
+    having(func(:COUNT, col(:recent_orders, :id)) > literal(5)) |>
+    select(NamedTuple,
+           col(:users, :id),
+           col(:users, :email),
+           func(:COUNT, col(:recent_orders, :id))) |>
+    order_by(func(:COUNT, col(:recent_orders, :id)); desc=true) |>
+    limit(10)
 ```
-SELECT → FROM → WHERE → ORDER BY → LIMIT
+
+This contrasts with SQL's **syntactic order** (how SQL is written):
+
+```sql
+WITH recent_orders AS (...)
+SELECT ...
+FROM recent_orders
+JOIN users ON ...
+WHERE ...
+GROUP BY ...
+HAVING ...
+ORDER BY ...
+LIMIT ...
 ```
+
+By following logical order, SQLSketch.jl makes query transformations predictable and type-safe.
 
 ### 3. Type Safety at Boundaries
 

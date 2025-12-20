@@ -612,15 +612,60 @@ sql(q)  # SQL を表示
 
 ### 2. 論理的評価順序
 
-クエリ構築は SQL の論理的順序に従う：
+クエリ構築は SQL の**論理的評価順序**に従います。構文順序ではありません。
+
+#### SQL の論理的評価順序（SQL が実際に行う処理順序）
+
 ```
-FROM → WHERE → SELECT → ORDER BY → LIMIT
+1. WITH (CTE)              — 共通テーブル式を定義
+2. FROM                    — ソーステーブルを特定
+3. JOIN                    — テーブルを結合（INNER, LEFT, RIGHT, FULL）
+4. WHERE                   — グループ化前の行フィルタリング
+5. GROUP BY                — 集約のための行グループ化
+6. HAVING                  — 集約後のグループフィルタリング
+7. Window Functions        — パーティション上での計算（OVER 句）
+8. SELECT                  — カラムの射影（shape-changing）
+9. DISTINCT                — 重複行の削除
+10. Set Operations         — クエリの結合（UNION, INTERSECT, EXCEPT）
+11. ORDER BY               — 結果行のソート
+12. LIMIT / OFFSET         — 結果セットサイズの制限
 ```
 
-SQL の構文順序ではなく：
+SQLSketch.jl のパイプライン API はこの論理的順序に従います：
+
+```julia
+# 論理的評価順序を使用したクエリ例
+q = with(:recent_orders,
+         from(:orders) |>
+         where(col(:orders, :created_at) > literal("2024-01-01"))) |>
+    from(:recent_orders) |>
+    innerjoin(:users, col(:recent_orders, :user_id) == col(:users, :id)) |>
+    where(col(:users, :active) == literal(true)) |>
+    group_by(col(:users, :id), col(:users, :email)) |>
+    having(func(:COUNT, col(:recent_orders, :id)) > literal(5)) |>
+    select(NamedTuple,
+           col(:users, :id),
+           col(:users, :email),
+           func(:COUNT, col(:recent_orders, :id))) |>
+    order_by(func(:COUNT, col(:recent_orders, :id)); desc=true) |>
+    limit(10)
 ```
-SELECT → FROM → WHERE → ORDER BY → LIMIT
+
+これは SQL の**構文順序**（SQL の記述順序）と対照的です：
+
+```sql
+WITH recent_orders AS (...)
+SELECT ...
+FROM recent_orders
+JOIN users ON ...
+WHERE ...
+GROUP BY ...
+HAVING ...
+ORDER BY ...
+LIMIT ...
 ```
+
+論理的順序に従うことで、SQLSketch.jl はクエリ変換を予測可能かつ型安全にします。
 
 ### 3. 境界での型安全性
 
