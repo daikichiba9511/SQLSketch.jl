@@ -5,13 +5,14 @@ Common utility functions used by multiple dialect implementations.
 These include placeholder resolution and primary table extraction.
 """
 
-using ..Core: SQLExpr, PlaceholderField, ColRef, Literal, Param, BinaryOp, UnaryOp,
+using ..Core: SQLExpr, ColRef, Literal, Param, BinaryOp, UnaryOp,
               FuncCall,
               BetweenOp, InOp, Cast, Subquery, CaseExpr, WindowFunc, Over
 using ..Core: Query, From, Where, Select, OrderBy, Limit, Offset, Distinct, GroupBy, Having,
               Join
 using ..Core: InsertInto, InsertValues, Update, UpdateSet, UpdateWhere, DeleteFrom,
               DeleteWhere
+using ..Extras: PlaceholderField
 
 #
 # Placeholder Resolution

@@ -33,7 +33,6 @@ include("Core/expr.jl")
 export SQLExpr, ColRef, Literal, Param, BinaryOp, UnaryOp, FuncCall, BetweenOp, InOp
 export Cast, Subquery, CaseExpr
 export WindowFrame, Over, WindowFunc
-export PlaceholderField, Placeholder, p_
 export col, literal, param, func
 export is_null, is_not_null
 export like, not_like, ilike, not_ilike
@@ -94,15 +93,6 @@ include("Core/execute.jl")
 export fetch_all, fetch_one, fetch_maybe
 export sql, explain, execute_dml
 
-# Migration Runner (Phase 8)
-include("Core/migrations.jl")
-export Migration, MigrationStatus
-export migration_checksum
-export discover_migrations, parse_migration_file
-export apply_migration, apply_migrations
-export migration_status, validate_migration_checksums
-export generate_migration
-
 # DDL (Phase 10)
 include("Core/ddl.jl")
 export DDLStatement
@@ -117,6 +107,22 @@ export alter_table, add_alter_column, drop_alter_column, rename_alter_column
 export drop_table, create_index, drop_index
 export execute_ddl
 end # module Core
+
+# Extras submodule - optional convenience features
+module Extras
+# Placeholder syntax sugar
+include("Extras/placeholder.jl")
+export PlaceholderField, Placeholder, p_
+
+# Migration runner
+include("Extras/migrations.jl")
+export Migration, MigrationStatus
+export migration_checksum
+export discover_migrations, parse_migration_file
+export apply_migration, apply_migrations
+export migration_status, validate_migration_checksums
+export generate_migration
+end # module Extras
 
 # Dialect implementations
 # Include shared helpers once before dialects
@@ -144,7 +150,6 @@ using .Core
 export SQLExpr, ColRef, Literal, Param, BinaryOp, UnaryOp, FuncCall, BetweenOp, InOp
 export Cast, Subquery, CaseExpr
 export WindowFrame, Over, WindowFunc
-export PlaceholderField, Placeholder, p_
 export col, literal, param, func
 export is_null, is_not_null
 export like, not_like, ilike, not_ilike
@@ -191,14 +196,6 @@ export sql, explain, execute_dml
 export TransactionHandle
 export transaction, savepoint
 
-# Migration runner (Phase 8)
-export Migration, MigrationStatus
-export migration_checksum
-export discover_migrations, parse_migration_file
-export apply_migration, apply_migrations
-export migration_status, validate_migration_checksums
-export generate_migration
-
 # DDL (Phase 10)
 export DDLStatement
 export ColumnType, ColumnConstraint, ColumnDef
@@ -222,5 +219,15 @@ export PostgreSQLDriver, PostgreSQLConnection
 
 # Export PostgreSQL codecs module (users can access via SQLSketch.Codecs.PostgreSQL)
 # Do not re-export individual codec types to avoid namespace pollution
+
+# Re-export Extras layer for convenience
+using .Extras
+export PlaceholderField, Placeholder, p_
+export Migration, MigrationStatus
+export migration_checksum
+export discover_migrations, parse_migration_file
+export apply_migration, apply_migrations
+export migration_status, validate_migration_checksums
+export generate_migration
 
 end # module SQLSketch

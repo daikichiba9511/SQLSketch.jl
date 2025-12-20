@@ -8,7 +8,8 @@ using SQLSketch.Core: InsertInto, InsertValues, Update, UpdateSet, UpdateWhere,
 using SQLSketch.Core: from, where, select, join, order_by, limit, offset, distinct,
                       group_by, having, cte, with, returning
 using SQLSketch.Core: insert_into, values, update, set, delete_from
-using SQLSketch.Core: SQLExpr, col, literal, param, func, is_null, is_not_null, p_
+using SQLSketch.Core: SQLExpr, col, literal, param, func, is_null, is_not_null
+using SQLSketch.Extras: p_
 using SQLSketch.Core: like, not_like, ilike, not_ilike, between, not_between
 using SQLSketch.Core: in_list, not_in_list
 using SQLSketch.Core: compile, compile_expr, quote_identifier, placeholder, supports

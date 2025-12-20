@@ -442,9 +442,9 @@ using Dates
             dialect = SQLiteDialect()
 
             # Call multiple times - should not error
-            SQLSketch.Core.create_migrations_table(db, dialect)
-            SQLSketch.Core.create_migrations_table(db, dialect)
-            SQLSketch.Core.create_migrations_table(db, dialect)
+            SQLSketch.Extras.create_migrations_table(db, dialect)
+            SQLSketch.Extras.create_migrations_table(db, dialect)
+            SQLSketch.Extras.create_migrations_table(db, dialect)
 
             # Verify table exists only once
             query = execute(db,

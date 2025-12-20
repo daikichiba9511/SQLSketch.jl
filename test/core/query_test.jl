@@ -4,7 +4,8 @@ using SQLSketch.Core: Query, From, Where, Select, OrderBy, Limit, Offset, Distin
 using SQLSketch.Core: from, where, select, order_by, limit, offset, distinct, group_by,
                       having, join, cte, with, returning
 using SQLSketch.Core: insert_into, values, update, set, delete_from
-using SQLSketch.Core: SQLExpr, col, literal, param, func, p_
+using SQLSketch.Core: SQLExpr, col, literal, param, func
+using SQLSketch.Extras: p_
 
 @testset "Query AST" begin
     @testset "From constructor" begin

@@ -22,7 +22,8 @@ using SQLSketch
 using SQLSketch.Core: from, where, select, join, order_by, limit, offset, distinct,
                       group_by, having
 using SQLSketch.Core: insert_into, values, update, set, delete_from, returning
-using SQLSketch.Core: col, literal, param, func, p_
+using SQLSketch.Core: col, literal, param, func
+using SQLSketch.Extras: p_
 using SQLSketch.Core: cte, with, union, intersect, except
 using SQLSketch.Core: on_conflict_do_nothing, on_conflict_do_update
 using SQLSketch.Core: transaction, savepoint

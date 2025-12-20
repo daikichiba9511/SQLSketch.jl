@@ -133,89 +133,6 @@ Convenience constructor for bound parameters.
 """
 param(T::Type, name::Symbol)::Param = Param(T, name)
 
-# Placeholder (syntactic sugar)
-"""
-    PlaceholderField(column::Symbol)
-
-Represents a placeholder field reference (e.g., `p_.email`).
-
-This is syntactic sugar that gets resolved to a `ColRef` during query compilation.
-The table name is inferred from the query context.
-
-# Fields
-
-  - `column::Symbol` – column name
-
-# Example
-
-```julia
-where(p_.email == param(String, :email))
-# Resolves to: where(col(:users, :email) == param(String, :email))
-# (assuming FROM users context)
-```
-
-# Notes
-
-Placeholders are **optional syntactic sugar**. The Core layer always accepts
-explicit `ColRef` expressions. Placeholders simplify single-table queries but
-may be ambiguous in multi-table JOINs.
-
-See `docs/design.md` Section 9 for design rationale.
-"""
-struct PlaceholderField <: SQLExpr
-    column::Symbol
-end
-
-"""
-    Placeholder
-
-Placeholder type for syntactic sugar. Use via the exported constant `p_`.
-
-# Example
-
-```julia
-# Instead of:
-where(col(:users, :email) == param(String, :email))
-
-# You can write:
-where(p_.email == param(String, :email))
-```
-
-The table name is automatically inferred from the query context.
-
-Note: Uses `p_` because Julia reserves underscore-only identifiers
-for write-only variables.
-"""
-struct Placeholder end
-
-"""
-    const p_ = Placeholder()
-
-Global placeholder constant for convenient field access.
-
-Note: Uses `p_` instead of `_` because Julia reserves underscore-only
-identifiers for write-only variables.
-
-# Usage
-
-```julia
-from(:users) |>
-where(p_.age > literal(18)) |>
-select(NamedTuple, p_.id, p_.email)
-```
-
-Internally, `p_.column` creates a `PlaceholderField(:column)` which is resolved
-to `ColRef(table, :column)` during query compilation.
-"""
-const p_ = Placeholder()
-
-"""
-    Base.getproperty(::Placeholder, name::Symbol) -> PlaceholderField
-
-Enables `_.column` syntax for placeholder field access.
-"""
-Base.getproperty(::Placeholder, name::Symbol)::PlaceholderField = PlaceholderField(name)
-
 # Binary operator
 """
     BinaryOp(op::Symbol, left::Expr, right::Expr)
@@ -915,7 +832,6 @@ end
 Base.isequal(a::ColRef, b::ColRef)::Bool = a.table == b.table && a.column == b.column
 Base.isequal(a::Literal, b::Literal)::Bool = isequal(a.value, b.value)
 Base.isequal(a::Param, b::Param)::Bool = a.type == b.type && a.name == b.name
-Base.isequal(a::PlaceholderField, b::PlaceholderField)::Bool = a.column == b.column
 Base.isequal(a::BinaryOp, b::BinaryOp)::Bool = a.op == b.op && isequal(a.left, b.left) &&
                                                isequal(a.right, b.right)
 Base.isequal(a::UnaryOp, b::UnaryOp)::Bool = a.op == b.op && isequal(a.expr, b.expr)
@@ -950,7 +866,6 @@ end
 Base.hash(a::ColRef, h::UInt)::UInt = hash((a.table, a.column), h)
 Base.hash(a::Literal, h::UInt)::UInt = hash(a.value, h)
 Base.hash(a::Param, h::UInt)::UInt = hash((a.type, a.name), h)
-Base.hash(a::PlaceholderField, h::UInt)::UInt = hash(a.column, h)
 Base.hash(a::BinaryOp, h::UInt)::UInt = hash((a.op, a.left, a.right), h)
 Base.hash(a::UnaryOp, h::UInt)::UInt = hash((a.op, a.expr), h)
 Base.hash(a::FuncCall, h::UInt)::UInt = hash((a.name, a.args), h)

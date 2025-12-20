@@ -83,11 +83,9 @@ end
 See `docs/design.md` Section 16 for detailed design rationale.
 """
 
-# Note: This file is included in the Core module, so all types are already available
-# via the parent module scope
-
 using SHA
 using Dates
+using ..Core: Dialect, Connection, execute, transaction, TransactionHandle
 
 """
     Migration
