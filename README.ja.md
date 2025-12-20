@@ -84,7 +84,7 @@ SQLSketch は2層システムとして設計されています：
 
 ## 現在の実装状況
 
-**完了フェーズ:** 8/10 | **総テスト数:** 1041 passing ✅
+**完了フェーズ:** 11/12 | **総テスト数:** 1712 passing ✅
 
 - ✅ **Phase 1: Expression AST** (268 tests)
   - カラム参照、リテラル、パラメータ
@@ -99,7 +99,7 @@ SQLSketch は2層システムとして設計されています：
   - **サブクエリ式** - ネストされたクエリ（EXISTS、IN サブクエリ）
   - **CASE 式** - 条件分岐ロジック
 
-- ✅ **Phase 2: Query AST** (85 tests)
+- ✅ **Phase 2: Query AST** (232 tests)
   - FROM, WHERE, SELECT, JOIN, ORDER BY
   - LIMIT, OFFSET, DISTINCT, GROUP BY, HAVING
   - **INSERT, UPDATE, DELETE**（DML 操作）
@@ -108,7 +108,7 @@ SQLSketch は2層システムとして設計されています：
   - 型安全なクエリ変換
   - **カリー化 API** - 自然なパイプライン合成
 
-- ✅ **Phase 3: Dialect Abstraction** (102 tests)
+- ✅ **Phase 3: Dialect Abstraction** (331 tests)
   - Dialect インターフェース（compile, quote_identifier, placeholder, supports）
   - 機能検出のための Capability システム
   - SQLite dialect 実装
@@ -125,7 +125,7 @@ SQLSketch は2層システムとして設計されています：
   - `?` プレースホルダーによるパラメータバインディング
   - SQLite の生結果を返すクエリ実行
 
-- ✅ **Phase 5: CodecRegistry** (112 tests)
+- ✅ **Phase 5: CodecRegistry** (115 tests)
   - Julia と SQL 間の型安全なエンコード/デコード
   - 組み込みコーデック（Int, Float64, String, Bool, Date, DateTime, UUID）
   - NULL/Missing ハンドリング
@@ -158,7 +158,67 @@ SQLSketch は2層システムとして設計されています：
   - **マイグレーション生成** (`generate_migration`) - タイムスタンプ付きマイグレーションファイルを作成
   - UP/DOWN マイグレーションセクションのサポート
 
-- ⏳ **Phase 9-10:** [`docs/roadmap.md`](docs/roadmap.md) と [`docs/TODO.md`](docs/TODO.md) を参照
+- ✅ **Phase 8.5: Window Functions** (79 tests)
+  - **Window function AST** (`WindowFrame`, `Over`, `WindowFunc`)
+  - **ランキング関数** (`row_number`, `rank`, `dense_rank`, `ntile`)
+  - **値関数** (`lag`, `lead`, `first_value`, `last_value`, `nth_value`)
+  - **集約ウィンドウ関数** (`win_sum`, `win_avg`, `win_min`, `win_max`, `win_count`)
+  - **フレーム指定** (ROWS/RANGE/GROUPS BETWEEN)
+  - **OVER 句ビルダー** (PARTITION BY, ORDER BY, frame)
+  - **完全な SQLite dialect サポート** - 完全な SQL 生成
+
+- ✅ **Phase 8.6: Set Operations** (102 tests)
+  - **Set operation AST** (`SetUnion`, `SetIntersect`, `SetExcept`)
+  - **UNION / UNION ALL** - クエリ結果の結合
+  - **INTERSECT** - 共通行の検索
+  - **EXCEPT** - 差分の検索
+  - **カリー化付きパイプライン API** - 自然な合成
+  - **完全な SQLite dialect サポート** - 完全な SQL 生成
+
+- ✅ **Phase 8.7: UPSERT (ON CONFLICT)** (86 tests)
+  - **OnConflict AST 型** - UPSERT サポート
+  - **ON CONFLICT DO NOTHING** - 競合を無視
+  - **ON CONFLICT DO UPDATE** - 競合時に更新
+  - **競合ターゲット指定** - カラムベースのターゲット
+  - **WHERE 句による条件付き更新** - きめ細かい制御
+  - **カリー化付きパイプライン API** - 自然な合成
+  - **完全な SQLite dialect サポート** - 完全な SQL 生成
+
+- ✅ **Phase 10: DDL Support** (227 tests)
+  - **DDL AST** (`CreateTable`, `AlterTable`, `DropTable`, `CreateIndex`, `DropIndex`)
+  - **カラム制約** (PRIMARY KEY, NOT NULL, UNIQUE, DEFAULT, CHECK, FOREIGN KEY)
+  - **テーブル制約** (PRIMARY KEY, FOREIGN KEY, UNIQUE, CHECK)
+  - **ポータブルなカラム型** (`:integer`, `:text`, `:boolean`, `:timestamp` など)
+  - **カリー化付きパイプライン API** - 自然なスキーマ合成
+  - **完全な SQLite DDL コンパイル** - 完全な DDL SQL 生成
+  - **156 DDL AST 単体テスト** + **71 SQLite DDL コンパイルテスト**
+
+- ✅ **Phase 11: PostgreSQL Dialect** (102 tests)
+  - **PostgreSQLDialect 実装** - 完全な SQL 生成
+  - **PostgreSQL 固有機能**
+    - `"` (ダブルクォート) による識別子クォート
+    - プレースホルダー構文 `$1`, `$2`, ... (番号付き位置指定)
+    - ネイティブ `BOOLEAN` 型 (TRUE/FALSE)
+    - ネイティブ `ILIKE` 演算子
+    - ネイティブ `UUID` 型
+    - `JSONB` サポート
+    - `ARRAY` 型
+    - `BYTEA` (バイナリデータ)
+  - **PostgreSQLDriver 実装** (LibPQ.jl)
+    - 接続管理 (libpq 接続文字列)
+    - トランザクションサポート (BEGIN/COMMIT/ROLLBACK)
+    - セーブポイントサポート (ネストされたトランザクション)
+    - 位置パラメータによるクエリ実行
+  - **PostgreSQL 固有コーデック**
+    - ネイティブ UUID コーデック
+    - JSONB コーデック (Dict/Vector シリアライゼーション)
+    - Array コーデック (Integer[], Text[], 汎用配列)
+    - ネイティブ Boolean/Date/DateTime コーデック
+  - **完全な DDL サポート** - CREATE TABLE, ALTER TABLE, DROP TABLE, CREATE INDEX, DROP INDEX
+  - **Capability サポート** - CTE, RETURNING, UPSERT, WINDOW, LATERAL, BULK_COPY, SAVEPOINT, ADVISORY_LOCK
+  - **統合テスト** - 包括的な PostgreSQL 互換性テスト
+
+- ⏳ **Phase 12: Documentation** - [`docs/roadmap.md`](docs/roadmap.md) と [`docs/TODO.md`](docs/TODO.md) を参照
 
 ---
 
@@ -169,8 +229,9 @@ using SQLSketch
 using SQLSketch.Core
 using SQLSketch.Drivers
 
-# 実行関数をインポート
-import SQLSketch.Core: fetch_all, fetch_one, fetch_maybe, execute_dml, sql
+# 実行関数と DDL 関数をインポート
+import SQLSketch.Core: fetch_all, fetch_one, fetch_maybe, execute_dml, execute_ddl, sql
+import SQLSketch.Core: create_table, add_column, add_foreign_key
 
 # データベースに接続
 driver = SQLiteDriver()
@@ -178,25 +239,23 @@ db = connect(driver, ":memory:")
 dialect = SQLiteDialect()
 registry = CodecRegistry()
 
-# テーブルを作成
-execute(db, """
-    CREATE TABLE users (
-        id INTEGER PRIMARY KEY,
-        email TEXT NOT NULL,
-        age INTEGER,
-        status TEXT DEFAULT 'active',
-        created_at TEXT
-    )
-""", [])
+# DDL API を使ってテーブルを作成
+users_table = create_table(:users) |>
+    add_column(:id, :integer; primary_key=true) |>
+    add_column(:email, :text; nullable=false) |>
+    add_column(:age, :integer) |>
+    add_column(:status, :text; default=literal("active")) |>
+    add_column(:created_at, :timestamp)
 
-execute(db, """
-    CREATE TABLE orders (
-        id INTEGER PRIMARY KEY,
-        user_id INTEGER,
-        total REAL,
-        FOREIGN KEY (user_id) REFERENCES users(id)
-    )
-""", [])
+execute_ddl(db, dialect, users_table)
+
+orders_table = create_table(:orders) |>
+    add_column(:id, :integer; primary_key=true) |>
+    add_column(:user_id, :integer) |>
+    add_column(:total, :real) |>
+    add_foreign_key([:user_id], :users, [:id])
+
+execute_ddl(db, dialect, orders_table)
 
 # ========================================
 # 基本クエリ - col() で明示的なカラム参照

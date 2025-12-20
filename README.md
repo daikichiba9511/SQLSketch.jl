@@ -86,7 +86,7 @@ SQLSketch is designed as a two-layer system:
 
 ## Current Implementation Status
 
-**Completed Phases:** 8.5/10 | **Total Tests:** 1195 passing ✅
+**Completed Phases:** 11/12 | **Total Tests:** 1712 passing ✅
 
 - ✅ **Phase 1: Expression AST** (268 tests)
   - Column references, literals, parameters
@@ -101,7 +101,7 @@ SQLSketch is designed as a two-layer system:
   - **Subquery expressions** - nested queries (EXISTS, IN subquery)
   - **CASE expressions** - conditional logic
 
-- ✅ **Phase 2: Query AST** (85 tests)
+- ✅ **Phase 2: Query AST** (232 tests)
   - FROM, WHERE, SELECT, JOIN, ORDER BY
   - LIMIT, OFFSET, DISTINCT, GROUP BY, HAVING
   - **INSERT, UPDATE, DELETE** (DML operations)
@@ -110,7 +110,7 @@ SQLSketch is designed as a two-layer system:
   - Type-safe query transformations
   - **Curried API** for natural pipeline composition
 
-- ✅ **Phase 3: Dialect Abstraction** (102 tests)
+- ✅ **Phase 3: Dialect Abstraction** (331 tests)
   - Dialect interface (compile, quote_identifier, placeholder, supports)
   - Capability system for feature detection
   - SQLite dialect implementation
@@ -127,7 +127,7 @@ SQLSketch is designed as a two-layer system:
   - Parameter binding with `?` placeholders
   - Query execution returning raw SQLite results
 
-- ✅ **Phase 5: CodecRegistry** (112 tests)
+- ✅ **Phase 5: CodecRegistry** (115 tests)
   - Type-safe encoding/decoding between Julia and SQL
   - Built-in codecs (Int, Float64, String, Bool, Date, DateTime, UUID)
   - NULL/Missing handling
@@ -168,7 +168,58 @@ SQLSketch is designed as a two-layer system:
   - **OVER clause builder** (PARTITION BY, ORDER BY, frame)
   - **Full SQLite dialect support** - complete SQL generation
 
-- ⏳ **Phase 9-10:** See [`docs/roadmap.md`](docs/roadmap.md) and [`docs/TODO.md`](docs/TODO.md)
+- ✅ **Phase 8.6: Set Operations** (102 tests)
+  - **Set operation AST** (`SetUnion`, `SetIntersect`, `SetExcept`)
+  - **UNION / UNION ALL** - combine query results
+  - **INTERSECT** - find common rows
+  - **EXCEPT** - find differences
+  - **Pipeline API with currying** - natural composition
+  - **Full SQLite dialect support** - complete SQL generation
+
+- ✅ **Phase 8.7: UPSERT (ON CONFLICT)** (86 tests)
+  - **OnConflict AST type** - UPSERT support
+  - **ON CONFLICT DO NOTHING** - ignore conflicts
+  - **ON CONFLICT DO UPDATE** - update on conflict
+  - **Conflict target specification** - column-based targets
+  - **Conditional updates with WHERE** - fine-grained control
+  - **Pipeline API with currying** - natural composition
+  - **Full SQLite dialect support** - complete SQL generation
+
+- ✅ **Phase 10: DDL Support** (227 tests)
+  - **DDL AST** (`CreateTable`, `AlterTable`, `DropTable`, `CreateIndex`, `DropIndex`)
+  - **Column constraints** (PRIMARY KEY, NOT NULL, UNIQUE, DEFAULT, CHECK, FOREIGN KEY)
+  - **Table constraints** (PRIMARY KEY, FOREIGN KEY, UNIQUE, CHECK)
+  - **Portable column types** (`:integer`, `:text`, `:boolean`, `:timestamp`, etc.)
+  - **Pipeline API with currying** - natural schema composition
+  - **Full SQLite DDL compilation** - complete DDL SQL generation
+  - **156 DDL AST unit tests** + **71 SQLite DDL compilation tests**
+
+- ✅ **Phase 11: PostgreSQL Dialect** (102 tests)
+  - **PostgreSQLDialect implementation** - full SQL generation
+  - **PostgreSQL-specific features**
+    - Identifier quoting with `"` (double quotes)
+    - Placeholder syntax `$1`, `$2`, ... (numbered positional)
+    - Native `BOOLEAN` type (TRUE/FALSE)
+    - Native `ILIKE` operator
+    - Native `UUID` type
+    - `JSONB` support
+    - `ARRAY` types
+    - `BYTEA` (binary data)
+  - **PostgreSQLDriver implementation** (LibPQ.jl)
+    - Connection management (libpq connection strings)
+    - Transaction support (BEGIN/COMMIT/ROLLBACK)
+    - Savepoint support (nested transactions)
+    - Query execution with positional parameters
+  - **PostgreSQL-specific Codecs**
+    - Native UUID codec
+    - JSONB codec (Dict/Vector serialization)
+    - Array codecs (Integer[], Text[], generic arrays)
+    - Native Boolean/Date/DateTime codecs
+  - **Full DDL support** - CREATE TABLE, ALTER TABLE, DROP TABLE, CREATE INDEX, DROP INDEX
+  - **Capability support** - CTE, RETURNING, UPSERT, WINDOW, LATERAL, BULK_COPY, SAVEPOINT, ADVISORY_LOCK
+  - **Integration tests** - comprehensive PostgreSQL compatibility tests
+
+- ⏳ **Phase 12: Documentation** - See [`docs/roadmap.md`](docs/roadmap.md) and [`docs/TODO.md`](docs/TODO.md)
 
 ---
 
@@ -179,8 +230,9 @@ using SQLSketch
 using SQLSketch.Core
 using SQLSketch.Drivers
 
-# Import execution functions
-import SQLSketch.Core: fetch_all, fetch_one, fetch_maybe, execute_dml, sql
+# Import execution and DDL functions
+import SQLSketch.Core: fetch_all, fetch_one, fetch_maybe, execute_dml, execute_ddl, sql
+import SQLSketch.Core: create_table, add_column, add_foreign_key
 
 # Note: Use innerjoin/leftjoin/rightjoin/fulljoin aliases to avoid Base.join conflict
 # Use insert_values alias to avoid Base.values conflict
@@ -191,25 +243,23 @@ db = connect(driver, ":memory:")
 dialect = SQLiteDialect()
 registry = CodecRegistry()
 
-# Create tables
-execute(db, """
-    CREATE TABLE users (
-        id INTEGER PRIMARY KEY,
-        email TEXT NOT NULL,
-        age INTEGER,
-        status TEXT DEFAULT 'active',
-        created_at TEXT
-    )
-""", [])
+# Create tables using DDL API
+users_table = create_table(:users) |>
+    add_column(:id, :integer; primary_key=true) |>
+    add_column(:email, :text; nullable=false) |>
+    add_column(:age, :integer) |>
+    add_column(:status, :text; default=literal("active")) |>
+    add_column(:created_at, :timestamp)
 
-execute(db, """
-    CREATE TABLE orders (
-        id INTEGER PRIMARY KEY,
-        user_id INTEGER,
-        total REAL,
-        FOREIGN KEY (user_id) REFERENCES users(id)
-    )
-""", [])
+execute_ddl(db, dialect, users_table)
+
+orders_table = create_table(:orders) |>
+    add_column(:id, :integer; primary_key=true) |>
+    add_column(:user_id, :integer) |>
+    add_column(:total, :real) |>
+    add_foreign_key([:user_id], :users, [:id])
+
+execute_ddl(db, dialect, orders_table)
 
 # ========================================
 # Basic Query - Explicit column references with col()
