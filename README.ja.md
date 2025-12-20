@@ -107,12 +107,8 @@ SQLSketch は 2 層システムとして設計されています：
 ### クイックスタート
 
 ```julia
-using SQLSketch
-using SQLSketch.Core        # コアクエリ構築型
-using SQLSketch.Drivers     # データベースドライバ
-
-# クエリ構築用:
-import SQLSketch.Core: from, where, select, col, literal
+using SQLSketch          # コアクエリ構築関数
+using SQLSketch.Drivers  # データベースドライバ
 
 # データベースに接続
 driver = SQLiteDriver()
@@ -136,9 +132,7 @@ close(db)
 **1. WHERE と ORDER BY を使った基本クエリ**
 
 ```julia
-# 必要な import:
-using SQLSketch.Core
-import SQLSketch.Core: from, where, select, order_by, col, literal
+using SQLSketch
 
 q = from(:users) |>
     where(col(:users, :age) > literal(18)) |>
@@ -149,8 +143,7 @@ q = from(:users) |>
 **2. JOIN クエリ**
 
 ```julia
-# 必要な import:
-import SQLSketch.Core: from, innerjoin, where, select, col, literal
+using SQLSketch
 
 q = from(:users) |>
     innerjoin(:orders, col(:orders, :user_id) == col(:users, :id)) |>
@@ -161,8 +154,7 @@ q = from(:users) |>
 **3. パラメータを使った INSERT**
 
 ```julia
-# 必要な import:
-import SQLSketch.Core: insert_into, insert_values, param, execute
+using SQLSketch
 
 insert_q = insert_into(:users, [:email, :age]) |>
     insert_values([[param(String, :email), param(Int, :age)]])
@@ -173,8 +165,7 @@ execute(db, dialect, insert_q, (email="alice@example.com", age=25))
 **4. 複数操作のトランザクション**
 
 ```julia
-# 必要な import:
-import SQLSketch.Core: transaction, insert_into, insert_values, literal, execute
+using SQLSketch
 
 transaction(db) do tx
     execute(tx, dialect,
@@ -190,8 +181,7 @@ end
 **5. データベースマイグレーション**
 
 ```julia
-# 必要な import:
-using SQLSketch.Extras: apply_migrations, migration_status
+using SQLSketch
 
 # 保留中のマイグレーションを適用
 applied = apply_migrations(db, "db/migrations")
@@ -203,8 +193,7 @@ status = migration_status(db, "db/migrations")
 **6. DDL - テーブル作成**
 
 ```julia
-# 必要な import:
-import SQLSketch.Core: create_table, add_column, add_foreign_key, literal, execute
+using SQLSketch
 
 table = create_table(:users) |>
     add_column(:id, :integer; primary_key=true) |>

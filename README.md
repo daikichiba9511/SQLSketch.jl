@@ -109,12 +109,8 @@ See [**Implementation Status**](docs/implementation-status.md) for detailed brea
 ### Quick Start
 
 ```julia
-using SQLSketch
-using SQLSketch.Core        # Core query building types
-using SQLSketch.Drivers     # Database drivers
-
-# For query building:
-import SQLSketch.Core: from, where, select, col, literal
+using SQLSketch          # Core query building functions
+using SQLSketch.Drivers  # Database drivers
 
 # Connect to database
 driver = SQLiteDriver()
@@ -138,9 +134,7 @@ close(db)
 **1. Basic Query with WHERE and ORDER BY**
 
 ```julia
-# Required imports:
-using SQLSketch.Core
-import SQLSketch.Core: from, where, select, order_by, col, literal
+using SQLSketch
 
 q = from(:users) |>
     where(col(:users, :age) > literal(18)) |>
@@ -151,8 +145,7 @@ q = from(:users) |>
 **2. JOIN Query**
 
 ```julia
-# Required imports:
-import SQLSketch.Core: from, innerjoin, where, select, col, literal
+using SQLSketch
 
 q = from(:users) |>
     innerjoin(:orders, col(:orders, :user_id) == col(:users, :id)) |>
@@ -163,8 +156,7 @@ q = from(:users) |>
 **3. INSERT with Parameters**
 
 ```julia
-# Required imports:
-import SQLSketch.Core: insert_into, insert_values, param, execute
+using SQLSketch
 
 insert_q = insert_into(:users, [:email, :age]) |>
     insert_values([[param(String, :email), param(Int, :age)]])
@@ -175,8 +167,7 @@ execute(db, dialect, insert_q, (email="alice@example.com", age=25))
 **4. Transaction with Multiple Operations**
 
 ```julia
-# Required imports:
-import SQLSketch.Core: transaction, insert_into, insert_values, literal, execute
+using SQLSketch
 
 transaction(db) do tx
     execute(tx, dialect,
@@ -192,8 +183,7 @@ end
 **5. Database Migrations**
 
 ```julia
-# Required imports:
-using SQLSketch.Extras: apply_migrations, migration_status
+using SQLSketch
 
 # Apply pending migrations
 applied = apply_migrations(db, "db/migrations")
@@ -205,8 +195,7 @@ status = migration_status(db, "db/migrations")
 **6. DDL - Create Table**
 
 ```julia
-# Required imports:
-import SQLSketch.Core: create_table, add_column, add_foreign_key, literal, execute
+using SQLSketch
 
 table = create_table(:users) |>
     add_column(:id, :integer; primary_key=true) |>
