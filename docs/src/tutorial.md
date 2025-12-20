@@ -1,5 +1,7 @@
 # Tutorial: Building a Blog Application
 
+**⚠️ Note: This is a toy project for learning purposes, not intended for production use.**
+
 This tutorial walks through building a complete blog application with SQLSketch.jl, demonstrating key features and best practices.
 
 ## Prerequisites

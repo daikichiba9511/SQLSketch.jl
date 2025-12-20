@@ -1,5 +1,7 @@
 # Getting Started with SQLSketch.jl
 
+**⚠️ Note: This is a toy project for learning purposes, not intended for production use.**
+
 SQLSketch.jl is a type-safe, composable SQL query builder for Julia. It provides a fluent API for constructing SQL queries that are checked at compile time while remaining transparent and inspectable.
 
 ## Installation

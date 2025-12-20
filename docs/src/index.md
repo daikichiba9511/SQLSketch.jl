@@ -210,20 +210,23 @@ apply_migrations(driver, "migrations/")
 status = migration_status(driver, "migrations/")
 ```
 
-## Contributing
+## Project Status
 
-Contributions are welcome! Please:
+**⚠️ Note: This is a toy project for learning purposes.**
 
-1. Write tests (aim for >90% coverage)
-2. Add docstrings to public functions
-3. Run tests: `julia --project=. -e 'using Pkg; Pkg.test()'`
+SQLSketch.jl is a personal learning project to explore:
+- Type-safe query builder design in Julia
+- PostgreSQL-first API design
+- Fluent pipeline APIs with currying
+- Julia's type system and multiple dispatch
+
+**Current status:**
+- Phase 11 (PostgreSQL Dialect) completed
+- 1712 passing tests
+- Current phase: **Phase 12 - Documentation**
+
+**Not recommended for production use.** This project is intended as a learning exercise and exploration of Julia's capabilities.
 
 ## License
 
 MIT License - see LICENSE file for details.
-
-## Project Status
-
-SQLSketch.jl has completed Phase 11 (PostgreSQL Dialect) with 1712 passing tests.
-
-Current phase: **Phase 12 - Documentation**
