@@ -1156,7 +1156,9 @@ using .Core: ColumnDef, ColumnConstraint, PrimaryKeyConstraint, NotNullConstrain
              OnUpdateConstraint, CommentConstraint, IdentityConstraint
 using .Core: TableConstraint, TablePrimaryKey, TableForeignKey, TableUnique, TableCheck
 using .Core: AlterTableOp, AddColumn, DropColumn, RenameColumn, AddTableConstraint,
-             DropConstraint
+             DropConstraint, AlterColumnSetDefault, AlterColumnDropDefault,
+             AlterColumnSetNotNull, AlterColumnDropNotNull, AlterColumnSetType,
+             AlterColumnSetStatistics, AlterColumnSetStorage
 
 """
     compile_column_type(dialect::SQLiteDialect, type::Symbol) -> String
@@ -1513,6 +1515,20 @@ function compile(dialect::SQLiteDialect,
         error("SQLite does not support ADD CONSTRAINT directly. Define constraints at table creation.")
     elseif op isa DropConstraint
         error("SQLite does not support DROP CONSTRAINT directly.")
+    elseif op isa AlterColumnSetDefault
+        error("SQLite does not support ALTER COLUMN SET DEFAULT. Use table recreation or set default at column creation.")
+    elseif op isa AlterColumnDropDefault
+        error("SQLite does not support ALTER COLUMN DROP DEFAULT. Use table recreation.")
+    elseif op isa AlterColumnSetNotNull
+        error("SQLite does not support ALTER COLUMN SET NOT NULL. Use table recreation or define NOT NULL at column creation.")
+    elseif op isa AlterColumnDropNotNull
+        error("SQLite does not support ALTER COLUMN DROP NOT NULL. Use table recreation.")
+    elseif op isa AlterColumnSetType
+        error("SQLite does not support ALTER COLUMN TYPE. Use table recreation to change column types.")
+    elseif op isa AlterColumnSetStatistics
+        error("SQLite does not support ALTER COLUMN SET STATISTICS. This is a PostgreSQL-specific feature.")
+    elseif op isa AlterColumnSetStorage
+        error("SQLite does not support ALTER COLUMN SET STORAGE. This is a PostgreSQL-specific feature.")
     else
         error("Unknown ALTER TABLE operation: $(typeof(op))")
     end
@@ -1561,12 +1577,28 @@ end
 
 Compile a CREATE INDEX statement to SQL.
 
+Supports:
+
+  - Column indexes
+  - Expression indexes (SQLite 3.9+)
+  - Partial indexes (WHERE clause)
+  - Unique indexes
+
+Note: Index method (USING clause) is PostgreSQL-specific and ignored in SQLite.
+
 # Example
 
 ```julia
+# Column index
 ddl = create_index(:idx_users_email, :users, [:email]; unique = true)
 sql, params = compile(SQLiteDialect(), ddl)
 # sql → "CREATE UNIQUE INDEX `idx_users_email` ON `users` (`email`)"
+
+# Expression index (SQLite 3.9+)
+ddl = create_index(:idx_users_lower_email, :users, Symbol[];
+                   expr = [func(:lower, [col(:users, :email)])])
+sql, params = compile(SQLiteDialect(), ddl)
+# sql → "CREATE INDEX `idx_users_lower_email` ON `users` (lower(`users`.`email`))"
 ```
 """
 function compile(dialect::SQLiteDialect,
@@ -1593,9 +1625,21 @@ function compile(dialect::SQLiteDialect,
     table = quote_identifier(dialect, ddl.table)
     push!(parts, table)
 
-    columns = [quote_identifier(dialect, col) for col in ddl.columns]
-    columns_str = Base.join(columns, ", ")
-    push!(parts, "($columns_str)")
+    # Index columns or expressions
+    if ddl.expressions !== nothing
+        # Expression index (SQLite 3.9+)
+        exprs = [compile_expr(dialect, expr, params) for expr in ddl.expressions]
+        exprs_str = Base.join(exprs, ", ")
+        push!(parts, "($exprs_str)")
+    else
+        # Column index
+        columns = [quote_identifier(dialect, col) for col in ddl.columns]
+        columns_str = Base.join(columns, ", ")
+        push!(parts, "($columns_str)")
+    end
+
+    # Note: Index method (USING clause) is PostgreSQL-specific, not supported in SQLite
+    # We silently ignore ddl.method for SQLite
 
     # Partial index support (WHERE clause)
     if ddl.where !== nothing

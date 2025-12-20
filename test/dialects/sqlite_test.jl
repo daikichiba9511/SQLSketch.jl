@@ -1383,6 +1383,55 @@ using SQLSketch.Core: drop_table, create_index, drop_index
         @test occursin("`users`.`active`", sql)
     end
 
+    @testset "CREATE INDEX - Expression Indexes" begin
+        # Single expression index
+        ddl = create_index(:idx_users_lower_email, :users, Symbol[],
+                           expr = [func(:lower, [col(:users, :email)])])
+        sql, params = compile(dialect, ddl)
+        @test sql ==
+              "CREATE INDEX `idx_users_lower_email` ON `users` (lower(`users`.`email`))"
+        @test isempty(params)
+
+        # Multiple expression index
+        ddl2 = create_index(:idx_users_name, :users, Symbol[],
+                            expr = [func(:lower, [col(:users, :first_name)]),
+                                    func(:lower, [col(:users, :last_name)])])
+        sql2, _ = compile(dialect, ddl2)
+        @test occursin("lower(`users`.`first_name`), lower(`users`.`last_name`)", sql2)
+
+        # Expression index with WHERE clause
+        ddl3 = create_index(:idx_active_emails, :users, Symbol[],
+                            expr = [func(:lower, [col(:users, :email)])],
+                            where = col(:users, :active) == literal(true))
+        sql3, _ = compile(dialect, ddl3)
+        @test occursin("lower(`users`.`email`)", sql3)
+        @test occursin("WHERE (`users`.`active` = 1)", sql3)
+
+        # Unique expression index
+        ddl4 = create_index(:idx_users_lower_email_unique, :users, Symbol[],
+                            expr = [func(:lower, [col(:users, :email)])],
+                            unique = true)
+        sql4, _ = compile(dialect, ddl4)
+        @test occursin("CREATE UNIQUE INDEX", sql4)
+        @test occursin("lower(`users`.`email`)", sql4)
+    end
+
+    @testset "CREATE INDEX - Index Method (ignored in SQLite)" begin
+        # SQLite ignores method parameter (no error, just silently ignore)
+        ddl = create_index(:idx_users_tags, :users, [:tags], method = :gin)
+        sql, _ = compile(dialect, ddl)
+        @test sql == "CREATE INDEX `idx_users_tags` ON `users` (`tags`)"
+        @test !occursin("USING", sql)  # SQLite doesn't support USING clause
+
+        # Expression index with method (also ignored)
+        ddl2 = create_index(:idx_lower_email, :users, Symbol[],
+                            expr = [func(:lower, [col(:users, :email)])],
+                            method = :btree)
+        sql2, _ = compile(dialect, ddl2)
+        @test !occursin("USING", sql2)
+        @test occursin("lower(`users`.`email`)", sql2)
+    end
+
     @testset "DROP INDEX" begin
         ddl = drop_index(:idx_users_email)
         sql, params = compile(dialect, ddl)
@@ -1489,5 +1538,42 @@ using SQLSketch.Core: drop_table, create_index, drop_index
         ddl = create_index(Symbol("idx-users-email"), :users, [:email])
         sql, _ = compile(dialect, ddl)
         @test occursin("`idx-users-email`", sql)
+    end
+
+    @testset "ALTER COLUMN - Not Supported (SQLite)" begin
+        # SET DEFAULT - not supported
+        ddl = alter_table(:users) |>
+              set_column_default(:status, literal("active"))
+        @test_throws ErrorException compile(dialect, ddl)
+
+        # DROP DEFAULT - not supported
+        ddl2 = alter_table(:users) |>
+               drop_column_default(:status)
+        @test_throws ErrorException compile(dialect, ddl2)
+
+        # SET NOT NULL - not supported
+        ddl3 = alter_table(:users) |>
+               set_column_not_null(:email)
+        @test_throws ErrorException compile(dialect, ddl3)
+
+        # DROP NOT NULL - not supported
+        ddl4 = alter_table(:users) |>
+               drop_column_not_null(:phone)
+        @test_throws ErrorException compile(dialect, ddl4)
+
+        # SET TYPE - not supported
+        ddl5 = alter_table(:users) |>
+               set_column_type(:age, :bigint)
+        @test_throws ErrorException compile(dialect, ddl5)
+
+        # SET STATISTICS - PostgreSQL only
+        ddl6 = alter_table(:users) |>
+               set_column_statistics(:email, 1000)
+        @test_throws ErrorException compile(dialect, ddl6)
+
+        # SET STORAGE - PostgreSQL only
+        ddl7 = alter_table(:users) |>
+               set_column_storage(:bio, :external)
+        @test_throws ErrorException compile(dialect, ddl7)
     end
 end

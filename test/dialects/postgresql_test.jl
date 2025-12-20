@@ -564,4 +564,199 @@ end
         @test occursin("\"id\" SERIAL PRIMARY KEY", sql10)
         @test occursin("\"age\" INTEGER NOT NULL CHECK", sql10)
     end
+
+    @testset "CREATE INDEX - Expression Indexes (PostgreSQL)" begin
+        # Single expression index
+        ddl = create_index(:idx_users_lower_email, :users, Symbol[],
+                           expr = [func(:lower, [col(:users, :email)])])
+        sql, params = compile(dialect, ddl)
+        @test sql ==
+              "CREATE INDEX \"idx_users_lower_email\" ON \"users\" (lower(\"users\".\"email\"))"
+        @test isempty(params)
+
+        # Multiple expression index
+        ddl2 = create_index(:idx_users_name, :users, Symbol[],
+                            expr = [func(:lower, [col(:users, :first_name)]),
+                                    func(:lower, [col(:users, :last_name)])])
+        sql2, _ = compile(dialect, ddl2)
+        @test occursin("lower(\"users\".\"first_name\"), lower(\"users\".\"last_name\")",
+                       sql2)
+
+        # Expression index with WHERE clause
+        ddl3 = create_index(:idx_active_emails, :users, Symbol[],
+                            expr = [func(:lower, [col(:users, :email)])],
+                            where = col(:users, :active) == literal(true))
+        sql3, _ = compile(dialect, ddl3)
+        @test occursin("lower(\"users\".\"email\")", sql3)
+        @test occursin("WHERE (\"users\".\"active\" = TRUE)", sql3)
+
+        # Unique expression index
+        ddl4 = create_index(:idx_users_lower_email_unique, :users, Symbol[],
+                            expr = [func(:lower, [col(:users, :email)])],
+                            unique = true)
+        sql4, _ = compile(dialect, ddl4)
+        @test occursin("CREATE UNIQUE INDEX", sql4)
+        @test occursin("lower(\"users\".\"email\")", sql4)
+    end
+
+    @testset "CREATE INDEX - Index Methods (PostgreSQL)" begin
+        # BTREE (default method, but can be explicit)
+        ddl = create_index(:idx_users_email, :users, [:email], method = :btree)
+        sql, _ = compile(dialect, ddl)
+        @test occursin("USING BTREE", sql)
+        @test sql ==
+              "CREATE INDEX \"idx_users_email\" ON \"users\" USING BTREE (\"email\")"
+
+        # HASH index
+        ddl2 = create_index(:idx_users_id, :users, [:id], method = :hash)
+        sql2, _ = compile(dialect, ddl2)
+        @test occursin("USING HASH", sql2)
+
+        # GIN index (for JSONB, arrays, full-text search)
+        ddl3 = create_index(:idx_users_tags, :users, [:tags], method = :gin)
+        sql3, _ = compile(dialect, ddl3)
+        @test occursin("USING GIN", sql3)
+        @test sql3 ==
+              "CREATE INDEX \"idx_users_tags\" ON \"users\" USING GIN (\"tags\")"
+
+        # GIST index (for geometric data, full-text search)
+        ddl4 = create_index(:idx_locations_geom, :locations, [:geom], method = :gist)
+        sql4, _ = compile(dialect, ddl4)
+        @test occursin("USING GIST", sql4)
+
+        # BRIN index (for large tables with natural ordering)
+        ddl5 = create_index(:idx_events_created_at, :events, [:created_at], method = :brin)
+        sql5, _ = compile(dialect, ddl5)
+        @test occursin("USING BRIN", sql5)
+
+        # SP-GIST index
+        ddl6 = create_index(:idx_points, :points, [:location], method = :spgist)
+        sql6, _ = compile(dialect, ddl6)
+        @test occursin("USING SPGIST", sql6)
+    end
+
+    @testset "CREATE INDEX - Expression + Method (PostgreSQL)" begin
+        # Expression index with BTREE
+        ddl = create_index(:idx_lower_email_btree, :users, Symbol[],
+                           expr = [func(:lower, [col(:users, :email)])],
+                           method = :btree)
+        sql, _ = compile(dialect, ddl)
+        @test occursin("USING BTREE", sql)
+        @test occursin("lower(\"users\".\"email\")", sql)
+
+        # Expression index with GIN (useful for text search)
+        ddl2 = create_index(:idx_search_name, :users, Symbol[],
+                            expr = [func(:to_tsvector,
+                                         [literal("english"),
+                                          col(:users, :name)])],
+                            method = :gin)
+        sql2, _ = compile(dialect, ddl2)
+        @test occursin("USING GIN", sql2)
+        @test occursin("to_tsvector", sql2)
+
+        # Unique expression index with method
+        ddl3 = create_index(:idx_lower_email_unique, :users, Symbol[],
+                            expr = [func(:lower, [col(:users, :email)])],
+                            method = :btree,
+                            unique = true)
+        sql3, _ = compile(dialect, ddl3)
+        @test occursin("CREATE UNIQUE INDEX", sql3)
+        @test occursin("USING BTREE", sql3)
+        @test occursin("lower(\"users\".\"email\")", sql3)
+    end
+
+    @testset "CREATE INDEX - Complete Examples (PostgreSQL)" begin
+        # Partial expression index with method
+        ddl = create_index(:idx_active_lower_emails, :users, Symbol[],
+                           expr = [func(:lower, [col(:users, :email)])],
+                           where = col(:users, :active) == literal(true),
+                           method = :btree,
+                           unique = true,
+                           if_not_exists = true)
+        sql, _ = compile(dialect, ddl)
+        @test occursin("CREATE UNIQUE INDEX IF NOT EXISTS", sql)
+        @test occursin("USING BTREE", sql)
+        @test occursin("lower(\"users\".\"email\")", sql)
+        @test occursin("WHERE (\"users\".\"active\" = TRUE)", sql)
+    end
+
+    @testset "ALTER COLUMN - SET/DROP DEFAULT (PostgreSQL)" begin
+        # SET DEFAULT
+        ddl = alter_table(:users) |>
+              set_column_default(:status, literal("active"))
+        sql, _ = compile(dialect, ddl)
+        @test sql == "ALTER TABLE \"users\" ALTER COLUMN \"status\" SET DEFAULT 'active'"
+
+        # DROP DEFAULT
+        ddl2 = alter_table(:users) |>
+               drop_column_default(:status)
+        sql2, _ = compile(dialect, ddl2)
+        @test sql2 == "ALTER TABLE \"users\" ALTER COLUMN \"status\" DROP DEFAULT"
+    end
+
+    @testset "ALTER COLUMN - SET/DROP NOT NULL (PostgreSQL)" begin
+        # SET NOT NULL
+        ddl = alter_table(:users) |>
+              set_column_not_null(:email)
+        sql, _ = compile(dialect, ddl)
+        @test sql == "ALTER TABLE \"users\" ALTER COLUMN \"email\" SET NOT NULL"
+
+        # DROP NOT NULL
+        ddl2 = alter_table(:users) |>
+               drop_column_not_null(:phone)
+        sql2, _ = compile(dialect, ddl2)
+        @test sql2 == "ALTER TABLE \"users\" ALTER COLUMN \"phone\" DROP NOT NULL"
+    end
+
+    @testset "ALTER COLUMN - SET TYPE (PostgreSQL)" begin
+        # Without USING clause
+        ddl = alter_table(:users) |>
+              set_column_type(:age, :bigint)
+        sql, _ = compile(dialect, ddl)
+        @test sql == "ALTER TABLE \"users\" ALTER COLUMN \"age\" TYPE BIGINT"
+
+        # With USING clause
+        ddl2 = alter_table(:products) |>
+               set_column_type(:price, :integer;
+                               using_expr = cast(col(:products, :price), :integer))
+        sql2, _ = compile(dialect, ddl2)
+        @test occursin("ALTER COLUMN \"price\" TYPE INTEGER", sql2)
+        @test occursin("USING CAST(\"products\".\"price\" AS INTEGER)", sql2)
+    end
+
+    @testset "ALTER COLUMN - SET STATISTICS (PostgreSQL)" begin
+        ddl = alter_table(:users) |>
+              set_column_statistics(:email, 1000)
+        sql, _ = compile(dialect, ddl)
+        @test sql == "ALTER TABLE \"users\" ALTER COLUMN \"email\" SET STATISTICS 1000"
+    end
+
+    @testset "ALTER COLUMN - SET STORAGE (PostgreSQL)" begin
+        ddl = alter_table(:users) |>
+              set_column_storage(:bio, :external)
+        sql, _ = compile(dialect, ddl)
+        @test sql == "ALTER TABLE \"users\" ALTER COLUMN \"bio\" SET STORAGE EXTERNAL"
+
+        # Test other storage modes
+        ddl2 = alter_table(:users) |>
+               set_column_storage(:data, :plain)
+        sql2, _ = compile(dialect, ddl2)
+        @test occursin("SET STORAGE PLAIN", sql2)
+    end
+
+    @testset "ALTER COLUMN - Multiple operations (PostgreSQL)" begin
+        # PostgreSQL supports multiple ALTER COLUMN operations in one statement
+        ddl = alter_table(:users) |>
+              set_column_default(:status, literal("active")) |>
+              set_column_not_null(:email) |>
+              set_column_type(:age, :bigint)
+
+        sql, _ = compile(dialect, ddl)
+        @test occursin("ALTER TABLE \"users\"", sql)
+        @test occursin("ALTER COLUMN \"status\" SET DEFAULT", sql)
+        @test occursin("ALTER COLUMN \"email\" SET NOT NULL", sql)
+        @test occursin("ALTER COLUMN \"age\" TYPE BIGINT", sql)
+        # Check that operations are comma-separated
+        @test occursin(",", sql)
+    end
 end

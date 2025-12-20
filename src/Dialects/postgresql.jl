@@ -821,7 +821,9 @@ using .Core: ColumnDef, ColumnConstraint, PrimaryKeyConstraint, NotNullConstrain
              OnUpdateConstraint, CommentConstraint, IdentityConstraint
 using .Core: TableConstraint, TablePrimaryKey, TableForeignKey, TableUnique, TableCheck
 using .Core: AlterTableOp, AddColumn, DropColumn, RenameColumn, AddTableConstraint,
-             DropConstraint
+             DropConstraint, AlterColumnSetDefault, AlterColumnDropDefault,
+             AlterColumnSetNotNull, AlterColumnDropNotNull, AlterColumnSetType,
+             AlterColumnSetStatistics, AlterColumnSetStorage
 
 """
     compile_column_type(dialect::PostgreSQLDialect, type::Symbol) -> String
@@ -1146,6 +1148,35 @@ function compile(dialect::PostgreSQLDialect,
         elseif op isa DropConstraint
             constraint_name = quote_identifier(dialect, op.name)
             push!(op_parts, "DROP CONSTRAINT $constraint_name")
+        elseif op isa AlterColumnSetDefault
+            col_name = quote_identifier(dialect, op.column)
+            default_sql = compile_expr(dialect, op.value, params)
+            push!(op_parts, "ALTER COLUMN $col_name SET DEFAULT $default_sql")
+        elseif op isa AlterColumnDropDefault
+            col_name = quote_identifier(dialect, op.column)
+            push!(op_parts, "ALTER COLUMN $col_name DROP DEFAULT")
+        elseif op isa AlterColumnSetNotNull
+            col_name = quote_identifier(dialect, op.column)
+            push!(op_parts, "ALTER COLUMN $col_name SET NOT NULL")
+        elseif op isa AlterColumnDropNotNull
+            col_name = quote_identifier(dialect, op.column)
+            push!(op_parts, "ALTER COLUMN $col_name DROP NOT NULL")
+        elseif op isa AlterColumnSetType
+            col_name = quote_identifier(dialect, op.column)
+            type_sql = compile_column_type(dialect, op.type)
+            if op.using_expr !== nothing
+                using_sql = compile_expr(dialect, op.using_expr, params)
+                push!(op_parts, "ALTER COLUMN $col_name TYPE $type_sql USING $using_sql")
+            else
+                push!(op_parts, "ALTER COLUMN $col_name TYPE $type_sql")
+            end
+        elseif op isa AlterColumnSetStatistics
+            col_name = quote_identifier(dialect, op.column)
+            push!(op_parts, "ALTER COLUMN $col_name SET STATISTICS $(op.target)")
+        elseif op isa AlterColumnSetStorage
+            col_name = quote_identifier(dialect, op.column)
+            storage_mode = uppercase(string(op.storage))
+            push!(op_parts, "ALTER COLUMN $col_name SET STORAGE $storage_mode")
         else
             error("Unknown ALTER TABLE operation: $(typeof(op))")
         end
@@ -1179,6 +1210,39 @@ function compile(dialect::PostgreSQLDialect,
     return (sql, params)
 end
 
+"""
+    compile(dialect::PostgreSQLDialect, ddl::CreateIndex) -> (String, Vector{Symbol})
+
+Compile a CREATE INDEX statement to SQL for PostgreSQL.
+
+Supports:
+
+  - Column indexes
+  - Expression indexes
+  - Partial indexes (WHERE clause)
+  - Unique indexes
+  - Index methods (BTREE, HASH, GIN, GIST, BRIN, SP-GIST)
+
+# Example
+
+```julia
+# Column index
+ddl = create_index(:idx_users_email, :users, [:email]; unique = true)
+sql, params = compile(PostgreSQLDialect(), ddl)
+# sql → "CREATE UNIQUE INDEX \"idx_users_email\" ON \"users\" (\"email\")"
+
+# Expression index
+ddl = create_index(:idx_users_lower_email, :users, Symbol[];
+                   expr = [func(:lower, [col(:users, :email)])])
+sql, params = compile(PostgreSQLDialect(), ddl)
+# sql → "CREATE INDEX \"idx_users_lower_email\" ON \"users\" (lower(\"users\".\"email\"))"
+
+# GIN index for JSONB
+ddl = create_index(:idx_users_tags, :users, [:tags]; method = :gin)
+sql, params = compile(PostgreSQLDialect(), ddl)
+# sql → "CREATE INDEX \"idx_users_tags\" ON \"users\" USING GIN (\"tags\")"
+```
+"""
 function compile(dialect::PostgreSQLDialect,
                  ddl::CreateIndex)::Tuple{String, Vector{Symbol}}
     params = Symbol[]
@@ -1203,10 +1267,26 @@ function compile(dialect::PostgreSQLDialect,
     table = quote_identifier(dialect, ddl.table)
     push!(parts, table)
 
-    columns = [quote_identifier(dialect, col) for col in ddl.columns]
-    columns_str = Base.join(columns, ", ")
-    push!(parts, "($columns_str)")
+    # Index method (PostgreSQL-specific)
+    if ddl.method !== nothing
+        method_str = uppercase(string(ddl.method))
+        push!(parts, "USING $method_str")
+    end
 
+    # Index columns or expressions
+    if ddl.expressions !== nothing
+        # Expression index
+        exprs = [compile_expr(dialect, expr, params) for expr in ddl.expressions]
+        exprs_str = Base.join(exprs, ", ")
+        push!(parts, "($exprs_str)")
+    else
+        # Column index
+        columns = [quote_identifier(dialect, col) for col in ddl.columns]
+        columns_str = Base.join(columns, ", ")
+        push!(parts, "($columns_str)")
+    end
+
+    # Partial index support (WHERE clause)
     if ddl.where !== nothing
         where_sql = compile_expr(dialect, ddl.where, params)
         push!(parts, "WHERE $where_sql")

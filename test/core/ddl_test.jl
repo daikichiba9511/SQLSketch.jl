@@ -448,6 +448,91 @@ using SQLSketch.Core: col, literal, func, BinaryOp, Literal, SQLExpr
         @test at5.operations[3] isa RenameColumn
     end
 
+    @testset "ALTER COLUMN operations" begin
+        # SET DEFAULT
+        at1 = alter_table(:users) |>
+              set_column_default(:status, literal("active"))
+
+        @test length(at1.operations) == 1
+        @test at1.operations[1] isa AlterColumnSetDefault
+        @test at1.operations[1].column == :status
+        @test at1.operations[1].value isa Literal
+
+        # DROP DEFAULT
+        at2 = alter_table(:users) |>
+              drop_column_default(:status)
+
+        @test length(at2.operations) == 1
+        @test at2.operations[1] isa AlterColumnDropDefault
+        @test at2.operations[1].column == :status
+
+        # SET NOT NULL
+        at3 = alter_table(:users) |>
+              set_column_not_null(:email)
+
+        @test length(at3.operations) == 1
+        @test at3.operations[1] isa AlterColumnSetNotNull
+        @test at3.operations[1].column == :email
+
+        # DROP NOT NULL
+        at4 = alter_table(:users) |>
+              drop_column_not_null(:phone)
+
+        @test length(at4.operations) == 1
+        @test at4.operations[1] isa AlterColumnDropNotNull
+        @test at4.operations[1].column == :phone
+
+        # SET TYPE (without USING)
+        at5 = alter_table(:users) |>
+              set_column_type(:age, :bigint)
+
+        @test length(at5.operations) == 1
+        @test at5.operations[1] isa AlterColumnSetType
+        @test at5.operations[1].column == :age
+        @test at5.operations[1].type == :bigint
+        @test at5.operations[1].using_expr === nothing
+
+        # SET TYPE (with USING)
+        at6 = alter_table(:products) |>
+              set_column_type(:price, :integer;
+                              using_expr = cast(col(:products, :price), :integer))
+
+        @test length(at6.operations) == 1
+        @test at6.operations[1] isa AlterColumnSetType
+        @test at6.operations[1].column == :price
+        @test at6.operations[1].type == :integer
+        @test at6.operations[1].using_expr isa Cast
+
+        # SET STATISTICS (PostgreSQL)
+        at7 = alter_table(:users) |>
+              set_column_statistics(:email, 1000)
+
+        @test length(at7.operations) == 1
+        @test at7.operations[1] isa AlterColumnSetStatistics
+        @test at7.operations[1].column == :email
+        @test at7.operations[1].target == 1000
+
+        # SET STORAGE (PostgreSQL)
+        at8 = alter_table(:users) |>
+              set_column_storage(:bio, :external)
+
+        @test length(at8.operations) == 1
+        @test at8.operations[1] isa AlterColumnSetStorage
+        @test at8.operations[1].column == :bio
+        @test at8.operations[1].storage == :external
+
+        # Multiple ALTER COLUMN operations
+        at9 = alter_table(:users) |>
+              set_column_default(:status, literal("active")) |>
+              set_column_not_null(:email) |>
+              set_column_type(:age, :bigint)
+
+        @test length(at9.operations) == 3
+        @test at9.operations[1] isa AlterColumnSetDefault
+        @test at9.operations[2] isa AlterColumnSetNotNull
+        @test at9.operations[3] isa AlterColumnSetType
+    end
+
     @testset "DROP TABLE" begin
         # Basic drop
         dt = drop_table(:users)
@@ -503,6 +588,41 @@ using SQLSketch.Core: col, literal, func, BinaryOp, Literal, SQLExpr
         # Composite index
         ci6 = create_index(:idx_user_email, :users, [:user_id, :email])
         @test ci6.columns == [:user_id, :email]
+
+        # Expression index
+        ci7 = create_index(:idx_users_lower_email, :users, Symbol[],
+                           expr = [func(:lower, [col(:users, :email)])])
+        @test ci7.expressions !== nothing
+        @test length(ci7.expressions) == 1
+        @test ci7.expressions[1] isa FuncCall
+        @test isempty(ci7.columns)
+
+        # Expression index with multiple expressions
+        ci8 = create_index(:idx_users_name_parts, :users, Symbol[],
+                           expr = [func(:lower, [col(:users, :first_name)]),
+                                   func(:lower, [col(:users, :last_name)])])
+        @test ci8.expressions !== nothing
+        @test length(ci8.expressions) == 2
+
+        # Index with method (PostgreSQL)
+        ci9 = create_index(:idx_users_tags, :users, [:tags], method = :gin)
+        @test ci9.method == :gin
+        @test ci9.columns == [:tags]
+
+        # Expression index with method
+        ci10 = create_index(:idx_users_lower_email_btree, :users, Symbol[],
+                            expr = [func(:lower, [col(:users, :email)])],
+                            method = :btree)
+        @test ci10.method == :btree
+        @test ci10.expressions !== nothing
+
+        # Should error if both columns and expr are provided
+        @test_throws ErrorException create_index(:idx_bad, :users, [:email],
+                                                 expr = [func(:lower,
+                                                              [col(:users, :email)])])
+
+        # Should error if neither columns nor expr are provided
+        @test_throws ErrorException create_index(:idx_bad, :users, Symbol[])
     end
 
     @testset "DROP INDEX" begin

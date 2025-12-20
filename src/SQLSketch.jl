@@ -108,8 +108,13 @@ export OnUpdateConstraint, CommentConstraint, IdentityConstraint
 export TableConstraint, TablePrimaryKey, TableForeignKey, TableUnique, TableCheck
 export CreateTable, AlterTable, DropTable, CreateIndex, DropIndex
 export AlterTableOp, AddColumn, DropColumn, RenameColumn, AddTableConstraint, DropConstraint
+export AlterColumnSetDefault, AlterColumnDropDefault, AlterColumnSetNotNull,
+       AlterColumnDropNotNull, AlterColumnSetType, AlterColumnSetStatistics,
+       AlterColumnSetStorage
 export create_table, add_column, add_primary_key, add_foreign_key, add_unique, add_check
 export alter_table, add_alter_column, drop_alter_column, rename_alter_column
+export set_column_default, drop_column_default, set_column_not_null, drop_column_not_null
+export set_column_type, set_column_statistics, set_column_storage
 export drop_table, create_index, drop_index
 # execute_ddl is internal (not exported), use execute() instead
 end # module Core
@@ -214,8 +219,13 @@ export OnUpdateConstraint, CommentConstraint, IdentityConstraint
 export TableConstraint, TablePrimaryKey, TableForeignKey, TableUnique, TableCheck
 export CreateTable, AlterTable, DropTable, CreateIndex, DropIndex
 export AlterTableOp, AddColumn, DropColumn, RenameColumn, AddTableConstraint, DropConstraint
+export AlterColumnSetDefault, AlterColumnDropDefault, AlterColumnSetNotNull,
+       AlterColumnDropNotNull, AlterColumnSetType, AlterColumnSetStatistics,
+       AlterColumnSetStorage
 export create_table, add_column, add_primary_key, add_foreign_key, add_unique, add_check
 export alter_table, add_alter_column, drop_alter_column, rename_alter_column
+export set_column_default, drop_column_default, set_column_not_null, drop_column_not_null
+export set_column_type, set_column_statistics, set_column_storage
 export drop_table, create_index, drop_index
 
 # Export Dialect implementations

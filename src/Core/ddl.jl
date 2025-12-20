@@ -461,6 +461,140 @@ struct DropConstraint <: AlterTableOp
 end
 
 """
+    AlterColumnSetDefault(column::Symbol, value::SQLExpr)
+
+ALTER TABLE ALTER COLUMN SET DEFAULT operation.
+
+# Example
+
+```julia
+alter_table(:users) |>
+set_column_default(:status, literal("active"))
+```
+"""
+struct AlterColumnSetDefault <: AlterTableOp
+    column::Symbol
+    value::SQLExpr
+end
+
+"""
+    AlterColumnDropDefault(column::Symbol)
+
+ALTER TABLE ALTER COLUMN DROP DEFAULT operation.
+
+# Example
+
+```julia
+alter_table(:users) |>
+drop_column_default(:status)
+```
+"""
+struct AlterColumnDropDefault <: AlterTableOp
+    column::Symbol
+end
+
+"""
+    AlterColumnSetNotNull(column::Symbol)
+
+ALTER TABLE ALTER COLUMN SET NOT NULL operation.
+
+# Example
+
+```julia
+alter_table(:users) |>
+set_column_not_null(:email)
+```
+"""
+struct AlterColumnSetNotNull <: AlterTableOp
+    column::Symbol
+end
+
+"""
+    AlterColumnDropNotNull(column::Symbol)
+
+ALTER TABLE ALTER COLUMN DROP NOT NULL operation.
+
+# Example
+
+```julia
+alter_table(:users) |>
+drop_column_not_null(:phone)
+```
+"""
+struct AlterColumnDropNotNull <: AlterTableOp
+    column::Symbol
+end
+
+"""
+    AlterColumnSetType(column::Symbol, type::ColumnType, using_expr::Union{SQLExpr, Nothing})
+
+ALTER TABLE ALTER COLUMN SET DATA TYPE operation.
+
+# Fields
+
+  - `column::Symbol` – Column name
+  - `type::ColumnType` – New column type
+  - `using_expr::Union{SQLExpr, Nothing}` – Optional USING expression for type conversion
+
+# Example
+
+```julia
+alter_table(:users) |>
+set_column_type(:age, :bigint)
+
+# With USING clause for type conversion
+alter_table(:products) |>
+set_column_type(:price, :integer; using_expr = cast(col(:products, :price), :integer))
+```
+"""
+struct AlterColumnSetType <: AlterTableOp
+    column::Symbol
+    type::ColumnType
+    using_expr::Union{SQLExpr, Nothing}
+end
+
+AlterColumnSetType(column::Symbol, type::ColumnType) = AlterColumnSetType(column, type,
+                                                                          nothing)
+
+"""
+    AlterColumnSetStatistics(column::Symbol, target::Int)
+
+ALTER TABLE ALTER COLUMN SET STATISTICS operation (PostgreSQL).
+
+Sets the per-column statistics-gathering target.
+
+# Example
+
+```julia
+alter_table(:users) |>
+set_column_statistics(:email, 1000)
+```
+"""
+struct AlterColumnSetStatistics <: AlterTableOp
+    column::Symbol
+    target::Int
+end
+
+"""
+    AlterColumnSetStorage(column::Symbol, storage::Symbol)
+
+ALTER TABLE ALTER COLUMN SET STORAGE operation (PostgreSQL).
+
+Storage modes: :plain, :external, :extended, :main
+
+# Example
+
+```julia
+alter_table(:users) |>
+set_column_storage(:bio, :external)
+```
+"""
+struct AlterColumnSetStorage <: AlterTableOp
+    column::Symbol
+    storage::Symbol  # :plain, :external, :extended, :main
+end
+
+"""
     AlterTable(table::Symbol, operations::Vector{AlterTableOp})
 
 Represents an ALTER TABLE statement.
@@ -522,7 +656,8 @@ DropTable(table::Symbol; if_exists::Bool = false, cascade::Bool = false) = DropT
 
 """
     CreateIndex(name::Symbol, table::Symbol, columns::Vector{Symbol},
-                unique::Bool, if_not_exists::Bool, where::Union{SQLExpr, Nothing})
+                unique::Bool, if_not_exists::Bool, where::Union{SQLExpr, Nothing},
+                expressions::Union{Vector{SQLExpr}, Nothing}, method::Union{Symbol, Nothing})
 
 Represents a CREATE INDEX statement.
 
@@ -530,15 +665,25 @@ Represents a CREATE INDEX statement.
 
   - `name::Symbol` – Index name
   - `table::Symbol` – Table name
-  - `columns::Vector{Symbol}` – Columns to index
+  - `columns::Vector{Symbol}` – Columns to index (mutually exclusive with expressions)
   - `unique::Bool` – Whether this is a unique index
   - `if_not_exists::Bool` – Whether to include IF NOT EXISTS
   - `where::Union{SQLExpr, Nothing}` – Optional partial index condition
+  - `expressions::Union{Vector{SQLExpr}, Nothing}` – Expression index (e.g., `lower(email)`)
+  - `method::Union{Symbol, Nothing}` – Index method (:btree, :hash, :gin, :gist, :brin, :spgist) - PostgreSQL only
 
 # Example
 
 ```julia
+# Column index
 create_index(:idx_users_email, :users, [:email]; unique = true)
+
+# Expression index
+create_index(:idx_users_lower_email, :users;
+             expr = [func(:lower, [col(:users, :email)])])
+
+# Index with method (PostgreSQL)
+create_index(:idx_users_tags, :users, [:tags]; method = :gin)
 ```
 """
 struct CreateIndex <: DDLStatement
@@ -548,12 +693,20 @@ struct CreateIndex <: DDLStatement
     unique::Bool
     if_not_exists::Bool
     where::Union{SQLExpr, Nothing}
+    expressions::Union{Vector{SQLExpr}, Nothing}
+    method::Union{Symbol, Nothing}
 end
 
 CreateIndex(name::Symbol, table::Symbol, columns::Vector{Symbol};
 unique::Bool = false, if_not_exists::Bool = false,
-where::Union{SQLExpr, Nothing} = nothing) = CreateIndex(name, table, columns, unique,
-                                                        if_not_exists, where)
+where::Union{SQLExpr, Nothing} = nothing,
+expressions::Union{Vector, Nothing} = nothing,
+method::Union{Symbol, Nothing} = nothing) = CreateIndex(name, table, columns, unique,
+                                                        if_not_exists, where,
+                                                        expressions === nothing ? nothing :
+                                                        convert(Vector{SQLExpr},
+                                                                expressions),
+                                                        method)
 
 #
 # DROP INDEX
@@ -1090,6 +1243,177 @@ rename_alter_column(old_name::Symbol, new_name::Symbol) = at -> rename_alter_col
                                                                                     new_name)
 
 #
+# Pipeline API - ALTER COLUMN operations
+#
+
+"""
+    set_column_default(at::AlterTable, column::Symbol, value::SQLExpr) -> AlterTable
+
+Set a DEFAULT value for a column (ALTER TABLE ALTER COLUMN SET DEFAULT).
+
+# Example
+
+```julia
+alter_table(:users) |>
+set_column_default(:status, literal("active"))
+```
+"""
+function set_column_default(at::AlterTable, column::Symbol, value::SQLExpr)::AlterTable
+    op = AlterColumnSetDefault(column, value)
+    new_ops = vcat(at.operations, [op])
+    return AlterTable(at.table, new_ops)
+end
+
+# Curried version
+set_column_default(column::Symbol, value::SQLExpr) = at -> set_column_default(at, column,
+                                                                              value)
+
+"""
+    drop_column_default(at::AlterTable, column::Symbol) -> AlterTable
+
+Drop the DEFAULT value for a column (ALTER TABLE ALTER COLUMN DROP DEFAULT).
+
+# Example
+
+```julia
+alter_table(:users) |>
+drop_column_default(:status)
+```
+"""
+function drop_column_default(at::AlterTable, column::Symbol)::AlterTable
+    op = AlterColumnDropDefault(column)
+    new_ops = vcat(at.operations, [op])
+    return AlterTable(at.table, new_ops)
+end
+
+# Curried version
+drop_column_default(column::Symbol) = at -> drop_column_default(at, column)
+
+"""
+    set_column_not_null(at::AlterTable, column::Symbol) -> AlterTable
+
+Set a column to NOT NULL (ALTER TABLE ALTER COLUMN SET NOT NULL).
+
+# Example
+
+```julia
+alter_table(:users) |>
+set_column_not_null(:email)
+```
+"""
+function set_column_not_null(at::AlterTable, column::Symbol)::AlterTable
+    op = AlterColumnSetNotNull(column)
+    new_ops = vcat(at.operations, [op])
+    return AlterTable(at.table, new_ops)
+end
+
+# Curried version
+set_column_not_null(column::Symbol) = at -> set_column_not_null(at, column)
+
+"""
+    drop_column_not_null(at::AlterTable, column::Symbol) -> AlterTable
+
+Allow NULL values for a column (ALTER TABLE ALTER COLUMN DROP NOT NULL).
+
+# Example
+
+```julia
+alter_table(:users) |>
+drop_column_not_null(:phone)
+```
+"""
+function drop_column_not_null(at::AlterTable, column::Symbol)::AlterTable
+    op = AlterColumnDropNotNull(column)
+    new_ops = vcat(at.operations, [op])
+    return AlterTable(at.table, new_ops)
+end
+
+# Curried version
+drop_column_not_null(column::Symbol) = at -> drop_column_not_null(at, column)
+
+"""
+    set_column_type(at::AlterTable, column::Symbol, type::ColumnType;
+                    using_expr::Union{SQLExpr, Nothing}=nothing) -> AlterTable
+
+Change the data type of a column (ALTER TABLE ALTER COLUMN SET DATA TYPE).
+
+# Keyword Arguments
+
+  - `using_expr::Union{SQLExpr, Nothing}` – Optional USING expression for type conversion (PostgreSQL)
+
+# Example
+
+```julia
+alter_table(:users) |>
+set_column_type(:age, :bigint)
+
+# With USING clause for type conversion
+alter_table(:products) |>
+set_column_type(:price, :integer; using_expr = cast(col(:products, :price), :integer))
+```
+"""
+function set_column_type(at::AlterTable, column::Symbol, type::ColumnType;
+                         using_expr::Union{SQLExpr, Nothing} = nothing)::AlterTable
+    op = AlterColumnSetType(column, type, using_expr)
+    new_ops = vcat(at.operations, [op])
+    return AlterTable(at.table, new_ops)
+end
+
+# Curried version
+function set_column_type(column::Symbol, type::ColumnType;
+                         using_expr::Union{SQLExpr, Nothing} = nothing)
+    return at -> set_column_type(at, column, type; using_expr = using_expr)
+end
+
+"""
+    set_column_statistics(at::AlterTable, column::Symbol, target::Int) -> AlterTable
+
+Set the statistics-gathering target for a column (ALTER TABLE ALTER COLUMN SET STATISTICS).
+
+PostgreSQL only.
+
+# Example
+
+```julia
+alter_table(:users) |>
+set_column_statistics(:email, 1000)
+```
+"""
+function set_column_statistics(at::AlterTable, column::Symbol, target::Int)::AlterTable
+    op = AlterColumnSetStatistics(column, target)
+    new_ops = vcat(at.operations, [op])
+    return AlterTable(at.table, new_ops)
+end
+
+# Curried version
+set_column_statistics(column::Symbol, target::Int) = at -> set_column_statistics(at, column,
+                                                                                 target)
+
+"""
+    set_column_storage(at::AlterTable, column::Symbol, storage::Symbol) -> AlterTable
+
+Set the storage mode for a column (ALTER TABLE ALTER COLUMN SET STORAGE).
+
+PostgreSQL only. Storage modes: :plain, :external, :extended, :main
+
+# Example
+
+```julia
+alter_table(:users) |>
+set_column_storage(:bio, :external)
+```
+"""
+function set_column_storage(at::AlterTable, column::Symbol, storage::Symbol)::AlterTable
+    op = AlterColumnSetStorage(column, storage)
+    new_ops = vcat(at.operations, [op])
+    return AlterTable(at.table, new_ops)
+end
+
+# Curried version
+set_column_storage(column::Symbol, storage::Symbol) = at -> set_column_storage(at, column,
+                                                                               storage)
+
+#
 # Pipeline API - DROP TABLE
 #
 
@@ -1118,33 +1442,69 @@ end
 """
     create_index(name::Symbol, table::Symbol, columns::Vector{Symbol};
                  unique::Bool=false, if_not_exists::Bool=false,
-                 where::Union{SQLExpr, Nothing}=nothing) -> CreateIndex
+                 where::Union{SQLExpr, Nothing}=nothing,
+                 expr::Union{Vector{SQLExpr}, Nothing}=nothing,
+                 method::Union{Symbol, Nothing}=nothing) -> CreateIndex
 
 Create a CREATE INDEX statement.
+
+# Keyword Arguments
+
+  - `unique::Bool` – Create a unique index
+  - `if_not_exists::Bool` – Include IF NOT EXISTS clause
+  - `where::Union{SQLExpr, Nothing}` – Partial index condition
+  - `expr::Union{Vector{SQLExpr}, Nothing}` – Expression index (mutually exclusive with columns)
+  - `method::Union{Symbol, Nothing}` – Index method (:btree, :hash, :gin, :gist, :brin, :spgist) - PostgreSQL only
 
 # Example
 
 ```julia
+# Column index
 create_index(:idx_users_email, :users, [:email])
 create_index(:idx_users_email, :users, [:email]; unique = true)
+
+# Partial index
 create_index(:idx_active_users, :users, [:id];
              where = col(:users, :active) == literal(true))
+
+# Expression index
+create_index(:idx_users_lower_email, :users, Symbol[];
+             expr = [func(:lower, [col(:users, :email)])])
+
+# Index with method (PostgreSQL)
+create_index(:idx_users_tags, :users, [:tags]; method = :gin)
 ```
 """
-function create_index(name::Symbol, table::Symbol, columns::Vector{Symbol};
+function create_index(name::Symbol, table::Symbol, columns::Vector{Symbol} = Symbol[];
                       unique::Bool = false,
                       if_not_exists::Bool = false,
-                      where::Union{SQLExpr, Nothing} = nothing)::CreateIndex
-    return CreateIndex(name, table, columns, unique, if_not_exists, where)
+                      where::Union{SQLExpr, Nothing} = nothing,
+                      expr::Union{Vector, Nothing} = nothing,
+                      method::Union{Symbol, Nothing} = nothing)::CreateIndex
+    # Validate mutually exclusive options
+    if !isempty(columns) && expr !== nothing
+        error("Cannot specify both columns and expr for index. Use one or the other.")
+    end
+
+    if isempty(columns) && expr === nothing
+        error("Must specify either columns or expr for index.")
+    end
+
+    # Convert expr to Vector{SQLExpr} if provided
+    expressions = expr === nothing ? nothing : convert(Vector{SQLExpr}, expr)
+
+    return CreateIndex(name, table, columns, unique, if_not_exists, where, expressions,
+                       method)
 end
 
 # Convenience for single column
 function create_index(name::Symbol, table::Symbol, column::Symbol;
                       unique::Bool = false,
                       if_not_exists::Bool = false,
-                      where::Union{SQLExpr, Nothing} = nothing)::CreateIndex
+                      where::Union{SQLExpr, Nothing} = nothing,
+                      method::Union{Symbol, Nothing} = nothing)::CreateIndex
     return create_index(name, table, [column]; unique = unique,
-                        if_not_exists = if_not_exists, where = where)
+                        if_not_exists = if_not_exists, where = where, method = method)
 end
 
 #

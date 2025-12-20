@@ -834,8 +834,68 @@ Task breakdown based on `design.md` and `roadmap.md`.
 - [x] CREATE INDEX / DROP INDEX
 - [x] DDL compilation via Dialect
 - [x] Column constraints (PRIMARY KEY, NOT NULL, UNIQUE, DEFAULT, CHECK, FOREIGN KEY)
+- [x] Extended column constraints (AUTO_INCREMENT, GENERATED, COLLATION, IDENTITY, COMMENT, ON UPDATE)
 - [x] Table constraints (PRIMARY KEY, FOREIGN KEY, UNIQUE, CHECK)
 - [x] Portable column type system
+
+#### DDL - Advanced Features ⏳ (未実装)
+
+**Column-level制約:**
+- [ ] DEFERRABLE / NOT DEFERRABLE (PostgreSQL)
+  - 制約チェックの遅延評価制御
+- [ ] COMPRESSION (PostgreSQL 14+)
+  - カラムの圧縮方式指定
+- [ ] STORAGE (PostgreSQL)
+  - カラムのストレージ戦略指定
+
+**Table-level制約:**
+- [ ] EXCLUDE constraint (PostgreSQL)
+  - 排他制約（`EXCLUDE USING gist (period WITH &&)`）
+- [ ] WITH clause (storage parameters)
+  - テーブルストレージパラメータ（`WITH (fillfactor=70)`）
+- [ ] TABLESPACE
+  - テーブルスペース指定
+- [ ] ON COMMIT (temporary tables)
+  - 一時テーブルのコミット時動作（`ON COMMIT DROP/DELETE ROWS/PRESERVE ROWS`）
+- [ ] PARTITION BY
+  - テーブルパーティショニング（RANGE, LIST, HASH）
+- [ ] INHERITS (PostgreSQL)
+  - テーブル継承
+
+**Index関連:**
+- [ ] Expression index
+  - 式インデックス（`CREATE INDEX ON users (lower(email))`）
+- [ ] Index method
+  - インデックスメソッド指定（BTREE, HASH, GIN, GIST, BRIN, SP-GIST）
+- [ ] INCLUDE columns (PostgreSQL 11+)
+  - カバリングインデックス（`CREATE INDEX ON users (email) INCLUDE (name, age)`）
+- [ ] Index storage parameters
+  - インデックスストレージパラメータ（`WITH (fillfactor=70)`）
+- [ ] CONCURRENTLY (PostgreSQL)
+  - 並行インデックス作成（`CREATE INDEX CONCURRENTLY`）
+- [ ] Partial index WHERE clause
+  - 部分インデックス（一部実装済み、拡張が必要）
+
+**ALTER TABLE operations (未実装):**
+- [ ] ALTER COLUMN operations
+  - SET DEFAULT / DROP DEFAULT
+  - SET NOT NULL / DROP NOT NULL
+  - SET DATA TYPE (型変換)
+  - SET STATISTICS (統計情報)
+  - SET STORAGE (ストレージ戦略)
+- [ ] RENAME TABLE
+  - テーブル名変更
+- [ ] SET/RESET storage parameters
+  - ストレージパラメータの設定/リセット
+- [ ] ENABLE/DISABLE TRIGGER
+  - トリガーの有効化/無効化
+- [ ] SET SCHEMA
+  - スキーマ移動
+
+**優先度評価:**
+- 🔥 **高**: Expression index, Index method, ALTER COLUMN operations
+- 🌟 **中**: INCLUDE columns, PARTITION BY, CONCURRENTLY
+- 📌 **低**: DEFERRABLE, COMPRESSION, STORAGE, TABLESPACE, INHERITS, EXCLUDE
 
 ### Performance ⏳
 - [ ] Prepared statement caching
