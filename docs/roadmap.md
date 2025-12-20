@@ -696,7 +696,170 @@ insert_into(:users, [:id, :email, :version]) |>
 
 ---
 
-## Optional Future Work (Post-v0.1)
+## Phase 13: Performance Optimization (Week 19-24) ⏳ NEXT
+
+**Goal**: Production-ready performance with benchmarking, caching, and pooling
+
+### Phase 13.1: Benchmark Infrastructure (3-4 days)
+
+**Tasks:**
+1. Set up BenchmarkTools.jl integration
+2. Create benchmark suite structure
+3. Implement query construction benchmarks
+4. Implement compilation benchmarks
+5. Implement execution benchmarks
+6. Implement comparison benchmarks (SQLSketch vs raw SQL)
+7. Create automated benchmark runner
+8. Document benchmarking guidelines
+
+**Deliverables:**
+- `benchmark/` directory with comprehensive suite
+- Baseline performance metrics
+- Regression testing infrastructure
+
+---
+
+### Phase 13.2: Prepared Statement Caching (4-5 days)
+
+**Tasks:**
+1. Design cache architecture (AST fingerprinting, LRU eviction)
+2. Implement `PreparedStatementCache` struct
+3. Integrate with SQLite and PostgreSQL drivers
+4. Add cache management API
+5. Write comprehensive tests (correctness + performance)
+6. Benchmark cache impact
+
+**Deliverables:**
+- `src/Core/prepared_cache.jl`
+- Driver integration
+- Test suite with >50% speedup validation
+
+**Success Criteria:**
+- Repeated queries run >50% faster
+- Cache hit rate >90% in typical workloads
+- No correctness regression
+
+---
+
+### Phase 13.3: Connection Pooling (5-6 days)
+
+**Tasks:**
+1. Design thread-safe connection pool architecture
+2. Implement `ConnectionPool` struct with lifecycle management
+3. Implement pool API (acquire/release/with_connection)
+4. Add health checks and automatic reconnection
+5. Write multi-threaded tests
+6. Benchmark concurrent query performance
+
+**Deliverables:**
+- `src/Core/connection_pool.jl`
+- Thread-safe pool implementation
+- Concurrent workload support
+
+**Success Criteria:**
+- Handles concurrent access safely
+- Connection overhead reduced by >80%
+- Graceful handling of connection failures
+
+---
+
+### Phase 13.4: Batch Operations (4-5 days)
+
+**Tasks:**
+1. Design batch INSERT/UPDATE/DELETE API
+2. Implement `insert_batch` with chunking
+3. Add PostgreSQL COPY support (fast path)
+4. Add SQLite bulk insert optimization
+5. Write tests for small and large batches
+6. Benchmark batch vs loop operations
+
+**Deliverables:**
+- `src/Core/batch.jl`
+- Dialect-specific optimizations
+- >10x speedup for batch INSERT
+
+**Success Criteria:**
+- Batch INSERT >10x faster than loop
+- PostgreSQL COPY support functional
+- Handles 100K+ row batches efficiently
+
+---
+
+### Phase 13.5: Streaming Results (3-4 days)
+
+**Tasks:**
+1. Design iterator-based streaming API
+2. Implement `stream_query` function
+3. Add lazy row materialization
+4. Write tests for large result sets
+5. Benchmark memory usage vs fetch_all
+
+**Deliverables:**
+- `src/Core/streaming.jl`
+- Memory-efficient iteration
+- <10% memory usage vs fetch_all
+
+**Success Criteria:**
+- Handles 100K+ row results efficiently
+- Memory usage <10% of fetch_all
+- Type-safe iteration
+
+---
+
+### Phase 13.6: Query Plan Caching (2-3 days)
+
+**Tasks:**
+1. Design AST-based query plan cache
+2. Implement `QueryPlanCache` with LRU eviction
+3. Integrate with compilation pipeline
+4. Write tests and benchmarks
+
+**Deliverables:**
+- `src/Core/query_plan_cache.jl`
+- Compilation speedup for repeated query patterns
+
+---
+
+### Phase 13.7: Performance Tooling (3-4 days)
+
+**Tasks:**
+1. Implement query performance analyzer
+2. Add `@timed` macro for queries
+3. Integrate EXPLAIN QUERY PLAN analysis
+4. Write performance documentation
+
+**Deliverables:**
+- `src/Core/profiling.jl`
+- `docs/performance.md`
+- Performance best practices guide
+
+---
+
+## Phase 13 Summary
+
+**Total Duration:** 24-31 days (~5-6 weeks)
+
+**Implementation Order:**
+1. Benchmark Infrastructure (foundation)
+2. Prepared Statement Caching (high impact)
+3. Connection Pooling (production critical)
+4. Batch Operations (common use case)
+5. Streaming Results (large datasets)
+6. Query Plan Caching (optimization)
+7. Performance Tooling (observability)
+
+**Success Metrics:**
+- Benchmark suite established ✅
+- Test coverage >90% maintained ✅
+- Prepared statement caching: >50% speedup
+- Connection pooling: concurrent workload support
+- Batch operations: >10x speedup
+- Streaming: <10% memory usage
+- Documentation complete
+
+---
+
+## Optional Future Work (Post-v0.2)
 
 - MySQL Dialect
 - ~~Set operations (UNION, INTERSECT, EXCEPT)~~ ✅ **COMPLETED in Phase 8.6**
@@ -726,6 +889,7 @@ insert_into(:users, [:id, :email, :version]) |>
 | 10    | 1 week   | **M4**: DDL support with type-safe schema definitions | ✅ COMPLETED |
 | 11    | 2 weeks  | **M5**: PostgreSQL support (validation of abstraction) | ✅ COMPLETED |
 | 12    | 2+ weeks | **M6**: Documentation and examples | ✅ COMPLETED |
+| 13    | 5-6 weeks | **M7**: Performance optimization (benchmarks, caching, pooling) | ⏳ NEXT |
 
 ---
 
@@ -741,7 +905,7 @@ insert_into(:users, [:id, :email, :version]) |>
 
 ## Current Status
 
-**All phases completed successfully! 🎉**
+**Core features complete, moving to performance optimization! 🚀**
 
 - 1712 total tests passing ✅
 - Full SQLite support
@@ -750,4 +914,9 @@ insert_into(:users, [:id, :email, :version]) |>
 - Transaction and migration support
 - Type-safe query execution pipeline
 - Complete documentation suite
-- **Ready for v0.1.0 release!**
+- **Next: Phase 13 - Performance Optimization** ⏳
+  - Benchmarking infrastructure
+  - Prepared statement caching
+  - Connection pooling
+  - Batch operations
+  - Streaming results

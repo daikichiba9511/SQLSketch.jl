@@ -526,6 +526,284 @@ Task breakdown based on `design.md` and `roadmap.md`.
 
 ---
 
+## Phase 13: Performance Optimization ⏳ NEXT
+
+### 13.1: Benchmark Infrastructure ⏳
+**Goal**: Establish performance baseline and regression testing
+
+- [ ] Add `BenchmarkTools.jl` dependency
+- [ ] Create `benchmark/` directory structure
+- [ ] Implement query construction benchmarks
+  - [ ] Simple query construction (FROM, WHERE, SELECT)
+  - [ ] Complex query construction (JOINs, subqueries, CTEs)
+  - [ ] Expression tree building overhead
+- [ ] Implement compilation benchmarks
+  - [ ] SQLite dialect compilation
+  - [ ] PostgreSQL dialect compilation
+  - [ ] Large query compilation (100+ columns)
+- [ ] Implement execution benchmarks
+  - [ ] Single row fetch performance
+  - [ ] Bulk fetch performance (1K, 10K, 100K rows)
+  - [ ] Type conversion overhead
+- [ ] Implement comparison benchmarks
+  - [ ] SQLSketch vs raw SQL (baseline)
+  - [ ] SQLSketch vs DBInterface.jl directly
+- [ ] Create benchmark suite runner
+  - [ ] Automated benchmark execution
+  - [ ] Results visualization
+  - [ ] Historical tracking (optional)
+- [ ] Document benchmarking guidelines
+
+**Deliverables:**
+- `benchmark/query_construction.jl`
+- `benchmark/compilation.jl`
+- `benchmark/execution.jl`
+- `benchmark/comparison.jl`
+- `benchmark/run_benchmarks.jl`
+- `docs/benchmarking.md`
+
+**Estimated time:** 3-4 days
+
+---
+
+### 13.2: Prepared Statement Caching ⏳
+**Goal**: Cache compiled SQL and prepared statements for repeated queries
+
+- [ ] Design prepared statement cache architecture
+  - [ ] Query AST fingerprinting (structural equality)
+  - [ ] Cache key generation strategy
+  - [ ] Cache eviction policy (LRU)
+  - [ ] Thread-safety considerations
+- [ ] Implement `PreparedStatementCache` struct
+  - [ ] Cache storage (Dict-based)
+  - [ ] Hit/miss tracking for metrics
+  - [ ] Size limits and eviction
+- [ ] Implement cache integration
+  - [ ] SQLiteDriver prepared statement support
+  - [ ] PostgreSQLDriver prepared statement support
+  - [ ] Automatic cache lookup in `fetch_all/fetch_one/execute_dml`
+- [ ] Implement cache management API
+  - [ ] `enable_prepared_stmt_cache(conn; max_size=100)`
+  - [ ] `disable_prepared_stmt_cache(conn)`
+  - [ ] `clear_prepared_stmt_cache(conn)`
+  - [ ] `prepared_stmt_cache_stats(conn)` → hit/miss rates
+- [ ] Write comprehensive tests
+  - [ ] Cache hit scenarios
+  - [ ] Cache miss scenarios
+  - [ ] Eviction behavior
+  - [ ] Correctness (cached results == uncached results)
+  - [ ] Performance improvement measurements
+- [ ] Benchmark impact
+  - [ ] Repeated query execution speedup
+  - [ ] Memory overhead
+
+**Deliverables:**
+- `src/Core/prepared_cache.jl`
+- Integration in `src/Core/execute.jl`
+- Driver-specific implementation in SQLite/PostgreSQL drivers
+- `test/core/prepared_cache_test.jl`
+- `benchmark/prepared_cache_benchmark.jl`
+
+**Estimated time:** 4-5 days
+
+---
+
+### 13.3: Connection Pooling ⏳
+**Goal**: Reusable connection pool for multi-threaded/web applications
+
+- [ ] Design connection pool architecture
+  - [ ] Pool configuration (min/max connections, timeout)
+  - [ ] Connection lifecycle (acquire, release, health check)
+  - [ ] Connection state tracking (idle, active, stale)
+  - [ ] Thread-safety with locks
+- [ ] Implement `ConnectionPool` struct
+  - [ ] Connection creation on-demand
+  - [ ] Connection reuse
+  - [ ] Stale connection detection
+  - [ ] Pool exhaustion handling (wait vs error)
+- [ ] Implement pool API
+  - [ ] `create_pool(driver, config; min=1, max=10, timeout=30)`
+  - [ ] `acquire(pool)` → connection
+  - [ ] `release(pool, conn)`
+  - [ ] `with_connection(f, pool)` → automatic acquire/release
+  - [ ] `close_pool(pool)` → close all connections
+  - [ ] `pool_stats(pool)` → active/idle/total connections
+- [ ] Implement health checks
+  - [ ] Periodic connection validation
+  - [ ] Automatic reconnection on failure
+  - [ ] Configurable health check interval
+- [ ] Write comprehensive tests
+  - [ ] Basic acquire/release
+  - [ ] Concurrent access (multi-threaded)
+  - [ ] Pool exhaustion behavior
+  - [ ] Connection validation
+  - [ ] Automatic cleanup
+- [ ] Benchmark impact
+  - [ ] Connection overhead reduction
+  - [ ] Concurrent query performance
+
+**Deliverables:**
+- `src/Core/connection_pool.jl`
+- Driver integration (SQLite/PostgreSQL)
+- `test/core/connection_pool_test.jl`
+- `benchmark/connection_pool_benchmark.jl`
+- Documentation in `docs/src/tutorial.md`
+
+**Estimated time:** 5-6 days
+
+---
+
+### 13.4: Batch Operations ⏳
+**Goal**: Efficient bulk INSERT/UPDATE/DELETE operations
+
+- [ ] Design batch API
+  - [ ] Batch INSERT with multiple value sets
+  - [ ] Batch UPDATE with parameter arrays
+  - [ ] Transaction-wrapped batch execution
+- [ ] Implement batch INSERT
+  - [ ] `insert_batch(table, columns, rows::Vector{NamedTuple})`
+  - [ ] Chunking for large batches (1000 rows/chunk)
+  - [ ] PostgreSQL COPY support (fast path)
+  - [ ] SQLite bulk insert optimization
+- [ ] Implement batch UPDATE/DELETE
+  - [ ] Parameter array binding
+  - [ ] Temporary table strategy (for complex updates)
+- [ ] Write comprehensive tests
+  - [ ] Small batches (10 rows)
+  - [ ] Large batches (10K+ rows)
+  - [ ] Transaction rollback on error
+  - [ ] Type conversion correctness
+- [ ] Benchmark impact
+  - [ ] Batch INSERT vs loop INSERT
+  - [ ] PostgreSQL COPY vs INSERT
+  - [ ] Optimal chunk size determination
+
+**Deliverables:**
+- `src/Core/batch.jl`
+- Dialect-specific compilation support
+- Driver-specific execution support
+- `test/core/batch_test.jl`
+- `benchmark/batch_benchmark.jl`
+
+**Estimated time:** 4-5 days
+
+---
+
+### 13.5: Streaming Results ⏳
+**Goal**: Memory-efficient processing of large result sets
+
+- [ ] Design streaming API
+  - [ ] Iterator-based result consumption
+  - [ ] Configurable fetch size
+  - [ ] Early termination support
+- [ ] Implement `stream_query` function
+  - [ ] `stream_query(conn, query; fetch_size=1000)` → iterator
+  - [ ] Lazy row materialization
+  - [ ] Type-safe iteration
+- [ ] Implement result iterator
+  - [ ] `Base.iterate` implementation
+  - [ ] Automatic batch fetching
+  - [ ] Connection lifecycle management
+- [ ] Write comprehensive tests
+  - [ ] Small result sets
+  - [ ] Large result sets (100K+ rows)
+  - [ ] Early termination
+  - [ ] Memory usage validation
+- [ ] Benchmark impact
+  - [ ] Memory usage: streaming vs fetch_all
+  - [ ] Throughput comparison
+
+**Deliverables:**
+- `src/Core/streaming.jl`
+- Driver integration (SQLite/PostgreSQL)
+- `test/core/streaming_test.jl`
+- `benchmark/streaming_benchmark.jl`
+
+**Estimated time:** 3-4 days
+
+---
+
+### 13.6: Query Plan Caching ⏳
+**Goal**: Cache compiled SQL and execution plans
+
+- [ ] Design query plan cache
+  - [ ] AST-based cache key
+  - [ ] Compiled SQL storage
+  - [ ] Parameter placeholder tracking
+- [ ] Implement `QueryPlanCache` struct
+  - [ ] Thread-safe cache access
+  - [ ] LRU eviction policy
+  - [ ] Size limits
+- [ ] Integrate with compilation pipeline
+  - [ ] Automatic cache lookup
+  - [ ] Cache warming strategies
+- [ ] Write tests
+  - [ ] Cache correctness
+  - [ ] Performance improvement
+- [ ] Benchmark impact
+
+**Deliverables:**
+- `src/Core/query_plan_cache.jl`
+- Integration in `src/Core/execute.jl`
+- `test/core/query_plan_cache_test.jl`
+- `benchmark/query_plan_cache_benchmark.jl`
+
+**Estimated time:** 2-3 days
+
+---
+
+### 13.7: Performance Tooling ⏳
+**Goal**: Built-in performance analysis tools
+
+- [ ] Implement query performance analyzer
+  - [ ] Execution time tracking
+  - [ ] Row count statistics
+  - [ ] Cache hit rate monitoring
+- [ ] Implement `@timed` macro for queries
+  - [ ] `@timed fetch_all(...)` → results + timing
+  - [ ] Detailed timing breakdown (compile, execute, decode)
+- [ ] Implement query profiler
+  - [ ] Automatic EXPLAIN QUERY PLAN integration
+  - [ ] Index usage analysis
+  - [ ] Full table scan detection
+- [ ] Write documentation
+  - [ ] Performance best practices
+  - [ ] Profiling guide
+  - [ ] Optimization cookbook
+
+**Deliverables:**
+- `src/Core/profiling.jl`
+- `docs/performance.md`
+- Example usage in tutorial
+
+**Estimated time:** 3-4 days
+
+---
+
+## Phase 13 Summary
+
+**Total estimated time:** 24-31 days (~5-6 weeks)
+
+**Priority order:**
+1. **13.1 Benchmark Infrastructure** (foundation for all other work)
+2. **13.2 Prepared Statement Caching** (high impact, low complexity)
+3. **13.3 Connection Pooling** (critical for production use)
+4. **13.4 Batch Operations** (common use case)
+5. **13.5 Streaming Results** (important for large datasets)
+6. **13.6 Query Plan Caching** (optimization)
+7. **13.7 Performance Tooling** (nice to have)
+
+**Success metrics:**
+- [ ] Benchmark suite established
+- [ ] >90% test coverage maintained
+- [ ] Prepared statement caching shows >50% speedup on repeated queries
+- [ ] Connection pooling supports concurrent workloads
+- [ ] Batch INSERT >10x faster than loop INSERT
+- [ ] Streaming uses <10% memory vs fetch_all for large results
+- [ ] All performance features documented
+
+---
+
 ## Optional Future Work (Post-v0.1)
 
 ### Additional Dialects ⏳
@@ -651,15 +929,19 @@ Task breakdown based on `design.md` and `roadmap.md`.
 
 ## Current Status Summary
 
-**Completed Phases:** 12/12 ✅
-**Total Tasks Completed:** ~470/470+ ✅
-**Current Phase:** All phases complete! 🎉
+**Completed Phases:** 12/13 ✅
+**Total Tasks Completed:** ~470/550+
+**Current Phase:** Phase 13 (Performance Optimization) ⏳
 
-**Next Steps:**
-1. Release v0.1.0
-2. Optional future work (see below)
+**Next Immediate Tasks:**
+1. Begin Phase 13.1: Benchmark Infrastructure
+2. Set up BenchmarkTools.jl integration
+3. Create baseline performance metrics
+4. Implement query construction benchmarks
 
 **Blockers:** None
+
+**Target Release:** v0.2.0 (after Phase 13 completion)
 
 **Notes:**
 - Phase 1 (Expression AST) completed successfully with **268 tests passing** ✅
