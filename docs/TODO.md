@@ -351,9 +351,9 @@ Task breakdown based on `design.md` and `roadmap.md`.
 - [x] Test parameter binding
 
 ### DML Execution ✅
-- [x] INSERT execution via `execute_dml`
-- [x] UPDATE execution via `execute_dml`
-- [x] DELETE execution via `execute_dml`
+- [x] INSERT execution via `execute`
+- [x] UPDATE execution via `execute`
+- [x] DELETE execution via `execute`
 - [x] RETURNING clause support (fetch results from DML)
 
 ### Future Enhancements ⏳
@@ -382,7 +382,7 @@ Task breakdown based on `design.md` and `roadmap.md`.
 - [x] Create `test/core/transaction_test.jl`
 - [x] Test successful commit
 - [x] Test rollback on exception
-- [x] Test query execution within transaction (fetch_all, fetch_one, execute_dml)
+- [x] Test query execution within transaction (fetch_all, fetch_one, execute)
 - [x] Test nested transactions (savepoints)
 - [x] Test transaction isolation
 - [x] Test error handling
@@ -581,7 +581,7 @@ Task breakdown based on `design.md` and `roadmap.md`.
 - [ ] Implement cache integration
   - [ ] SQLiteDriver prepared statement support
   - [ ] PostgreSQLDriver prepared statement support
-  - [ ] Automatic cache lookup in `fetch_all/fetch_one/execute_dml`
+  - [ ] Automatic cache lookup in `fetch_all/fetch_one/execute`
 - [ ] Implement cache management API
   - [ ] `enable_prepared_stmt_cache(conn; max_size=100)`
   - [ ] `disable_prepared_stmt_cache(conn)`
