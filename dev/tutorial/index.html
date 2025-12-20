@@ -55,7 +55,7 @@ create_users = create_table(:users) |&gt;
     unique_constraint(:email) |&gt;
     unique_constraint(:username)
 
-execute_dml(driver, create_users)
+execute(driver, create_users)
 
 # Create posts table
 create_posts = create_table(:posts) |&gt;
@@ -72,7 +72,7 @@ create_posts = create_table(:posts) |&gt;
     not_null(:published) |&gt;
     foreign_key(:user_id, :users, :id)
 
-execute_dml(driver, create_posts)
+execute(driver, create_posts)
 
 # Create comments table
 create_comments = create_table(:comments) |&gt;
@@ -88,7 +88,7 @@ create_comments = create_table(:comments) |&gt;
     foreign_key(:post_id, :posts, :id) |&gt;
     foreign_key(:user_id, :users, :id)
 
-execute_dml(driver, create_comments)
+execute(driver, create_comments)
 
 # Create tags table
 create_tags = create_table(:tags) |&gt;
@@ -98,7 +98,7 @@ create_tags = create_table(:tags) |&gt;
     not_null(:name) |&gt;
     unique_constraint(:name)
 
-execute_dml(driver, create_tags)
+execute(driver, create_tags)
 
 # Create posts_tags junction table
 create_posts_tags = create_table(:posts_tags) |&gt;
@@ -108,12 +108,12 @@ create_posts_tags = create_table(:posts_tags) |&gt;
     foreign_key(:post_id, :posts, :id) |&gt;
     foreign_key(:tag_id, :tags, :id)
 
-execute_dml(driver, create_posts_tags)
+execute(driver, create_posts_tags)
 
 # Create indexes for performance
-create_index(:idx_posts_user_id) |&gt; on(:posts, :user_id) |&gt; execute_dml(driver)
-create_index(:idx_comments_post_id) |&gt; on(:comments, :post_id) |&gt; execute_dml(driver)
-create_index(:idx_posts_created_at) |&gt; on(:posts, :created_at) |&gt; execute_dml(driver)</code></pre><h2 id="4.-Insert-Data"><a class="docs-heading-anchor" href="#4.-Insert-Data">4. Insert Data</a><a id="4.-Insert-Data-1"></a><a class="docs-heading-anchor-permalink" href="#4.-Insert-Data" title="Permalink"></a></h2><h3 id="Create-a-User"><a class="docs-heading-anchor" href="#Create-a-User">Create a User</a><a id="Create-a-User-1"></a><a class="docs-heading-anchor-permalink" href="#Create-a-User" title="Permalink"></a></h3><pre><code class="language-julia hljs">function create_user(driver, email::String, username::String)::User
+create_index(:idx_posts_user_id) |&gt; on(:posts, :user_id) |&gt; execute(driver)
+create_index(:idx_comments_post_id) |&gt; on(:comments, :post_id) |&gt; execute(driver)
+create_index(:idx_posts_created_at) |&gt; on(:posts, :created_at) |&gt; execute(driver)</code></pre><h2 id="4.-Insert-Data"><a class="docs-heading-anchor" href="#4.-Insert-Data">4. Insert Data</a><a id="4.-Insert-Data-1"></a><a class="docs-heading-anchor-permalink" href="#4.-Insert-Data" title="Permalink"></a></h2><h3 id="Create-a-User"><a class="docs-heading-anchor" href="#Create-a-User">Create a User</a><a id="Create-a-User-1"></a><a class="docs-heading-anchor-permalink" href="#Create-a-User" title="Permalink"></a></h3><pre><code class="language-julia hljs">function create_user(driver, email::String, username::String)::User
     q = insert_into(:users, [:id, :email, :username, :created_at]) |&gt;
         values([
             literal(uuid4()),
@@ -275,7 +275,7 @@ end</code></pre><h2 id="6.-Update-Data"><a class="docs-heading-anchor" href="#6.
         set_(:updated_at, literal(now())) |&gt;
         where(col(:posts, :id) == literal(post_id))
 
-    execute_dml(driver, q)
+    execute(driver, q)
 end
 
 publish_post(driver, post.id)</code></pre><h3 id="Edit-Post-Content"><a class="docs-heading-anchor" href="#Edit-Post-Content">Edit Post Content</a><a id="Edit-Post-Content-1"></a><a class="docs-heading-anchor-permalink" href="#Edit-Post-Content" title="Permalink"></a></h3><pre><code class="language-julia hljs">function edit_post(driver, post_id::UUID, new_title::String, new_content::String)
@@ -285,7 +285,7 @@ publish_post(driver, post.id)</code></pre><h3 id="Edit-Post-Content"><a class="d
         set_(:updated_at, literal(now())) |&gt;
         where(col(:posts, :id) == literal(post_id))
 
-    execute_dml(driver, q)
+    execute(driver, q)
 end
 
 edit_post(driver, post.id, &quot;Updated Title&quot;, &quot;Updated content!&quot;)</code></pre><h2 id="7.-Transactions"><a class="docs-heading-anchor" href="#7.-Transactions">7. Transactions</a><a id="7.-Transactions-1"></a><a class="docs-heading-anchor-permalink" href="#7.-Transactions" title="Permalink"></a></h2><p>Use transactions to ensure data consistency:</p><pre><code class="language-julia hljs">function create_post_with_tags(driver, user_id::UUID, title::String, content::String, tag_names::Vector{String})
@@ -325,7 +325,7 @@ edit_post(driver, post.id, &quot;Updated Title&quot;, &quot;Updated content!&quo
             link_q = insert_into(:posts_tags, [:post_id, :tag_id]) |&gt;
                 values([literal(post_id), literal(tag_id)])
 
-            execute_dml(tx, link_q)
+            execute(tx, link_q)
         end
 
         post_id
@@ -363,8 +363,8 @@ q = from(:users) |&gt;
            col(:users, :created_at))
 
 users = fetch_all(driver, q)</code></pre><h2 id="10.-Cleanup"><a class="docs-heading-anchor" href="#10.-Cleanup">10. Cleanup</a><a id="10.-Cleanup-1"></a><a class="docs-heading-anchor-permalink" href="#10.-Cleanup" title="Permalink"></a></h2><pre><code class="language-julia hljs"># Drop all tables (in correct order due to foreign keys)
-execute_dml(driver, drop_table(:posts_tags))
-execute_dml(driver, drop_table(:comments))
-execute_dml(driver, drop_table(:posts))
-execute_dml(driver, drop_table(:tags))
-execute_dml(driver, drop_table(:users))</code></pre><h2 id="Summary"><a class="docs-heading-anchor" href="#Summary">Summary</a><a id="Summary-1"></a><a class="docs-heading-anchor-permalink" href="#Summary" title="Permalink"></a></h2><p>This tutorial covered:</p><ul><li>✅ Database schema creation with DDL</li><li>✅ Type-safe data models</li><li>✅ INSERT operations with RETURNING</li><li>✅ SELECT queries with joins and filtering</li><li>✅ UPDATE and DELETE operations</li><li>✅ Parameterized queries</li><li>✅ Aggregation and grouping</li><li>✅ Transactions for data consistency</li><li>✅ Window functions for analytics</li><li>✅ Subqueries for complex filtering</li></ul><h2 id="Next-Steps"><a class="docs-heading-anchor" href="#Next-Steps">Next Steps</a><a id="Next-Steps-1"></a><a class="docs-heading-anchor-permalink" href="#Next-Steps" title="Permalink"></a></h2><ul><li>Explore <a href="../api/">API Reference</a> for complete function documentation</li><li>Read <a href="../design/">Design Philosophy</a> to understand SQLSketch&#39;s architecture</li><li>Check out advanced PostgreSQL features (JSONB, Arrays, CTEs)</li><li>Build your own application with SQLSketch!</li></ul></article><nav class="docs-footer"><a class="docs-footer-prevpage" href="../getting-started/">« Getting Started</a><a class="docs-footer-nextpage" href="../api/">API Reference »</a><div class="flexbox-break"></div><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="auto">Automatic (OS)</option><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option><option value="catppuccin-latte">catppuccin-latte</option><option value="catppuccin-frappe">catppuccin-frappe</option><option value="catppuccin-macchiato">catppuccin-macchiato</option><option value="catppuccin-mocha">catppuccin-mocha</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> version 1.16.1 on <span class="colophon-date" title="Saturday 20 December 2025 09:18">Saturday 20 December 2025</span>. Using Julia version 1.12.3.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
+execute(driver, drop_table(:posts_tags))
+execute(driver, drop_table(:comments))
+execute(driver, drop_table(:posts))
+execute(driver, drop_table(:tags))
+execute(driver, drop_table(:users))</code></pre><h2 id="Summary"><a class="docs-heading-anchor" href="#Summary">Summary</a><a id="Summary-1"></a><a class="docs-heading-anchor-permalink" href="#Summary" title="Permalink"></a></h2><p>This tutorial covered:</p><ul><li>✅ Database schema creation with DDL</li><li>✅ Type-safe data models</li><li>✅ INSERT operations with RETURNING</li><li>✅ SELECT queries with joins and filtering</li><li>✅ UPDATE and DELETE operations</li><li>✅ Parameterized queries</li><li>✅ Aggregation and grouping</li><li>✅ Transactions for data consistency</li><li>✅ Window functions for analytics</li><li>✅ Subqueries for complex filtering</li></ul><h2 id="Next-Steps"><a class="docs-heading-anchor" href="#Next-Steps">Next Steps</a><a id="Next-Steps-1"></a><a class="docs-heading-anchor-permalink" href="#Next-Steps" title="Permalink"></a></h2><ul><li>Explore <a href="../api/">API Reference</a> for complete function documentation</li><li>Read <a href="../design/">Design Philosophy</a> to understand SQLSketch&#39;s architecture</li><li>Check out advanced PostgreSQL features (JSONB, Arrays, CTEs)</li><li>Build your own application with SQLSketch!</li></ul></article><nav class="docs-footer"><a class="docs-footer-prevpage" href="../getting-started/">« Getting Started</a><a class="docs-footer-nextpage" href="../api/">API Reference »</a><div class="flexbox-break"></div><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="auto">Automatic (OS)</option><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option><option value="catppuccin-latte">catppuccin-latte</option><option value="catppuccin-frappe">catppuccin-frappe</option><option value="catppuccin-macchiato">catppuccin-macchiato</option><option value="catppuccin-mocha">catppuccin-mocha</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> version 1.16.1 on <span class="colophon-date" title="Saturday 20 December 2025 13:29">Saturday 20 December 2025</span>. Using Julia version 1.12.3.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>

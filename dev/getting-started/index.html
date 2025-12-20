@@ -107,21 +107,21 @@ q = from(:users) |&gt;
     where(col(:users, :id) |&gt; in_(subquery(subq)))</code></pre><h2 id="DML-Operations"><a class="docs-heading-anchor" href="#DML-Operations">DML Operations</a><a id="DML-Operations-1"></a><a class="docs-heading-anchor-permalink" href="#DML-Operations" title="Permalink"></a></h2><h3 id="INSERT"><a class="docs-heading-anchor" href="#INSERT">INSERT</a><a id="INSERT-1"></a><a class="docs-heading-anchor-permalink" href="#INSERT" title="Permalink"></a></h3><pre><code class="language-julia hljs">q = insert_into(:users, [:email, :active]) |&gt;
     values([literal(&quot;new@example.com&quot;), literal(true)])
 
-execute_dml(driver, q)</code></pre><h3 id="UPDATE"><a class="docs-heading-anchor" href="#UPDATE">UPDATE</a><a id="UPDATE-1"></a><a class="docs-heading-anchor-permalink" href="#UPDATE" title="Permalink"></a></h3><pre><code class="language-julia hljs">q = update(:users) |&gt;
+execute(driver, q)</code></pre><h3 id="UPDATE"><a class="docs-heading-anchor" href="#UPDATE">UPDATE</a><a id="UPDATE-1"></a><a class="docs-heading-anchor-permalink" href="#UPDATE" title="Permalink"></a></h3><pre><code class="language-julia hljs">q = update(:users) |&gt;
     set_(:email, literal(&quot;updated@example.com&quot;)) |&gt;
     where(col(:users, :id) == literal(1))
 
-execute_dml(driver, q)</code></pre><h3 id="DELETE"><a class="docs-heading-anchor" href="#DELETE">DELETE</a><a id="DELETE-1"></a><a class="docs-heading-anchor-permalink" href="#DELETE" title="Permalink"></a></h3><pre><code class="language-julia hljs">q = delete_from(:users) |&gt;
+execute(driver, q)</code></pre><h3 id="DELETE"><a class="docs-heading-anchor" href="#DELETE">DELETE</a><a id="DELETE-1"></a><a class="docs-heading-anchor-permalink" href="#DELETE" title="Permalink"></a></h3><pre><code class="language-julia hljs">q = delete_from(:users) |&gt;
     where(col(:users, :active) == literal(false))
 
-execute_dml(driver, q)</code></pre><h3 id="RETURNING-(PostgreSQL)"><a class="docs-heading-anchor" href="#RETURNING-(PostgreSQL)">RETURNING (PostgreSQL)</a><a id="RETURNING-(PostgreSQL)-1"></a><a class="docs-heading-anchor-permalink" href="#RETURNING-(PostgreSQL)" title="Permalink"></a></h3><pre><code class="language-julia hljs">q = insert_into(:users, [:email, :active]) |&gt;
+execute(driver, q)</code></pre><h3 id="RETURNING-(PostgreSQL)"><a class="docs-heading-anchor" href="#RETURNING-(PostgreSQL)">RETURNING (PostgreSQL)</a><a id="RETURNING-(PostgreSQL)-1"></a><a class="docs-heading-anchor-permalink" href="#RETURNING-(PostgreSQL)" title="Permalink"></a></h3><pre><code class="language-julia hljs">q = insert_into(:users, [:email, :active]) |&gt;
     values([literal(&quot;new@example.com&quot;), literal(true)]) |&gt;
     returning(col(:users, :id))
 
 new_id = fetch_one(driver, q)</code></pre><h2 id="Transactions"><a class="docs-heading-anchor" href="#Transactions">Transactions</a><a id="Transactions-1"></a><a class="docs-heading-anchor-permalink" href="#Transactions" title="Permalink"></a></h2><pre><code class="language-julia hljs">result = transaction(driver) do tx
     # Multiple operations in transaction
-    execute_dml(tx, insert_query)
-    execute_dml(tx, update_query)
+    execute(tx, insert_query)
+    execute(tx, update_query)
 
     # Fetch within transaction
     user = fetch_one(tx, select_query)
@@ -131,14 +131,14 @@ new_id = fetch_one(driver, q)</code></pre><h2 id="Transactions"><a class="docs-h
 end
 
 # Automatically commits on success, rolls back on error</code></pre><h3 id="Savepoints-(Nested-Transactions)"><a class="docs-heading-anchor" href="#Savepoints-(Nested-Transactions)">Savepoints (Nested Transactions)</a><a id="Savepoints-(Nested-Transactions)-1"></a><a class="docs-heading-anchor-permalink" href="#Savepoints-(Nested-Transactions)" title="Permalink"></a></h3><pre><code class="language-julia hljs">transaction(driver) do tx
-    execute_dml(tx, query1)
+    execute(tx, query1)
 
     savepoint(tx, :sp1) do sp
-        execute_dml(sp, query2)
+        execute(sp, query2)
         # Rolls back to sp1 on error
     end
 
-    execute_dml(tx, query3)
+    execute(tx, query3)
 end</code></pre><h2 id="PostgreSQL-Specific-Features"><a class="docs-heading-anchor" href="#PostgreSQL-Specific-Features">PostgreSQL-Specific Features</a><a id="PostgreSQL-Specific-Features-1"></a><a class="docs-heading-anchor-permalink" href="#PostgreSQL-Specific-Features" title="Permalink"></a></h2><h3 id="UUID"><a class="docs-heading-anchor" href="#UUID">UUID</a><a id="UUID-1"></a><a class="docs-heading-anchor-permalink" href="#UUID" title="Permalink"></a></h3><pre><code class="language-julia hljs">using UUIDs
 
 struct User
@@ -154,8 +154,8 @@ metadata = Dict(&quot;tags&quot; =&gt; [&quot;admin&quot;, &quot;verified&quot;]
 q = insert_into(:users, [:email, :metadata]) |&gt;
     values([literal(&quot;user@example.com&quot;), literal(metadata)])
 
-execute_dml(driver, q)</code></pre><h3 id="Arrays"><a class="docs-heading-anchor" href="#Arrays">Arrays</a><a id="Arrays-1"></a><a class="docs-heading-anchor-permalink" href="#Arrays" title="Permalink"></a></h3><pre><code class="language-julia hljs"># Query with array literal
+execute(driver, q)</code></pre><h3 id="Arrays"><a class="docs-heading-anchor" href="#Arrays">Arrays</a><a id="Arrays-1"></a><a class="docs-heading-anchor-permalink" href="#Arrays" title="Permalink"></a></h3><pre><code class="language-julia hljs"># Query with array literal
 tags = [&quot;julia&quot;, &quot;database&quot;]
 
 q = from(:posts) |&gt;
-    where(col(:posts, :tags) == literal(tags))</code></pre><h2 id="Next-Steps"><a class="docs-heading-anchor" href="#Next-Steps">Next Steps</a><a id="Next-Steps-1"></a><a class="docs-heading-anchor-permalink" href="#Next-Steps" title="Permalink"></a></h2><ul><li><strong><a href="../api/">API Reference</a></strong> - Complete API documentation</li><li><strong><a href="../tutorial/">Tutorial</a></strong> - Step-by-step learning path</li><li><strong><a href="../design/">Design Philosophy</a></strong> - Understanding SQLSketch&#39;s architecture</li></ul><h2 id="Getting-Help"><a class="docs-heading-anchor" href="#Getting-Help">Getting Help</a><a id="Getting-Help-1"></a><a class="docs-heading-anchor-permalink" href="#Getting-Help" title="Permalink"></a></h2><ul><li>Check the <a href="../api/">API Reference</a> for function documentation</li><li>Report issues at <a href="https://github.com/daikichiba9511/SQLSketch.jl/issues">GitHub Issues</a></li></ul></article><nav class="docs-footer"><a class="docs-footer-prevpage" href="../">« Home</a><a class="docs-footer-nextpage" href="../tutorial/">Tutorial »</a><div class="flexbox-break"></div><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="auto">Automatic (OS)</option><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option><option value="catppuccin-latte">catppuccin-latte</option><option value="catppuccin-frappe">catppuccin-frappe</option><option value="catppuccin-macchiato">catppuccin-macchiato</option><option value="catppuccin-mocha">catppuccin-mocha</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> version 1.16.1 on <span class="colophon-date" title="Saturday 20 December 2025 09:18">Saturday 20 December 2025</span>. Using Julia version 1.12.3.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
+    where(col(:posts, :tags) == literal(tags))</code></pre><h2 id="Next-Steps"><a class="docs-heading-anchor" href="#Next-Steps">Next Steps</a><a id="Next-Steps-1"></a><a class="docs-heading-anchor-permalink" href="#Next-Steps" title="Permalink"></a></h2><ul><li><strong><a href="../api/">API Reference</a></strong> - Complete API documentation</li><li><strong><a href="../tutorial/">Tutorial</a></strong> - Step-by-step learning path</li><li><strong><a href="../design/">Design Philosophy</a></strong> - Understanding SQLSketch&#39;s architecture</li></ul><h2 id="Getting-Help"><a class="docs-heading-anchor" href="#Getting-Help">Getting Help</a><a id="Getting-Help-1"></a><a class="docs-heading-anchor-permalink" href="#Getting-Help" title="Permalink"></a></h2><ul><li>Check the <a href="../api/">API Reference</a> for function documentation</li><li>Report issues at <a href="https://github.com/daikichiba9511/SQLSketch.jl/issues">GitHub Issues</a></li></ul></article><nav class="docs-footer"><a class="docs-footer-prevpage" href="../">« Home</a><a class="docs-footer-nextpage" href="../tutorial/">Tutorial »</a><div class="flexbox-break"></div><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="auto">Automatic (OS)</option><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option><option value="catppuccin-latte">catppuccin-latte</option><option value="catppuccin-frappe">catppuccin-frappe</option><option value="catppuccin-macchiato">catppuccin-macchiato</option><option value="catppuccin-mocha">catppuccin-mocha</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> version 1.16.1 on <span class="colophon-date" title="Saturday 20 December 2025 13:29">Saturday 20 December 2025</span>. Using Julia version 1.12.3.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
