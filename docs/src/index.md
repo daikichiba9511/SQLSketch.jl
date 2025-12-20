@@ -201,7 +201,7 @@ q = set_union(q1, q2, all=false)  # UNION (deduplicated)
 ### Migration System
 
 ```julia
-using SQLSketch.Core: apply_migrations
+using SQLSketch.Extras: apply_migrations, migration_status
 
 # Apply all pending migrations
 apply_migrations(driver, "migrations/")
