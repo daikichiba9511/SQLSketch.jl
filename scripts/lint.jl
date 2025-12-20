@@ -17,23 +17,28 @@ println("Running JET static analysis on SQLSketch...")
 println("=" ^ 60)
 println()
 
+# Load the package first (required for JET v0.11+)
+using SQLSketch
+
 # Analyze the entire package
-report = report_package("SQLSketch"; toplevel_logger = nothing)
+# JET v0.11: Use target_modules to focus on SQLSketch only (exclude dependencies)
+report = report_package(SQLSketch;
+                        toplevel_logger = nothing,
+                        target_modules = (SQLSketch,))
 
 # Filter out known false positives
-# JET has trouble tracking symbols across module boundaries with include()
 function is_false_positive(r)
-    # Filter out module import false positives in Drivers module
-    if r isa JET.ActualErrorWrapped
-        err_msg = string(r.err)
-        # Known false positives: Driver, Connection, connect, execute imports
-        if contains(err_msg, "Drivers") &&
-           (contains(err_msg, "Driver") ||
-            contains(err_msg, "Connection") ||
-            contains(err_msg, "connect") || contains(err_msg, "execute"))
+    # JET v0.11: MethodErrorReport for guarded code paths
+    if r isa JET.MethodErrorReport
+        err_msg = string(r)
+
+        # False positive: compile_window_frame with Nothing
+        # Code already has `if frame !== nothing` guard
+        if contains(err_msg, "compile_window_frame") && contains(err_msg, "Nothing")
             return true
         end
     end
+
     return false
 end
 
@@ -53,7 +58,7 @@ end
 println("\n" * "=" ^ 60)
 println("Summary:")
 println("  Total reports: $(length(reports))")
-println("  (Filtered out known false positives in Drivers module)")
+println("  (JET v0.11 with target_modules filter + false positive filtering)")
 
 if isempty(reports)
     println("✓ No issues found!")

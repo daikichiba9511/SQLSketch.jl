@@ -32,3 +32,4 @@ examples/*.db-*
 /tmp/
 
 CLAUDE.md
+.tools/Manifest.toml

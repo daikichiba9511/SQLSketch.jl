@@ -6,13 +6,13 @@ help:
 	@echo ""
 	@echo "  make test          - Run all tests"
 	@echo "  make lint          - Run JET static analysis"
-	@echo "  make format        - Format all Julia files"
+	@echo "  make format        - Format all Julia files (dev tool)"
 	@echo "  make format-check  - Check if files are formatted (CI)"
 	@echo "  make docs          - Build documentation"
 	@echo "  make docs-open     - Build and open documentation in browser"
 	@echo "  make docs-url      - Show documentation URL"
 	@echo "  make clean         - Remove temporary files"
-	@echo "  make all           - Run format, lint, and test"
+	@echo "  make all           - Run lint and test"
 	@echo ""
 
 # Run tests
@@ -23,13 +23,13 @@ test:
 lint:
 	julia --project=. scripts/lint.jl
 
-# Format all Julia files
+# Format all Julia files (using .tools environment)
 format:
-	julia --project=. -e 'using JuliaFormatter; format(".")'
+	julia --project=.tools -e 'using JuliaFormatter; format(".")'
 
-# Check formatting (for CI)
+# Check formatting (for CI, using .tools environment)
 format-check:
-	julia --project=. -e 'using JuliaFormatter; exit(format("."; overwrite=false) ? 0 : 1)'
+	julia --project=.tools -e 'using JuliaFormatter; exit(format("."; overwrite=false) ? 0 : 1)'
 
 # Clean temporary files
 clean:
@@ -64,7 +64,7 @@ docs-url:
 	@echo "GitHub repository:"
 	@echo "  https://github.com/daikichiba9511/SQLSketch.jl"
 
-# Run all checks (format, lint, test)
-all: format lint test
+# Run all checks (lint, test)
+all: lint test
 	@echo ""
 	@echo "✓ All checks passed!"
