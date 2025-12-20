@@ -53,11 +53,13 @@ export InsertInto, InsertValues, Update, UpdateSet, UpdateWhere, DeleteFrom, Del
 export Returning
 export CTE, With
 export SetUnion, SetIntersect, SetExcept
+export OnConflict
 export from, where, select, order_by, limit, offset, distinct, group_by, having, join
 export insert_into, values, update, set, delete_from
 export returning
 export cte, with
 export union, intersect, except
+export on_conflict_do_nothing, on_conflict_do_update
 # Aliases to avoid Base conflicts
 export innerjoin, leftjoin, rightjoin, fulljoin, insert_values
 
@@ -133,11 +135,13 @@ export InsertInto, InsertValues, Update, UpdateSet, UpdateWhere, DeleteFrom, Del
 export Returning
 export CTE, With
 export SetUnion, SetIntersect, SetExcept
+export OnConflict
 export from, where, select, order_by, limit, offset, distinct, group_by, having, join
 export insert_into, values, update, set, delete_from
 export returning
 export cte, with
 export union, intersect, except
+export on_conflict_do_nothing, on_conflict_do_update
 # Aliases to avoid Base conflicts
 export innerjoin, leftjoin, rightjoin, fulljoin, insert_values
 export Dialect, Capability

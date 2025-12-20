@@ -144,10 +144,10 @@ Task breakdown based on `design.md` and `roadmap.md`.
   - [x] End-to-end execution tests
   - [x] Nested CTE references support
 
-### Future Enhancements ⏳
-- [ ] UNION / INTERSECT / EXCEPT
-- [ ] Window functions (OVER clause)
-- [ ] UPSERT (ON CONFLICT) support (ON CONFLICT DO UPDATE/NOTHING)
+### Advanced Features ✅
+- [x] Window functions (OVER clause) - **Phase 8.5** (79 tests)
+- [x] Set Operations (UNION / INTERSECT / EXCEPT) - **Phase 8.6** (102 tests)
+- [x] UPSERT (ON CONFLICT) support - **Phase 8.7** (86 tests)
 
 ---
 
@@ -207,10 +207,14 @@ Task breakdown based on `design.md` and `roadmap.md`.
 - [x] Test capability reporting
 - [x] Test SQL string generation (no DB required)
 
+### Advanced Features ✅
+- [x] CTE (WITH clause) compilation
+- [x] UPSERT (ON CONFLICT) compilation - **Phase 8.7**
+- [x] Window functions compilation - **Phase 8.5**
+- [x] Set operations compilation - **Phase 8.6**
+
 ### Future Enhancements ⏳
 - [ ] DDL compilation (CREATE TABLE, ALTER TABLE, etc.)
-- [ ] UPSERT (ON CONFLICT) compilation
-- [ ] CTE (WITH clause) compilation
 
 ---
 
@@ -518,8 +522,9 @@ Task breakdown based on `design.md` and `roadmap.md`.
 ### Query Features
 - [x] Subqueries as expressions ✅
 - [x] CTEs (WITH clause) ✅
-- [ ] Window functions ⏳
-- [ ] UNION / INTERSECT / EXCEPT ⏳
+- [x] Window functions ✅ **Phase 8.5** (79 tests)
+- [x] UNION / INTERSECT / EXCEPT ✅ **Phase 8.6** (102 tests)
+- [x] UPSERT (ON CONFLICT) ✅ **Phase 8.7** (86 tests)
 - [ ] Recursive CTEs ⏳
 
 ### DDL Support ⏳
@@ -607,10 +612,30 @@ Task breakdown based on `design.md` and `roadmap.md`.
   - Migration discovery and application
   - SHA256 checksum validation
   - Transaction-wrapped execution
-- **Total: 1041 tests passing** ✅
+- **Phase 8.5** (Window Functions) completed with **79 tests passing** ✅
+  - Window function AST (WindowFrame, Over, WindowFunc)
+  - Ranking functions (row_number, rank, dense_rank, ntile)
+  - Value functions (lag, lead, first_value, last_value, nth_value)
+  - Aggregate window functions (sum, avg, min, max, count)
+  - Frame specification (ROWS/RANGE/GROUPS BETWEEN)
+- **Phase 8.6** (Set Operations) completed with **102 tests passing** ✅
+  - Set operation AST (SetUnion, SetIntersect, SetExcept)
+  - UNION / UNION ALL support
+  - INTERSECT support
+  - EXCEPT support
+  - Pipeline API with currying
+- **Phase 8.7** (UPSERT) completed with **86 tests passing** ✅
+  - OnConflict AST type
+  - ON CONFLICT DO NOTHING support
+  - ON CONFLICT DO UPDATE support
+  - Conflict target column specification
+  - WHERE clause for conditional updates
+  - Pipeline API with currying
+- **Total: 1383 tests passing** ✅
 - Full query execution pipeline operational
 - Type-safe parameter binding working
 - DML operations (INSERT/UPDATE/DELETE) with RETURNING support
 - Transaction and migration support fully implemented
 - Observability API (sql, explain) implemented
+- Advanced SQL features (Window Functions, Set Operations, UPSERT) implemented
 - Ready to proceed with Phase 9 (PostgreSQL Dialect)

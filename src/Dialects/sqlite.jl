@@ -29,7 +29,8 @@ using .Core: Dialect, Capability, CAP_CTE, CAP_RETURNING, CAP_UPSERT, CAP_WINDOW
              CAP_LATERAL, CAP_BULK_COPY, CAP_SAVEPOINT, CAP_ADVISORY_LOCK
 using .Core: Query, From, Where, Select, Join, OrderBy, Limit, Offset, Distinct, GroupBy,
              Having, InsertInto, InsertValues, Update, UpdateSet, UpdateWhere,
-             DeleteFrom, DeleteWhere, Returning, CTE, With, SetUnion, SetIntersect, SetExcept
+             DeleteFrom, DeleteWhere, Returning, CTE, With, SetUnion, SetIntersect, SetExcept,
+             OnConflict
 using .Core: SQLExpr, ColRef, Literal, Param, BinaryOp, UnaryOp, FuncCall, PlaceholderField,
              BetweenOp, InOp, Cast, Subquery, CaseExpr, WindowFunc, Over, WindowFrame
 import .Core: compile, compile_expr, quote_identifier, placeholder, supports
@@ -1153,6 +1154,86 @@ function compile(dialect::SQLiteDialect,
 
     # Append RETURNING clause to the DML statement
     sql = "$source_sql RETURNING $fields_str"
+
+    return (sql, params)
+end
+
+#
+# ON CONFLICT (UPSERT) Compilation
+#
+
+"""
+    compile(dialect::SQLiteDialect, query::OnConflict{T}) -> (String, Vector{Symbol})
+
+Compile an ON CONFLICT clause (UPSERT) for SQLite.
+
+SQLite supports two forms:
+- `ON CONFLICT DO NOTHING` - ignore conflicts
+- `ON CONFLICT (...) DO UPDATE SET ...` - update on conflict
+
+# Examples
+
+```julia
+# ON CONFLICT DO NOTHING
+q = from(:users) |>
+    insert_into(:id, :email) |>
+    values((id=1, email="alice@example.com")) |>
+    on_conflict_do_nothing()
+
+sql, params = compile(dialect, q)
+# → "INSERT INTO `users` (`id`, `email`) VALUES (?, ?) ON CONFLICT DO NOTHING"
+
+# ON CONFLICT (email) DO UPDATE SET name = excluded.name
+q = from(:users) |>
+    insert_into(:id, :email, :name) |>
+    values((id=1, email="alice@example.com", name="Alice")) |>
+    on_conflict_do_update(
+        [:email],
+        :name => col(:excluded, :name)
+    )
+
+sql, params = compile(dialect, q)
+# → "INSERT INTO `users` (`id`, `email`, `name`) VALUES (?, ?, ?) ON CONFLICT (`email`) DO UPDATE SET `name` = `excluded`.`name`"
+```
+"""
+function compile(dialect::SQLiteDialect,
+                 query::OnConflict{T})::Tuple{String, Vector{Symbol}} where {T}
+    # Compile the INSERT VALUES statement
+    source_sql, params = compile(dialect, query.source)
+
+    # Start building ON CONFLICT clause
+    conflict_sql = "ON CONFLICT"
+
+    # Add target columns if specified
+    if query.target !== nothing && !isempty(query.target)
+        target_cols = [quote_identifier(dialect, col) for col in query.target]
+        conflict_sql *= " (" * Base.join(target_cols, ", ") * ")"
+    end
+
+    # Add action
+    if query.action == :DO_NOTHING
+        conflict_sql *= " DO NOTHING"
+    elseif query.action == :DO_UPDATE
+        # Compile UPDATE SET clause
+        set_parts = String[]
+        for (col, expr) in query.updates
+            col_name = quote_identifier(dialect, col)
+            expr_sql = compile_expr(dialect, expr, params)
+            push!(set_parts, "$col_name = $expr_sql")
+        end
+        conflict_sql *= " DO UPDATE SET " * Base.join(set_parts, ", ")
+
+        # Add WHERE clause if specified
+        if query.where_clause !== nothing
+            where_sql = compile_expr(dialect, query.where_clause, params)
+            conflict_sql *= " WHERE $where_sql"
+        end
+    else
+        error("Invalid ON CONFLICT action: $(query.action). Must be :DO_NOTHING or :DO_UPDATE")
+    end
+
+    # Combine INSERT with ON CONFLICT
+    sql = "$source_sql $conflict_sql"
 
     return (sql, params)
 end

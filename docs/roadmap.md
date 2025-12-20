@@ -463,6 +463,130 @@ from(:sales) |>
 
 ---
 
+## Phase 8.6: Set Operations (UNION / INTERSECT / EXCEPT) ✅ COMPLETED
+
+**Goal**: Add set operation support for combining query results.
+
+### Tasks ✅
+
+1. Define set operation AST types:
+   - `SetUnion` – UNION / UNION ALL operation ✅
+   - `SetIntersect` – INTERSECT operation ✅
+   - `SetExcept` – EXCEPT operation ✅
+
+2. Implement set operation constructors:
+   - `union(left, right; all=false)` – combine with UNION ✅
+   - `intersect(left, right)` – find common rows ✅
+   - `except(left, right)` – find difference ✅
+   - Curried versions for pipeline composition ✅
+
+3. Add SQL compilation for set operations in SQLite dialect ✅
+
+4. Support chaining and nesting of set operations ✅
+
+5. Write comprehensive tests ✅
+
+### Deliverables ✅
+
+- `src/Core/query.jl` (set operation types added) ✅
+- `src/Dialects/sqlite.jl` (set operation compilation) ✅
+- `test/core/set_operations_test.jl` ✅ (102 tests)
+- All tests passing ✅
+
+### Success Criteria ✅
+
+```julia
+# Combine active users from two tables
+from(:users) |>
+    where(col(:users, :active) == literal(true)) |>
+    select(NamedTuple, col(:users, :email)) |>
+    union(
+        from(:legacy_users) |>
+        where(col(:legacy_users, :active) == literal(true)) |>
+        select(NamedTuple, col(:legacy_users, :email))
+    )
+# → SELECT `users`.`email` FROM `users` WHERE `users`.`active` = 1
+#   UNION
+#   SELECT `legacy_users`.`email` FROM `legacy_users` WHERE `legacy_users`.`active` = 1
+
+# Find users in both tables
+q1 = from(:users) |> select(NamedTuple, col(:users, :email))
+q2 = from(:legacy_users) |> select(NamedTuple, col(:legacy_users, :email))
+q1 |> intersect(q2)
+```
+
+**Test Count**: 102 passing tests
+**Total Tests**: 1297 passing ✅
+
+---
+
+## Phase 8.7: UPSERT (ON CONFLICT) ✅ COMPLETED
+
+**Goal**: Add UPSERT support for handling insert conflicts.
+
+### Tasks ✅
+
+1. Define UPSERT AST type:
+   - `OnConflict{T}` – ON CONFLICT clause ✅
+
+2. Implement UPSERT constructors:
+   - `on_conflict_do_nothing(target=nothing)` – ignore conflicts ✅
+   - `on_conflict_do_update(target, updates...; where=nothing)` – update on conflict ✅
+   - Curried versions for pipeline composition ✅
+
+3. Support conflict target specification:
+   - Specific columns ✅
+   - No target (any constraint) ✅
+
+4. Support conditional updates with WHERE clause ✅
+
+5. Add SQL compilation for UPSERT in SQLite dialect ✅
+
+6. Write comprehensive tests ✅
+
+### Deliverables ✅
+
+- `src/Core/query.jl` (OnConflict type added) ✅
+- `src/Dialects/sqlite.jl` (UPSERT compilation) ✅
+- `test/core/upsert_test.jl` ✅ (86 tests)
+- All tests passing ✅
+
+### Success Criteria ✅
+
+```julia
+# Ignore conflicts
+insert_into(:users, [:id, :email]) |>
+    values([[param(Int, :id), param(String, :email)]]) |>
+    on_conflict_do_nothing()
+# → INSERT INTO `users` (`id`, `email`) VALUES (?, ?) ON CONFLICT DO NOTHING
+
+# Update on conflict
+insert_into(:users, [:id, :email, :name]) |>
+    values([[param(Int, :id), param(String, :email), param(String, :name)]]) |>
+    on_conflict_do_update(
+        [:email],
+        :name => col(:excluded, :name),
+        :updated_at => func(:CURRENT_TIMESTAMP, SQLExpr[])
+    )
+# → INSERT INTO `users` (`id`, `email`, `name`) VALUES (?, ?, ?)
+#   ON CONFLICT (`email`) DO UPDATE SET
+#   `name` = `excluded`.`name`, `updated_at` = CURRENT_TIMESTAMP()
+
+# Conditional update with WHERE
+insert_into(:users, [:id, :email, :version]) |>
+    values([[param(Int, :id), param(String, :email), param(Int, :version)]]) |>
+    on_conflict_do_update(
+        [:email],
+        :version => col(:excluded, :version);
+        where = col(:users, :version) < col(:excluded, :version)
+    )
+```
+
+**Test Count**: 86 passing tests
+**Total Tests**: 1383 passing ✅
+
+---
+
 ## Phase 9: PostgreSQL Dialect (Week 15-16)
 
 **Goal**: Validate multi-database abstraction.
@@ -516,9 +640,10 @@ from(:sales) |>
 ## Optional Future Work (Post-v0.1)
 
 - MySQL Dialect
-- Set operations (UNION, INTERSECT, EXCEPT)
+- ~~Set operations (UNION, INTERSECT, EXCEPT)~~ ✅ **COMPLETED in Phase 8.6**
 - Recursive CTEs (WITH RECURSIVE)
-- UPSERT (INSERT ... ON CONFLICT for PostgreSQL)
+- ~~UPSERT (INSERT ... ON CONFLICT)~~ ✅ **COMPLETED in Phase 8.7**
+- ~~Window Functions~~ ✅ **COMPLETED in Phase 8.5**
 - DDL operations (CREATE TABLE, ALTER TABLE, etc.)
 - Easy Layer (Repository pattern, CRUD helpers)
 - Relation preloading

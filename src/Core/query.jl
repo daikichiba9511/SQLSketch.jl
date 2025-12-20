@@ -1143,6 +1143,178 @@ Base.isequal(a::Returning{OutT}, b::Returning{OutT}) where {OutT} = isequal(a.so
 Base.hash(a::Returning{OutT}, h::UInt) where {OutT} = hash((a.source, a.fields), h)
 
 #
+# ON CONFLICT (UPSERT) Query Types
+#
+
+"""
+    OnConflict{T}
+
+ON CONFLICT clause for INSERT operations (UPSERT).
+
+Handles conflict resolution when inserting rows that violate unique constraints.
+Can either ignore conflicts (DO NOTHING) or update existing rows (DO UPDATE SET).
+
+This is a **shape-preserving** operation (unless combined with RETURNING).
+
+# Type Parameter
+
+  - `T`: The output type (inherited from the source INSERT query)
+
+# Fields
+
+  - `source::InsertValues{T}` – the source INSERT VALUES query
+  - `target::Union{Vector{Symbol}, Nothing}` – conflict target columns (Nothing = any conflict)
+  - `action::Symbol` – conflict action (`:DO_NOTHING` or `:DO_UPDATE`)
+  - `updates::Vector{Pair{Symbol, SQLExpr}}` – update assignments for DO UPDATE SET
+  - `where_clause::Union{SQLExpr, Nothing}` – optional WHERE for DO UPDATE
+
+# Database Support
+
+  - SQLite 3.24+ (2018)
+  - PostgreSQL 9.5+ (2015)
+  - MySQL 8.0+ (via ON DUPLICATE KEY UPDATE)
+
+# Example
+
+```julia
+# DO NOTHING - ignore conflicts
+q = insert_into(:users, [:email, :name]) |>
+    values([[literal("test@example.com"), literal("Test")]]) |>
+    on_conflict_do_nothing()
+
+# DO NOTHING on specific columns
+q = insert_into(:users, [:email, :name]) |>
+    values([[literal("test@example.com"), literal("Test")]]) |>
+    on_conflict_do_nothing([:email])
+
+# DO UPDATE SET - update on conflict
+q = insert_into(:users, [:email, :name]) |>
+    values([[literal("test@example.com"), literal("Test")]]) |>
+    on_conflict_do_update([:email],
+                          :name => literal("Updated Name"),
+                          :updated_at => func(:datetime, [literal("now")]))
+```
+"""
+struct OnConflict{T} <: Query{T}
+    source::InsertValues{T}
+    target::Union{Vector{Symbol}, Nothing}
+    action::Symbol  # :DO_NOTHING or :DO_UPDATE
+    updates::Vector{Pair{Symbol, SQLExpr}}
+    where_clause::Union{SQLExpr, Nothing}
+end
+
+#
+# ON CONFLICT Pipeline API
+#
+
+"""
+    on_conflict_do_nothing(source::InsertValues{T}; target::Union{Vector{Symbol}, Nothing}=nothing)::OnConflict{T}
+
+Add an ON CONFLICT DO NOTHING clause to an INSERT statement.
+
+When a conflict occurs, the INSERT is silently ignored.
+
+Can be used in two ways:
+
+  - Explicit: `on_conflict_do_nothing(insert_query, target=[:email])`
+  - Pipeline: `insert_query |> on_conflict_do_nothing([:email])`
+
+# Arguments
+
+  - `source::InsertValues{T}` – the INSERT VALUES query
+  - `target` – optional conflict target columns (Nothing = any conflict)
+
+# Example
+
+```julia
+# Ignore conflicts on any unique constraint
+q = insert_into(:users, [:email, :name]) |>
+    values([[literal("test@example.com"), literal("Test")]]) |>
+    on_conflict_do_nothing()
+
+# Ignore conflicts only on email column
+q = insert_into(:users, [:email, :name]) |>
+    values([[literal("test@example.com"), literal("Test")]]) |>
+    on_conflict_do_nothing([:email])
+```
+"""
+function on_conflict_do_nothing(source::InsertValues{T};
+                                 target::Union{Vector{Symbol}, Nothing} = nothing)::OnConflict{T} where {T}
+    return OnConflict{T}(source, target, :DO_NOTHING, Pair{Symbol, SQLExpr}[], nothing)
+end
+
+# Curried version for pipeline composition
+function on_conflict_do_nothing(target::Union{Vector{Symbol}, Nothing} = nothing)
+    return source -> on_conflict_do_nothing(source; target = target)
+end
+
+"""
+    on_conflict_do_update(source::InsertValues{T}, target::Union{Vector{Symbol}, Nothing}, updates::Pair{Symbol, SQLExpr}...; where::Union{SQLExpr, Nothing}=nothing)::OnConflict{T}
+
+Add an ON CONFLICT DO UPDATE SET clause to an INSERT statement.
+
+When a conflict occurs, update the existing row with new values.
+
+Can be used in two ways:
+
+  - Explicit: `on_conflict_do_update(insert_query, [:email], :name => literal("New"), where=condition)`
+  - Pipeline: `insert_query |> on_conflict_do_update([:email], :name => literal("New"))`
+
+# Arguments
+
+  - `source::InsertValues{T}` – the INSERT VALUES query
+  - `target` – conflict target columns (Nothing = any conflict)
+  - `updates...` – column => value pairs for UPDATE SET
+  - `where` – optional WHERE clause for the UPDATE
+
+# Example
+
+```julia
+# Update name on email conflict
+q = insert_into(:users, [:email, :name]) |>
+    values([[literal("test@example.com"), literal("Test")]]) |>
+    on_conflict_do_update([:email],
+                          :name => literal("Updated Name"),
+                          :updated_at => func(:datetime, [literal("now")]))
+
+# Update with WHERE clause
+q = insert_into(:users, [:email, :name]) |>
+    values([[literal("test@example.com"), literal("Test")]]) |>
+    on_conflict_do_update([:email],
+                          :login_count => col(:users, :login_count) + literal(1),
+                          where = col(:users, :active) == literal(true))
+```
+"""
+function on_conflict_do_update(source::InsertValues{T},
+                                target::Union{Vector{Symbol}, Nothing},
+                                updates::Pair{Symbol, <:SQLExpr}...;
+                                where::Union{SQLExpr, Nothing} = nothing)::OnConflict{T} where {T}
+    # Convert updates to Vector{Pair{Symbol, SQLExpr}}
+    converted = Pair{Symbol, SQLExpr}[k => v for (k, v) in updates]
+    return OnConflict{T}(source, target, :DO_UPDATE, converted, where)
+end
+
+# Curried version for pipeline composition
+function on_conflict_do_update(target::Union{Vector{Symbol}, Nothing},
+                                updates::Pair{Symbol, <:SQLExpr}...;
+                                where::Union{SQLExpr, Nothing} = nothing)
+    return source -> on_conflict_do_update(source, target, updates...; where = where)
+end
+
+# Structural Equality for ON CONFLICT
+function Base.isequal(a::OnConflict{T}, b::OnConflict{T}) where {T}
+    return isequal(a.source, b.source) &&
+           isequal(a.target, b.target) &&
+           a.action == b.action &&
+           isequal(a.updates, b.updates) &&
+           isequal(a.where_clause, b.where_clause)
+end
+
+# Hash function for ON CONFLICT
+Base.hash(a::OnConflict{T}, h::UInt) where {T} = hash((a.source, a.target, a.action,
+                                                        a.updates, a.where_clause), h)
+
+#
 # CTE (Common Table Expressions) Query Types
 #
 

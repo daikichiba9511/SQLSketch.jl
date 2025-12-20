@@ -23,6 +23,10 @@ using Test
         include("core/set_operations_test.jl")
     end
 
+    @testset "UPSERT / ON CONFLICT (Core.upsert)" begin
+        include("core/upsert_test.jl")
+    end
+
     @testset "SQLite Dialect (Dialects.sqlite)" begin
         include("dialects/sqlite_test.jl")
     end
