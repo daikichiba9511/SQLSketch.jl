@@ -58,12 +58,10 @@ println("✓ Tables created")
 println("\n[2] Inserting sample data...")
 
 # Insert departments
-departments_data = [
-    (1, "Engineering", 500000.0),
-    (2, "Sales", 300000.0),
-    (3, "Marketing", 200000.0),
-    (4, "HR", 100000.0)
-]
+departments_data = [(1, "Engineering", 500000.0),
+                    (2, "Sales", 300000.0),
+                    (3, "Marketing", 200000.0),
+                    (4, "HR", 100000.0)]
 
 for (id, name, budget) in departments_data
     execute(db, dialect,
@@ -72,46 +70,46 @@ for (id, name, budget) in departments_data
 end
 
 # Insert users (note: some users have no department, one department has no users)
-users_data = [
-    (1, "Alice", "alice@example.com", 1),
-    (2, "Bob", "bob@example.com", 1),
-    (3, "Charlie", "charlie@example.com", 2),
-    (4, "Diana", "diana@example.com", 2),
-    (5, "Eve", "eve@example.com", 3),
-    (6, "Frank", "frank@example.com", missing)  # No department
-]
+users_data = [(1, "Alice", "alice@example.com", 1),
+              (2, "Bob", "bob@example.com", 1),
+              (3, "Charlie", "charlie@example.com", 2),
+              (4, "Diana", "diana@example.com", 2),
+              (5, "Eve", "eve@example.com", 3),
+              (6, "Frank", "frank@example.com", missing)]
 
 for (id, name, email, dept_id) in users_data
     if dept_id === missing
         execute(db, dialect,
                 insert_into(:users, [:id, :name, :email, :department_id]) |>
-                insert_values([[literal(id), literal(name), literal(email), literal(nothing)]]))
+                insert_values([[literal(id), literal(name), literal(email),
+                                literal(nothing)]]))
     else
         execute(db, dialect,
                 insert_into(:users, [:id, :name, :email, :department_id]) |>
-                insert_values([[literal(id), literal(name), literal(email), literal(dept_id)]]))
+                insert_values([[literal(id), literal(name), literal(email),
+                                literal(dept_id)]]))
     end
 end
 
 # Insert projects
-projects_data = [
-    (1, "Project Alpha", 1, "active"),
-    (2, "Project Beta", 1, "completed"),
-    (3, "Project Gamma", 2, "active"),
-    (4, "Project Delta", 3, "planning"),
-    (5, "Project Epsilon", 5, "active"),
-    (6, "Project Zeta", missing, "planning")  # No assigned user
-]
+projects_data = [(1, "Project Alpha", 1, "active"),
+                 (2, "Project Beta", 1, "completed"),
+                 (3, "Project Gamma", 2, "active"),
+                 (4, "Project Delta", 3, "planning"),
+                 (5, "Project Epsilon", 5, "active"),
+                 (6, "Project Zeta", missing, "planning")]
 
 for (id, name, user_id, status) in projects_data
     if user_id === missing
         execute(db, dialect,
                 insert_into(:projects, [:id, :name, :user_id, :status]) |>
-                insert_values([[literal(id), literal(name), literal(nothing), literal(status)]]))
+                insert_values([[literal(id), literal(name), literal(nothing),
+                                literal(status)]]))
     else
         execute(db, dialect,
                 insert_into(:projects, [:id, :name, :user_id, :status]) |>
-                insert_values([[literal(id), literal(name), literal(user_id), literal(status)]]))
+                insert_values([[literal(id), literal(name), literal(user_id),
+                                literal(status)]]))
     end
 end
 
@@ -285,7 +283,8 @@ println("Find users and their active projects (including users with no active pr
 q7 = from(:users) |>
      leftjoin(:projects,
               col(:projects, :user_id) == col(:users, :id)) |>
-     where((col(:projects, :status) == literal("active")) | col(:projects, :status) |> is_null) |>
+     where((col(:projects, :status) == literal("active")) | col(:projects, :status) |>
+           is_null) |>
      select(NamedTuple,
             col(:users, :name),
             col(:projects, :name),

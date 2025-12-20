@@ -35,33 +35,29 @@ sales_table = create_table(:sales) |>
 execute(conn, dialect, sales_table)
 
 # Insert sample data
-employees_data = [
-    (1, "Alice", "Engineering", 120000, "2020-01-15"),
-    (2, "Bob", "Engineering", 110000, "2020-03-20"),
-    (3, "Carol", "Engineering", 105000, "2021-06-10"),
-    (4, "David", "Sales", 95000, "2020-02-01"),
-    (5, "Eve", "Sales", 90000, "2020-08-15"),
-    (6, "Frank", "Marketing", 85000, "2019-11-20"),
-    (7, "Grace", "Marketing", 80000, "2021-01-10")
-]
+employees_data = [(1, "Alice", "Engineering", 120000, "2020-01-15"),
+                  (2, "Bob", "Engineering", 110000, "2020-03-20"),
+                  (3, "Carol", "Engineering", 105000, "2021-06-10"),
+                  (4, "David", "Sales", 95000, "2020-02-01"),
+                  (5, "Eve", "Sales", 90000, "2020-08-15"),
+                  (6, "Frank", "Marketing", 85000, "2019-11-20"),
+                  (7, "Grace", "Marketing", 80000, "2021-01-10")]
 
 for (id, name, dept, salary, hire_date) in employees_data
     execute(conn, dialect,
             insert_into(:employees, [:id, :name, :department, :salary, :hire_date]) |>
             insert_values([[literal(id), literal(name), literal(dept),
-                           literal(salary), literal(hire_date)]]))
+                            literal(salary), literal(hire_date)]]))
 end
 
-sales_data = [
-    (1, "2025-01-01", 1000, "East"),
-    (2, "2025-01-02", 1500, "East"),
-    (3, "2025-01-03", 1200, "East"),
-    (4, "2025-01-04", 1800, "East"),
-    (5, "2025-01-05", 1600, "East"),
-    (6, "2025-01-01", 900, "West"),
-    (7, "2025-01-02", 1100, "West"),
-    (8, "2025-01-03", 1300, "West")
-]
+sales_data = [(1, "2025-01-01", 1000, "East"),
+              (2, "2025-01-02", 1500, "East"),
+              (3, "2025-01-03", 1200, "East"),
+              (4, "2025-01-04", 1800, "East"),
+              (5, "2025-01-05", 1600, "East"),
+              (6, "2025-01-01", 900, "West"),
+              (7, "2025-01-02", 1100, "West"),
+              (8, "2025-01-03", 1300, "West")]
 
 for (id, date, amount, region) in sales_data
     execute(conn, dialect,

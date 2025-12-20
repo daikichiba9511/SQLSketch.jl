@@ -40,16 +40,15 @@ execute(db, dialect, users_table)
 println("✓ Created 'users' table")
 
 # Insert test data
-test_users = [
-    ("Alice", "alice@example.com", 30, "2025-01-01 10:00:00"),
-    ("Bob", "bob@example.com", 25, "2025-01-02 11:00:00"),
-    ("Charlie", "charlie@example.com", 35, "2025-01-03 12:00:00")
-]
+test_users = [("Alice", "alice@example.com", 30, "2025-01-01 10:00:00"),
+              ("Bob", "bob@example.com", 25, "2025-01-02 11:00:00"),
+              ("Charlie", "charlie@example.com", 35, "2025-01-03 12:00:00")]
 
 for (name, email, age, created_at) in test_users
     execute(db, dialect,
             insert_into(:users, [:name, :email, :age, :created_at]) |>
-            insert_values([[literal(name), literal(email), literal(age), literal(created_at)]]))
+            insert_values([[literal(name), literal(email), literal(age),
+                            literal(created_at)]]))
 end
 println("✓ Inserted 3 test records")
 
