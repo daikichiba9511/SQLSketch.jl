@@ -791,7 +791,7 @@ It is a **typed SQL query builder**, by design.
 
 ## Requirements
 
-- Julia **1.11+** (as specified in Project.toml)
+- Julia **1.12+** (as specified in Project.toml)
 
 ### Current Dependencies
 

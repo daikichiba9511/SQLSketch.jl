@@ -700,7 +700,7 @@ users::Vector{User} = fetch_all(db, dialect, registry, q)
 
 ## 要件
 
-- Julia **1.11+**（Project.toml で指定）
+- Julia **1.12+**（Project.toml で指定）
 
 ### 現在の依存関係
 
