@@ -19,6 +19,10 @@ using Test
         include("core/window_test.jl")
     end
 
+    @testset "Set Operations (Core.set_operations)" begin
+        include("core/set_operations_test.jl")
+    end
+
     @testset "SQLite Dialect (Dialects.sqlite)" begin
         include("dialects/sqlite_test.jl")
     end
