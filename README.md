@@ -19,6 +19,7 @@ Issues and pull requests may not receive responses.
 >
 > The primary goal of this repository is to explore and document a
 > _Julia-native approach to SQL query building_, focusing on:
+>
 > - Type-safe query composition
 > - Inspectable SQL generation
 > - Clear abstraction boundaries
@@ -70,6 +71,7 @@ SQLSketch is designed as a two-layer system:
 ```
 
 ### Core Layer
+
 - `Expr` – Expression AST (column refs, literals, operators)
 - `Query` – Query AST (FROM, WHERE, SELECT, JOIN, etc.)
 - `Dialect` – SQL generation (SQLite, PostgreSQL, MySQL)
@@ -77,6 +79,7 @@ SQLSketch is designed as a two-layer system:
 - `CodecRegistry` – Type conversion
 
 ### Easy Layer (Future)
+
 - Repository pattern
 - CRUD helpers
 - Relation preloading
@@ -89,6 +92,7 @@ SQLSketch is designed as a two-layer system:
 **Completed Phases:** 11/12 | **Total Tests:** 1712 passing ✅
 
 - ✅ **Phase 1: Expression AST** (268 tests)
+
   - Column references, literals, parameters
   - Binary/unary operators with auto-wrapping
   - Function calls
@@ -102,6 +106,7 @@ SQLSketch is designed as a two-layer system:
   - **CASE expressions** - conditional logic
 
 - ✅ **Phase 2: Query AST** (232 tests)
+
   - FROM, WHERE, SELECT, JOIN, ORDER BY
   - LIMIT, OFFSET, DISTINCT, GROUP BY, HAVING
   - **INSERT, UPDATE, DELETE** (DML operations)
@@ -111,6 +116,7 @@ SQLSketch is designed as a two-layer system:
   - **Curried API** for natural pipeline composition
 
 - ✅ **Phase 3: Dialect Abstraction** (331 tests)
+
   - Dialect interface (compile, quote_identifier, placeholder, supports)
   - Capability system for feature detection
   - SQLite dialect implementation
@@ -121,6 +127,7 @@ SQLSketch is designed as a two-layer system:
   - **Placeholder resolution** (`p_` → `col(table, column)`)
 
 - ✅ **Phase 4: Driver Abstraction** (41 tests)
+
   - Driver interface (connect, execute, close)
   - SQLiteDriver implementation
   - Connection management (in-memory and file-based)
@@ -128,12 +135,14 @@ SQLSketch is designed as a two-layer system:
   - Query execution returning raw SQLite results
 
 - ✅ **Phase 5: CodecRegistry** (115 tests)
+
   - Type-safe encoding/decoding between Julia and SQL
   - Built-in codecs (Int, Float64, String, Bool, Date, DateTime, UUID)
   - NULL/Missing handling
   - Row mapping to NamedTuples and structs
 
 - ✅ **Phase 6: End-to-End Integration** (95 tests)
+
   - Query execution API (`fetch_all`, `fetch_one`, `fetch_maybe`)
   - **DML execution API (`execute_dml`)**
   - Type-safe parameter binding
@@ -143,6 +152,7 @@ SQLSketch is designed as a two-layer system:
   - **Full CRUD operations** (SELECT, INSERT, UPDATE, DELETE)
 
 - ✅ **Phase 7: Transaction Management** (26 tests)
+
   - **Transaction API (`transaction`)** - automatic commit/rollback
   - **Savepoint API (`savepoint`)** - nested transactions
   - Transaction-compatible query execution
@@ -150,6 +160,7 @@ SQLSketch is designed as a two-layer system:
   - Comprehensive error handling and isolation tests
 
 - ✅ **Phase 8: Migration Runner** (79 tests)
+
   - **Migration discovery and application** (`discover_migrations`, `apply_migrations`)
   - **Timestamp-based versioning** (YYYYMMDDHHMMSS format)
   - **SHA256 checksum validation** - detect modified migrations
@@ -160,6 +171,7 @@ SQLSketch is designed as a two-layer system:
   - UP/DOWN migration section support
 
 - ✅ **Phase 8.5: Window Functions** (79 tests)
+
   - **Window function AST** (`WindowFrame`, `Over`, `WindowFunc`)
   - **Ranking functions** (`row_number`, `rank`, `dense_rank`, `ntile`)
   - **Value functions** (`lag`, `lead`, `first_value`, `last_value`, `nth_value`)
@@ -169,6 +181,7 @@ SQLSketch is designed as a two-layer system:
   - **Full SQLite dialect support** - complete SQL generation
 
 - ✅ **Phase 8.6: Set Operations** (102 tests)
+
   - **Set operation AST** (`SetUnion`, `SetIntersect`, `SetExcept`)
   - **UNION / UNION ALL** - combine query results
   - **INTERSECT** - find common rows
@@ -177,6 +190,7 @@ SQLSketch is designed as a two-layer system:
   - **Full SQLite dialect support** - complete SQL generation
 
 - ✅ **Phase 8.7: UPSERT (ON CONFLICT)** (86 tests)
+
   - **OnConflict AST type** - UPSERT support
   - **ON CONFLICT DO NOTHING** - ignore conflicts
   - **ON CONFLICT DO UPDATE** - update on conflict
@@ -186,6 +200,7 @@ SQLSketch is designed as a two-layer system:
   - **Full SQLite dialect support** - complete SQL generation
 
 - ✅ **Phase 10: DDL Support** (227 tests)
+
   - **DDL AST** (`CreateTable`, `AlterTable`, `DropTable`, `CreateIndex`, `DropIndex`)
   - **Column constraints** (PRIMARY KEY, NOT NULL, UNIQUE, DEFAULT, CHECK, FOREIGN KEY)
   - **Table constraints** (PRIMARY KEY, FOREIGN KEY, UNIQUE, CHECK)
@@ -195,6 +210,7 @@ SQLSketch is designed as a two-layer system:
   - **156 DDL AST unit tests** + **71 SQLite DDL compilation tests**
 
 - ✅ **Phase 11: PostgreSQL Dialect** (102 tests)
+
   - **PostgreSQLDialect implementation** - full SQL generation
   - **PostgreSQL-specific features**
     - Identifier quoting with `"` (double quotes)
@@ -775,22 +791,25 @@ It is a **typed SQL query builder**, by design.
 
 ## Requirements
 
-- Julia **1.9+** (as specified in Project.toml)
+- Julia **1.10+** (as specified in Project.toml)
 
 ### Current Dependencies
 
 **Database Drivers:**
+
 - **SQLite.jl** - SQLite database driver ✅
 - **LibPQ.jl** - PostgreSQL database driver ✅
 - **DBInterface.jl** - Database interface abstraction ✅
 
 **Type Support:**
+
 - **Dates** (stdlib) - Date/DateTime type support ✅
 - **UUIDs** (stdlib) - UUID type support ✅
 - **JSON3** - JSON/JSONB serialization (PostgreSQL) ✅
 - **SHA** (stdlib) - Migration checksum validation ✅
 
 **Development Tools:**
+
 - **JET** - Static analysis and type checking ✅
 - **JuliaFormatter** - Code formatting ✅
 
@@ -806,6 +825,7 @@ It is a **typed SQL query builder**, by design.
 See [`docs/roadmap.md`](docs/roadmap.md) for the complete implementation plan.
 
 **Progress:**
+
 - ✅ Phase 1-3 (Expressions, Queries, SQLite Dialect): 6 weeks - **COMPLETED**
 - ✅ Phase 4-6 (Driver, Codec, Integration): 6 weeks - **COMPLETED**
 - ✅ Phase 7-8 (Transactions, Migrations): 2 weeks - **COMPLETED**
