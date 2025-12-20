@@ -498,8 +498,8 @@ end
 # Database Migrations
 # ========================================
 
-# Import migration functions
-import SQLSketch.Core: apply_migrations, migration_status, generate_migration
+# Import migration functions from Extras module
+using SQLSketch.Extras: apply_migrations, migration_status, generate_migration
 
 # Generate a new migration file
 migration_path = generate_migration("db/migrations", "add_user_roles")
@@ -513,11 +513,11 @@ migration_path = generate_migration("db/migrations", "add_user_roles")
 # ALTER TABLE users DROP COLUMN role;
 
 # Apply all pending migrations
-applied = apply_migrations(db, dialect, "db/migrations")
+applied = apply_migrations(db, "db/migrations")
 println("Applied $(length(applied)) migrations")
 
 # Check migration status
-status = migration_status(db, dialect, "db/migrations")
+status = migration_status(db, "db/migrations")
 for s in status
     status_icon = s.applied ? "✓" : "✗"
     println("$status_icon $(s.migration.version) $(s.migration.name)")
