@@ -40,36 +40,36 @@ The code is serious; the positioning is not.
 
 ## 4. High-Level Architecture
 
-```mermaid
-flowchart TB
-  A[Application] --> E[Extras Layer (optional)]
-  E --> C[Core Layer (SQLSketch.Core)]
-
-  subgraph Extras Layer (optional)
-    E1[Repo / CRUD sugar]
-    E2[Relations]
-    E3[Validation integration]
-    E4[Schema macros]
-  end
-  E --> E1
-  E --> E2
-  E --> E3
-  E --> E4
-
-  subgraph Core Layer (SQLSketch.Core)
-    Q[Query AST]
-    S[SQL Compile]
-    X[Execute]
-    M[Map]
-    Q --> S --> X --> M
-
-    EX[Expr AST] --> Q
-    D[Dialect] --> S
-    R[Driver] --> X
-    K[CodecRegistry] --> M
-  end
-  C --> Q
-Copy code
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                         Application                             │
+└────────────────────────────┬────────────────────────────────────┘
+                             │
+                             ▼
+┌─────────────────────────────────────────────────────────────────┐
+│                   Extras Layer (optional)                       │
+├─────────────────────────────────────────────────────────────────┤
+│  • Migration runner (apply_migrations, migration_status)        │
+│  • Placeholder syntax (p_)                                      │
+│  • Future: Repository patterns, CRUD helpers, Schema macros     │
+└────────────────────────────┬────────────────────────────────────┘
+                             │
+                             ▼
+┌─────────────────────────────────────────────────────────────────┐
+│              Core Layer (SQLSketch.Core)                        │
+├─────────────────────────────────────────────────────────────────┤
+│                                                                 │
+│  Expression AST ──┐                                             │
+│                   │                                             │
+│                   ▼                                             │
+│              Query AST ──► SQL Compilation ──► Execute ──► Map  │
+│                                     │              │         │  │
+│                                     │              │         │  │
+│                           Dialect ──┘     Driver ──┘         │  │
+│                                                              │  │
+│                                            CodecRegistry ────┘  │
+│                                                                 │
+└─────────────────────────────────────────────────────────────────┘
 ```
 
 ## 5. Core vs Extras Layer
