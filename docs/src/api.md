@@ -178,6 +178,6 @@ Each driver handles:
 ## Migration System
 
 ```@docs
-SQLSketch.Core.apply_migrations
-SQLSketch.Core.migration_status
+SQLSketch.Extras.apply_migrations
+SQLSketch.Extras.migration_status
 ```
