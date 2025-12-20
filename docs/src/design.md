@@ -19,8 +19,8 @@ The code is serious; the positioning is not.
 ## 2. Design Goals
 
 - SQL is always visible and inspectable
-- Query APIs follow SQL's *logical evaluation order*
-- Output SQL follows SQL's *syntactic order*
+- Query APIs follow SQL's _logical evaluation order_
+- Output SQL follows SQL's _syntactic order_
 - Strong typing at query boundaries
 - Minimal hidden magic
 - Clear separation between core primitives and convenience layers
@@ -108,7 +108,6 @@ The Core layer is responsible for:
 - Transaction management
 - Error normalization
 - Observability hooks (logging / tracing)
-- Migration application (runner)
 
 The Core layer **does not** attempt to provide a full ORM experience.
 
@@ -132,6 +131,7 @@ Typical responsibilities of the Extras layer include:
 - Schema definition macros
 - DDL generation and diffing
 - Validation-related sugar
+- Migration application (runner)
 
 All Extras-layer features must be expressible **purely in terms of Core APIs**.
 
@@ -186,7 +186,7 @@ The logical order is:
 
 FROM → JOIN → WHERE → GROUP BY → HAVING → SELECT → ORDER BY → LIMIT
 
-````
+```
 
 In SQLSketch.jl, queries are constructed as a pipeline reflecting this order.
 
@@ -200,7 +200,6 @@ q =
   order_by(_.created_at, desc=true) |>
   limit(10)
 ```
-
 
 Internally, the query is represented as an AST.
 When compiled, it is emitted as syntactically correct SQL:
@@ -224,17 +223,17 @@ the output shape**.
 
 The following operations do **not** change the query’s output type:
 
-* `from`
-* `join`
-* `where`
-* `group_by`
-* `having`
-* `order_by`
-* `limit`
-* `offset`
-* `distinct`
+- `from`
+- `join`
+- `where`
+- `group_by`
+- `having`
+- `order_by`
+- `limit`
+- `offset`
+- `distinct`
 
-These operations refine *which rows* are returned, not *what a row looks like*.
+These operations refine _which rows_ are returned, not _what a row looks like_.
 
 ---
 
@@ -245,9 +244,9 @@ the output type** of a query.
 
 This rule provides:
 
-* predictable type flow
-* easier reasoning about query transformations
-* a clear boundary for data shaping
+- predictable type flow
+- easier reasoning about query transformations
+- a clear boundary for data shaping
 
 #### Examples
 
@@ -275,9 +274,9 @@ Select{OutT}
 
 The output type determines:
 
-* how rows are decoded
-* how validation is applied (if any)
-* what the user receives from `fetch_all`, `fetch_one`, or `fetch_maybe`
+- how rows are decoded
+- how validation is applied (if any)
+- what the user receives from `fetch_all`, `fetch_one`, or `fetch_maybe`
 
 The Core layer treats `OutT` as an opaque type and relies on
 constructors and codecs to enforce invariants.
@@ -315,9 +314,9 @@ Mapping into a domain-specific type requires an explicit `select`.
 
 This query model intentionally avoids:
 
-* implicit projections
-* automatic relation materialization
-* silent type changes
+- implicit projections
+- automatic relation materialization
+- silent type changes
 
 Instead, it favors **explicitness and local reasoning**.
 
@@ -400,7 +399,7 @@ Example:
 
 ```julia
 where(q, col(:users, :email) == param(String, :email))
-````
+```
 
 This form is unambiguous and works uniformly across all query shapes,
 including joins, subqueries, and correlated queries.
@@ -433,15 +432,15 @@ expression nodes.
 
 Placeholders are not mandatory for several reasons:
 
-* they can become ambiguous in multi-join queries
-* they add indirection during debugging
-* they complicate core API contracts
+- they can become ambiguous in multi-join queries
+- they add indirection during debugging
+- they complicate core API contracts
 
 For these reasons:
 
-* the Core layer always accepts explicit expressions
-* placeholder-based syntax is treated as optional sugar
-* both styles can coexist in the same codebase
+- the Core layer always accepts explicit expressions
+- placeholder-based syntax is treated as optional sugar
+- both styles can coexist in the same codebase
 
 ---
 
@@ -450,9 +449,9 @@ For these reasons:
 By separating **expression semantics** from **expression syntax**,
 SQLSketch.jl achieves the following:
 
-* the Core remains small and explicit
-* ergonomics can evolve independently
-* advanced queries remain readable and debuggable
+- the Core remains small and explicit
+- ergonomics can evolve independently
+- advanced queries remain readable and debuggable
 
 This approach balances usability with long-term maintainability.
 
@@ -552,11 +551,11 @@ Each Dialect reports which capabilities it supports.
 
 Capabilities influence behavior in two primary ways:
 
-1. **Early failure**  
+1. **Early failure**
    If a query requires an unsupported capability,
    compilation fails with a clear error.
 
-2. **Graceful degradation**  
+2. **Graceful degradation**
    When possible, a Dialect may emit an alternative SQL formulation
    that avoids the unsupported feature.
 
@@ -573,13 +572,13 @@ as **explicit extensions** guarded by capability checks.
 
 Example:
 
-````julia
+```julia
 if supports(dialect, CAP_COPY_FROM)
     copy_from(db, :table, source)
 else
     error("COPY FROM is not supported by this database")
 end
-````
+```
 
 This approach keeps the Core API minimal while still allowing
 advanced database-specific functionality.
@@ -591,10 +590,10 @@ advanced database-specific functionality.
 By combining Dialect abstraction with an explicit capability system,
 SQLSketch.jl achieves:
 
-* predictable cross-database behavior
-* clear visibility into feature differences
-* a stable foundation for experimentation
-* a clean boundary between portable and non-portable code
+- predictable cross-database behavior
+- clear visibility into feature differences
+- a stable foundation for experimentation
+- a clean boundary between portable and non-portable code
 
 This design avoids both lowest-common-denominator APIs
 and accidental reliance on database-specific behavior.
@@ -723,6 +722,7 @@ execute(conn, query) -> Int64
 **Returns**: Number of affected rows (for DML) or 0 (for DDL).
 
 **Use cases**:
+
 - `INSERT` without `RETURNING`
 - `UPDATE` without `RETURNING`
 - `DELETE` without `RETURNING`
@@ -753,6 +753,7 @@ fetch_maybe(conn, query, T) -> Union{T, Nothing}
 **Returns**: Decoded rows as Julia values (structs, NamedTuples, etc.)
 
 **Use cases**:
+
 - `SELECT` queries
 - `INSERT`/`UPDATE`/`DELETE` with `RETURNING`
 
@@ -837,12 +838,12 @@ Transactions follow a simple and strict rule:
 
 Example:
 
-````julia
+```julia
 transaction(db) do tx
     insert(tx, ...)
     update(tx, ...)
 end
-````
+```
 
 If any operation inside the block fails, all changes are rolled back.
 
@@ -854,8 +855,8 @@ Transaction handles are designed to be **connection-compatible**.
 
 This means that within a transaction block:
 
-* the same query execution APIs can be used
-* code does not need to distinguish between a connection and a transaction
+- the same query execution APIs can be used
+- code does not need to distinguish between a connection and a transaction
 
 This simplifies application code and avoids branching logic.
 
@@ -865,9 +866,9 @@ This simplifies application code and avoids branching logic.
 
 Transaction options such as:
 
-* isolation level
-* read-only mode
-* savepoints
+- isolation level
+- read-only mode
+- savepoints
 
 are expressed explicitly and guarded by capabilities.
 
@@ -880,9 +881,9 @@ Unsupported options result in early, descriptive errors.
 By keeping transaction semantics simple and explicit,
 SQLSketch.jl avoids:
 
-* implicit nested transaction behavior
-* hidden auto-commit rules
-* backend-specific surprises
+- implicit nested transaction behavior
+- hidden auto-commit rules
+- backend-specific surprises
 
 The transaction model favors clarity and correctness
 over maximum flexibility, which aligns with the project’s
@@ -986,6 +987,7 @@ When applying the same migration set to SQLite, note that:
 - Runtime normalization is enforced via CodecRegistry to maintain PostgreSQL compatibility
 
 This approach enables:
+
 - Fast local testing without PostgreSQL infrastructure
 - Early detection of schema issues before PostgreSQL deployment
 - Consistent migration files across development and production databases
@@ -1158,6 +1160,3 @@ It prioritizes:
 By keeping the Core small and principled,
 SQLSketch.jl provides a safe environment for experimentation
 while remaining grounded in real-world database usage.
-
-
-
