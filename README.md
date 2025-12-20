@@ -86,7 +86,7 @@ SQLSketch is designed as a two-layer system:
 
 ## Current Implementation Status
 
-**Completed Phases:** 7/10 | **Total Tests:** 962 passing ✅
+**Completed Phases:** 8/10 | **Total Tests:** 1041 passing ✅
 
 - ✅ **Phase 1: Expression AST** (268 tests)
   - Column references, literals, parameters
@@ -149,7 +149,17 @@ SQLSketch is designed as a two-layer system:
   - SQLite implementation (BEGIN/COMMIT/ROLLBACK)
   - Comprehensive error handling and isolation tests
 
-- ⏳ **Phase 8-10:** See [`docs/roadmap.md`](docs/roadmap.md) and [`docs/TODO.md`](docs/TODO.md)
+- ✅ **Phase 8: Migration Runner** (79 tests)
+  - **Migration discovery and application** (`discover_migrations`, `apply_migrations`)
+  - **Timestamp-based versioning** (YYYYMMDDHHMMSS format)
+  - **SHA256 checksum validation** - detect modified migrations
+  - **Automatic schema tracking** (`schema_migrations` table)
+  - **Transaction-wrapped execution** - automatic rollback on failure
+  - **Migration status and validation** (`migration_status`, `validate_migration_checksums`)
+  - **Migration generation** (`generate_migration`) - create timestamped migration files
+  - UP/DOWN migration section support
+
+- ⏳ **Phase 9-10:** See [`docs/roadmap.md`](docs/roadmap.md) and [`docs/TODO.md`](docs/TODO.md)
 
 ---
 
@@ -387,6 +397,41 @@ transaction(db) do tx
         # Savepoint rolled back, but outer transaction continues
     end
 end
+
+# ========================================
+# Database Migrations
+# ========================================
+
+# Import migration functions
+import SQLSketch.Core: apply_migrations, migration_status, generate_migration
+
+# Generate a new migration file
+migration_path = generate_migration("db/migrations", "add_user_roles")
+# Creates: db/migrations/20250120150000_add_user_roles.sql
+
+# Migration file format (db/migrations/20250120150000_add_user_roles.sql):
+# -- UP
+# ALTER TABLE users ADD COLUMN role TEXT DEFAULT 'user';
+#
+# -- DOWN
+# ALTER TABLE users DROP COLUMN role;
+
+# Apply all pending migrations
+applied = apply_migrations(db, dialect, "db/migrations")
+println("Applied $(length(applied)) migrations")
+
+# Check migration status
+status = migration_status(db, dialect, "db/migrations")
+for s in status
+    status_icon = s.applied ? "✓" : "✗"
+    println("$status_icon $(s.migration.version) $(s.migration.name)")
+end
+
+# Migration features:
+# - Timestamp-based versioning (YYYYMMDDHHMMSS)
+# - SHA256 checksum validation (detects modified migrations)
+# - Transaction-wrapped (automatic rollback on failure)
+# - Idempotent (safe to run multiple times)
 
 close(db)
 ```

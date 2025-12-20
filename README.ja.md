@@ -84,7 +84,7 @@ SQLSketch は2層システムとして設計されています：
 
 ## 現在の実装状況
 
-**完了フェーズ:** 6/10 | **総テスト数:** 662+ passing ✅
+**完了フェーズ:** 8/10 | **総テスト数:** 1041 passing ✅
 
 - ✅ **Phase 1: Expression AST** (268 tests)
   - カラム参照、リテラル、パラメータ
@@ -131,7 +131,7 @@ SQLSketch は2層システムとして設計されています：
   - NULL/Missing ハンドリング
   - NamedTuple と構造体への行マッピング
 
-- ✅ **Phase 6: End-to-End Integration** (54 tests)
+- ✅ **Phase 6: End-to-End Integration** (95 tests)
   - クエリ実行 API（`fetch_all`, `fetch_one`, `fetch_maybe`）
   - **DML 実行 API（`execute_dml`）**
   - 型安全なパラメータバインディング
@@ -140,7 +140,25 @@ SQLSketch は2層システムとして設計されています：
   - 包括的な統合テスト
   - **完全な CRUD 操作**（SELECT、INSERT、UPDATE、DELETE）
 
-- ⏳ **Phase 7-10:** [`docs/roadmap.md`](docs/roadmap.md) と [`docs/TODO.md`](docs/TODO.md) を参照
+- ✅ **Phase 7: Transaction Management** (26 tests)
+  - **トランザクション API** (`transaction()`) - 自動コミット/ロールバック
+  - **セーブポイント API** (`savepoint()`) - ネストされたトランザクション
+  - トランザクション内でのクエリ実行サポート
+  - ドライバー層での実装（SQLiteDriver）
+  - 例外時の自動ロールバック
+  - トランザクションハンドルを使った実行
+
+- ✅ **Phase 8: Migration Runner** (79 tests)
+  - **マイグレーション検出と適用** (`discover_migrations`, `apply_migrations`)
+  - **タイムスタンプベースのバージョニング** (YYYYMMDDHHMMSS 形式)
+  - **SHA256 チェックサム検証** - 変更されたマイグレーションを検出
+  - **自動スキーマ追跡** (`schema_migrations` テーブル)
+  - **トランザクション内での実行** - 失敗時の自動ロールバック
+  - **マイグレーションステータスと検証** (`migration_status`, `validate_migration_checksums`)
+  - **マイグレーション生成** (`generate_migration`) - タイムスタンプ付きマイグレーションファイルを作成
+  - UP/DOWN マイグレーションセクションのサポート
+
+- ⏳ **Phase 9-10:** [`docs/roadmap.md`](docs/roadmap.md) と [`docs/TODO.md`](docs/TODO.md) を参照
 
 ---
 
@@ -291,6 +309,79 @@ user = fetch_one(db, dialect, registry, q2)   # NamedTuple を返す（厳密に
 maybe_user = fetch_maybe(db, dialect, registry, q2)  # Union{NamedTuple, Nothing} を返す
 
 # ========================================
+# トランザクション管理
+# ========================================
+
+import SQLSketch.Core: transaction, savepoint
+
+# トランザクション内で複数の操作を実行
+result = transaction(db) do tx
+    # トランザクション内で INSERT を実行
+    insert_q = insert_into(:users, [:email, :age, :status]) |>
+        values([[param(String, :email), param(Int, :age), param(String, :status)]])
+    execute_dml(tx, dialect, insert_q, (email = "tx@example.com", age = 40, status = "active"))
+
+    # トランザクション内で UPDATE を実行
+    update_q = update(:users) |>
+        set(:status => literal("premium")) |>
+        where(col(:users, :email) == param(String, :email))
+    execute_dml(tx, dialect, update_q, (email = "tx@example.com",))
+
+    # 正常に完了すると自動的にコミットされます
+    return "success"
+end
+
+# セーブポイントを使ったネストされたトランザクション
+transaction(db) do tx
+    execute_dml(tx, dialect, insert_into(:users, [:email]) |> values([[literal("outer@example.com")]]))
+
+    # セーブポイントを作成 - 内部操作のみをロールバック可能
+    try
+        savepoint(tx, :sp1) do sp
+            execute_dml(sp, dialect, insert_into(:users, [:email]) |> values([[literal("inner@example.com")]]))
+            error("Simulated failure")  # これはセーブポイントまでロールバックされます
+        end
+    catch e
+        # セーブポイントがロールバックされました、外部のトランザクションは継続します
+    end
+
+    # 外部のトランザクションはまだアクティブで、コミットされます
+end
+
+# ========================================
+# マイグレーション
+# ========================================
+
+import SQLSketch.Core: apply_migrations, migration_status, generate_migration
+
+# 新しいマイグレーションファイルを生成
+migration_path = generate_migration("db/migrations", "add_user_roles")
+# 生成されるファイル: db/migrations/20250120150000_add_user_roles.sql
+# 内容:
+# -- UP
+#
+# -- DOWN
+#
+
+# すべての保留中のマイグレーションを適用
+applied = apply_migrations(db, dialect, "db/migrations")
+println("Applied $(length(applied)) migrations")
+
+# マイグレーションステータスを確認
+status = migration_status(db, dialect, "db/migrations")
+for s in status
+    status_icon = s.applied ? "✓" : "✗"
+    println("$status_icon $(s.migration.version) $(s.migration.name)")
+end
+
+# マイグレーション機能:
+# - タイムスタンプベースのバージョニング (YYYYMMDDHHMMSS)
+# - SHA256 チェックサム検証（変更されたマイグレーションを検出）
+# - トランザクション内での実行（失敗時の自動ロールバック）
+# - schema_migrations テーブルでの自動追跡
+# - UP/DOWN セクションのサポート（DOWN は将来の機能）
+
+# ========================================
 # DML 操作（INSERT、UPDATE、DELETE）
 # ========================================
 
@@ -341,24 +432,26 @@ src/
     driver.jl        # Driver 抽象化 ✅
     codec.jl         # 型変換 ✅
     execute.jl       # クエリ実行 ✅
-    transaction.jl   # トランザクション管理 ⏳
-    migrations.jl    # マイグレーションランナー ⏳
+    transaction.jl   # トランザクション管理 ✅
+    migrations.jl    # マイグレーションランナー ✅
   Dialects/          # Dialect 実装
     sqlite.jl        # SQLite SQL 生成 ✅
   Drivers/           # Driver 実装
     sqlite.jl        # SQLite 実行 ✅
 
-test/                # テストスイート (662+ tests)
+test/                # テストスイート (1041 tests)
   core/
-    expr_test.jl     # 式のテスト ✅ (268)
-    query_test.jl    # クエリのテスト ✅ (85)
-    codec_test.jl    # Codec のテスト ✅ (112)
+    expr_test.jl         # 式のテスト ✅ (268)
+    query_test.jl        # クエリのテスト ✅ (202)
+    codec_test.jl        # Codec のテスト ✅ (115)
+    transaction_test.jl  # トランザクションのテスト ✅ (26)
+    migrations_test.jl   # マイグレーションのテスト ✅ (79)
   dialects/
-    sqlite_test.jl   # SQLite dialect のテスト ✅ (102)
+    sqlite_test.jl       # SQLite dialect のテスト ✅ (215)
   drivers/
-    sqlite_test.jl   # SQLite driver のテスト ✅ (41)
+    sqlite_test.jl       # SQLite driver のテスト ✅ (41)
   integration/
-    end_to_end_test.jl  # 統合テスト ✅ (54)
+    end_to_end_test.jl   # 統合テスト ✅ (95)
 
 docs/                # ドキュメント
   design.md          # 設計ドキュメント
@@ -390,16 +483,16 @@ julia --project
 ### 現在のテスト状況
 
 ```
-Total: 662+ tests passing ✅
+Total: 1041 tests passing ✅
 
-Phase 1 (Expression AST):        268 tests (CAST、Subquery、CASE、BETWEEN、IN、LIKE)
-Phase 2 (Query AST):              85 tests (DML: INSERT/UPDATE/DELETE を含む)
-Phase 3 (Dialect Abstraction):   102 tests (DML コンパイル + すべての式型)
-Phase 4 (Driver Abstraction):     41 tests
-Phase 5 (CodecRegistry):         112 tests
-Phase 6 (End-to-End Integration): 54 tests (DML 実行を含む)
-Phase 7 (Transactions):           ⏳ 未実装
-Phase 8 (Migrations):             ⏳ 未実装
+Phase 1 (Expression AST):         268 tests (CAST、Subquery、CASE、BETWEEN、IN、LIKE)
+Phase 2 (Query AST):              202 tests (DML: INSERT/UPDATE/DELETE を含む、CTE サポート)
+Phase 3 (Dialect Abstraction):    215 tests (DML コンパイル + すべての式型 + CTE)
+Phase 4 (Driver Abstraction):      41 tests
+Phase 5 (CodecRegistry):          115 tests
+Phase 6 (End-to-End Integration):  95 tests (DML 実行を含む)
+Phase 7 (Transactions):            26 tests (transaction、savepoint、ロールバック)
+Phase 8 (Migrations):              79 tests (検出、適用、ステータス、チェックサム検証)
 ```
 
 ---
@@ -493,11 +586,11 @@ users::Vector{User} = fetch_all(db, dialect, registry, q)
 **進捗状況:**
 - ✅ Phase 1-3（式、クエリ、Dialect）: 6 週間 - **完了**
 - ✅ Phase 4-6（Driver、Codec、統合）: 6 週間 - **完了**
-- ⏳ Phase 7-8（トランザクション、マイグレーション）: 2 週間 - **次**
-- ⏳ Phase 9（PostgreSQL）: 2 週間
+- ✅ Phase 7-8（トランザクション、マイグレーション）: 2 週間 - **完了**
+- ⏳ Phase 9（PostgreSQL）: 2 週間 - **次**
 - ⏳ Phase 10（ドキュメント）: 2+ 週間
 
-**推定合計:** Core layer で約 18 週間（60% 完了）
+**推定合計:** Core layer で約 18 週間（80% 完了）
 
 ---
 
