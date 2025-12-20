@@ -112,7 +112,7 @@ using SQLSketch.Core        # コアクエリ構築型
 using SQLSketch.Drivers     # データベースドライバ
 
 # クエリ構築用:
-import SQLSketch.Core: from, where, select, col, literal, p_
+import SQLSketch.Core: from, where, select, col, literal
 
 # データベースに接続
 driver = SQLiteDriver()
@@ -122,8 +122,8 @@ registry = CodecRegistry()
 
 # クエリを構築して実行
 q = from(:users) |>
-    where(p_.status == "active") |>
-    select(NamedTuple, p_.id, p_.email)
+    where(col(:users, :status) == literal("active")) |>
+    select(NamedTuple, col(:users, :id), col(:users, :email))
 
 users = fetch_all(db, dialect, registry, q)
 # => Vector{NamedTuple{(:id, :email), ...}}

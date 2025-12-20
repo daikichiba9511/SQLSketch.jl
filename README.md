@@ -114,7 +114,7 @@ using SQLSketch.Core        # Core query building types
 using SQLSketch.Drivers     # Database drivers
 
 # For query building:
-import SQLSketch.Core: from, where, select, col, literal, p_
+import SQLSketch.Core: from, where, select, col, literal
 
 # Connect to database
 driver = SQLiteDriver()
@@ -124,8 +124,8 @@ registry = CodecRegistry()
 
 # Build and execute query
 q = from(:users) |>
-    where(p_.status == "active") |>
-    select(NamedTuple, p_.id, p_.email)
+    where(col(:users, :status) == literal("active")) |>
+    select(NamedTuple, col(:users, :id), col(:users, :email))
 
 users = fetch_all(db, dialect, registry, q)
 # => Vector{NamedTuple{(:id, :email), ...}}
