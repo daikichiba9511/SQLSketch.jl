@@ -82,180 +82,33 @@ SQLSketch は2層システムとして設計されています：
 
 ---
 
-## 現在の実装状況
+## ステータス
 
-**完了フェーズ:** 12/12 | **総テスト数:** 1712 passing ✅
+**完了:** 12/12 フェーズ | **テスト:** 1712 passing ✅
 
-- ✅ **Phase 1: Expression AST** (268 tests)
-  - カラム参照、リテラル、パラメータ
-  - 自動ラップ付きの二項/単項演算子
-  - 関数呼び出し
-  - 型安全な合成
-  - **Placeholder 構文（`p_`）** - カラム参照の糖衣構文
-  - **LIKE/ILIKE 演算子** - パターンマッチング
-  - **BETWEEN 演算子** - 範囲クエリ
-  - **IN 演算子** - メンバーシップテスト
-  - **CAST 式** - 型変換
-  - **サブクエリ式** - ネストされたクエリ（EXISTS、IN サブクエリ）
-  - **CASE 式** - 条件分岐ロジック
+実装済みのコア機能:
+- ✅ 式 & クエリ AST (500 tests)
+- ✅ SQLite & PostgreSQL dialects (433 tests)
+- ✅ 型安全な実行 & codecs (251 tests)
+- ✅ トランザクション & マイグレーション (105 tests)
+- ✅ Window 関数、集合演算、UPSERT (267 tests)
+- ✅ DDL サポート (227 tests)
 
-- ✅ **Phase 2: Query AST** (232 tests)
-  - FROM, WHERE, SELECT, JOIN, ORDER BY
-  - LIMIT, OFFSET, DISTINCT, GROUP BY, HAVING
-  - **INSERT, UPDATE, DELETE**（DML 操作）
-  - `|>` によるパイプライン合成
-  - Shape-preserving と shape-changing セマンティクス
-  - 型安全なクエリ変換
-  - **カリー化 API** - 自然なパイプライン合成
-
-- ✅ **Phase 3: Dialect Abstraction** (331 tests)
-  - Dialect インターフェース（compile, quote_identifier, placeholder, supports）
-  - 機能検出のための Capability システム
-  - SQLite dialect 実装
-  - クエリ AST からの完全な SQL 生成
-  - **すべての式型**（CAST、Subquery、CASE、BETWEEN、IN、LIKE）
-  - 式とクエリのコンパイル
-  - **DML コンパイル（INSERT、UPDATE、DELETE）**
-  - **Placeholder 解決**（`p_` → `col(table, column)`）
-
-- ✅ **Phase 4: Driver Abstraction** (41 tests)
-  - Driver インターフェース（connect, execute, close）
-  - SQLiteDriver 実装
-  - 接続管理（インメモリとファイルベース）
-  - `?` プレースホルダーによるパラメータバインディング
-  - SQLite の生結果を返すクエリ実行
-
-- ✅ **Phase 5: CodecRegistry** (115 tests)
-  - Julia と SQL 間の型安全なエンコード/デコード
-  - 組み込みコーデック（Int, Float64, String, Bool, Date, DateTime, UUID）
-  - NULL/Missing ハンドリング
-  - NamedTuple と構造体への行マッピング
-
-- ✅ **Phase 6: End-to-End Integration** (95 tests)
-  - クエリ実行 API（`fetch_all`, `fetch_one`, `fetch_maybe`）
-  - **DML 実行 API（`execute`）**
-  - 型安全なパラメータバインディング
-  - 完全なパイプライン: Query AST → Dialect → Driver → CodecRegistry
-  - 可観測性 API（`sql`, `explain`）
-  - 包括的な統合テスト
-  - **完全な CRUD 操作**（SELECT、INSERT、UPDATE、DELETE）
-
-- ✅ **Phase 7: Transaction Management** (26 tests)
-  - **トランザクション API** (`transaction()`) - 自動コミット/ロールバック
-  - **セーブポイント API** (`savepoint()`) - ネストされたトランザクション
-  - トランザクション内でのクエリ実行サポート
-  - ドライバー層での実装（SQLiteDriver）
-  - 例外時の自動ロールバック
-  - トランザクションハンドルを使った実行
-
-- ✅ **Phase 8: Migration Runner** (79 tests)
-  - **マイグレーション検出と適用** (`discover_migrations`, `apply_migrations`)
-  - **タイムスタンプベースのバージョニング** (YYYYMMDDHHMMSS 形式)
-  - **SHA256 チェックサム検証** - 変更されたマイグレーションを検出
-  - **自動スキーマ追跡** (`schema_migrations` テーブル)
-  - **トランザクション内での実行** - 失敗時の自動ロールバック
-  - **マイグレーションステータスと検証** (`migration_status`, `validate_migration_checksums`)
-  - **マイグレーション生成** (`generate_migration`) - タイムスタンプ付きマイグレーションファイルを作成
-  - UP/DOWN マイグレーションセクションのサポート
-
-- ✅ **Phase 8.5: Window Functions** (79 tests)
-  - **Window function AST** (`WindowFrame`, `Over`, `WindowFunc`)
-  - **ランキング関数** (`row_number`, `rank`, `dense_rank`, `ntile`)
-  - **値関数** (`lag`, `lead`, `first_value`, `last_value`, `nth_value`)
-  - **集約ウィンドウ関数** (`win_sum`, `win_avg`, `win_min`, `win_max`, `win_count`)
-  - **フレーム指定** (ROWS/RANGE/GROUPS BETWEEN)
-  - **OVER 句ビルダー** (PARTITION BY, ORDER BY, frame)
-  - **完全な SQLite dialect サポート** - 完全な SQL 生成
-
-- ✅ **Phase 8.6: Set Operations** (102 tests)
-  - **Set operation AST** (`SetUnion`, `SetIntersect`, `SetExcept`)
-  - **UNION / UNION ALL** - クエリ結果の結合
-  - **INTERSECT** - 共通行の検索
-  - **EXCEPT** - 差分の検索
-  - **カリー化付きパイプライン API** - 自然な合成
-  - **完全な SQLite dialect サポート** - 完全な SQL 生成
-
-- ✅ **Phase 8.7: UPSERT (ON CONFLICT)** (86 tests)
-  - **OnConflict AST 型** - UPSERT サポート
-  - **ON CONFLICT DO NOTHING** - 競合を無視
-  - **ON CONFLICT DO UPDATE** - 競合時に更新
-  - **競合ターゲット指定** - カラムベースのターゲット
-  - **WHERE 句による条件付き更新** - きめ細かい制御
-  - **カリー化付きパイプライン API** - 自然な合成
-  - **完全な SQLite dialect サポート** - 完全な SQL 生成
-
-- ✅ **Phase 10: DDL Support** (227 tests)
-  - **DDL AST** (`CreateTable`, `AlterTable`, `DropTable`, `CreateIndex`, `DropIndex`)
-  - **カラム制約** (PRIMARY KEY, NOT NULL, UNIQUE, DEFAULT, CHECK, FOREIGN KEY)
-  - **テーブル制約** (PRIMARY KEY, FOREIGN KEY, UNIQUE, CHECK)
-  - **ポータブルなカラム型** (`:integer`, `:text`, `:boolean`, `:timestamp` など)
-  - **カリー化付きパイプライン API** - 自然なスキーマ合成
-  - **完全な SQLite DDL コンパイル** - 完全な DDL SQL 生成
-  - **156 DDL AST 単体テスト** + **71 SQLite DDL コンパイルテスト**
-
-- ✅ **Phase 11: PostgreSQL Dialect** (102 tests)
-  - **PostgreSQLDialect 実装** - 完全な SQL 生成
-  - **PostgreSQL 固有機能**
-    - `"` (ダブルクォート) による識別子クォート
-    - プレースホルダー構文 `$1`, `$2`, ... (番号付き位置指定)
-    - ネイティブ `BOOLEAN` 型 (TRUE/FALSE)
-    - ネイティブ `ILIKE` 演算子
-    - ネイティブ `UUID` 型
-    - `JSONB` サポート
-    - `ARRAY` 型
-    - `BYTEA` (バイナリデータ)
-  - **PostgreSQLDriver 実装** (LibPQ.jl)
-    - 接続管理 (libpq 接続文字列)
-    - トランザクションサポート (BEGIN/COMMIT/ROLLBACK)
-    - セーブポイントサポート (ネストされたトランザクション)
-    - 位置パラメータによるクエリ実行
-  - **PostgreSQL 固有コーデック**
-    - ネイティブ UUID コーデック
-    - JSONB コーデック (Dict/Vector シリアライゼーション)
-    - Array コーデック (Integer[], Text[], 汎用配列)
-    - ネイティブ Boolean/Date/DateTime コーデック
-  - **完全な DDL サポート** - CREATE TABLE, ALTER TABLE, DROP TABLE, CREATE INDEX, DROP INDEX
-  - **Capability サポート** - CTE, RETURNING, UPSERT, WINDOW, LATERAL, BULK_COPY, SAVEPOINT, ADVISORY_LOCK
-  - **統合テスト** - 包括的な PostgreSQL 互換性テスト
-
-- ✅ **Phase 12: Documentation** (完了)
-
-  - **入門ガイド** (`docs/src/getting-started.md`)
-  - **API リファレンス** (`docs/src/api.md`)
-  - **包括的なチュートリアル** (`docs/src/tutorial.md`)
-  - **設計思想** (`docs/src/design.md`)
-  - **インデックスページ** (`docs/src/index.md`)
-  - **サンプル集** - クエリ合成、トランザクション、マイグレーション、マルチデータベース対応
-  - **移行ガイド** - 生 SQL や他のクエリビルダーからの移行
+詳細な内訳は [**実装ステータス**](docs/implementation-status.md) を参照。
 
 ---
 
 ## 使用例
 
+### クイックスタート
+
 ```julia
 using SQLSketch
-using SQLSketch.Core
-using SQLSketch.Drivers
+using SQLSketch.Core        # コアクエリ構築型
+using SQLSketch.Drivers     # データベースドライバ
 
-# コアクエリ構築関数をインポート
-import SQLSketch.Core: from, where, select, order_by, limit, offset, distinct, group_by, having
-import SQLSketch.Core: innerjoin, leftjoin, rightjoin, fulljoin  # Base.joinとの衝突を避けるエイリアス
-import SQLSketch.Core: col, literal, param, func, p_
-import SQLSketch.Core: between, like, case_expr
-import SQLSketch.Core: subquery, in_subquery
-
-# DML 関数をインポート
-import SQLSketch.Core: insert_into, insert_values  # insert_valuesはvaluesのエイリアス（Base.valuesとの衝突回避）
-import SQLSketch.Core: update, set, delete_from
-
-# DDL 関数をインポート
-import SQLSketch.Core: create_table, add_column, add_foreign_key
-
-# 実行関数をインポート
-import SQLSketch.Core: fetch_all, fetch_one, fetch_maybe, execute, sql
-
-# トランザクション関数をインポート
-import SQLSketch.Core: transaction, savepoint
+# クエリ構築用:
+import SQLSketch.Core: from, where, select, col, literal, p_
 
 # データベースに接続
 driver = SQLiteDriver()
@@ -263,244 +116,95 @@ db = connect(driver, ":memory:")
 dialect = SQLiteDialect()
 registry = CodecRegistry()
 
-# DDL API を使ってテーブルを作成
-users_table = create_table(:users) |>
-    add_column(:id, :integer; primary_key=true) |>
-    add_column(:email, :text; nullable=false) |>
-    add_column(:age, :integer) |>
-    add_column(:status, :text; default=literal("active")) |>
-    add_column(:created_at, :timestamp)
-
-execute(db, dialect, users_table)
-
-orders_table = create_table(:orders) |>
-    add_column(:id, :integer; primary_key=true) |>
-    add_column(:user_id, :integer) |>
-    add_column(:total, :real) |>
-    add_foreign_key([:user_id], :users, [:id])
-
-execute(db, dialect, orders_table)
-
-# ========================================
-# 基本クエリ - col() で明示的なカラム参照
-# ========================================
-
-# col() はテーブルとカラムの参照を明示的かつ明確にします
-q1 = from(:users) |>
-    where(col(:users, :status) == literal("active")) |>
-    select(NamedTuple, col(:users, :id), col(:users, :email))
-
-# 生成される SQL:
-# SELECT `users`.`id`, `users`.`email`
-# FROM `users`
-# WHERE (`users`.`status` = 'active')
-
-# ========================================
-# Placeholder 構文 - 単一テーブルクエリでの便利な糖衣構文
-# ========================================
-
-# p_ は糖衣構文: p_.column は col(推論されたテーブル, :column) に展開されます
-# シンプルなクエリではより簡潔ですが、テーブル名は暗黙的です
-q2 = from(:users) |>
+# クエリを構築して実行
+q = from(:users) |>
     where(p_.status == "active") |>
     select(NamedTuple, p_.id, p_.email)
 
-# 生成される SQL（q1 と同じ）:
-# SELECT `users`.`id`, `users`.`email`
-# FROM `users`
-# WHERE (`users`.`status` = 'active')
-
-# ========================================
-# 高度な機能 - CASE、BETWEEN、LIKE
-# ========================================
-
-q3 = from(:users) |>
-    where(p_.age |> between(18, 65)) |>
-    where(p_.email |> like("%@gmail.com")) |>
-    select(NamedTuple,
-           p_.id,
-           p_.email,
-           # CASE 式で年齢カテゴリを分類
-           case_expr([
-               (p_.age < 18, "minor"),
-               (p_.age < 65, "adult")
-           ], "senior")) |>
-    order_by(p_.created_at; desc=true) |>
-    limit(10)
-
-# 生成される SQL:
-# SELECT `users`.`id`, `users`.`email`,
-#   CASE WHEN (`users`.`age` < 18) THEN 'minor'
-#        WHEN (`users`.`age` < 65) THEN 'adult'
-#        ELSE 'senior' END
-# FROM `users`
-# WHERE ((`users`.`age` BETWEEN 18 AND 65) AND (`users`.`email` LIKE '%@gmail.com'))
-# ORDER BY `users`.`created_at` DESC
-# LIMIT 10
-
-# ========================================
-# JOIN クエリ - 明示的な col() が明確性のために重要
-# ========================================
-
-# テーブルを結合する場合、明示的な col() により各カラムがどのテーブルに属するか明確になります
-q4 = from(:users) |>
-    innerjoin(:orders, col(:orders, :user_id) == col(:users, :id)) |>
-    where(col(:users, :status) == literal("active")) |>
-    select(NamedTuple,
-           col(:users, :id),
-           col(:users, :email),
-           col(:orders, :total))
-
-# 生成される SQL:
-# SELECT `users`.`id`, `users`.`email`, `orders`.`total`
-# FROM `users`
-# INNER JOIN `orders` ON (`orders`.`user_id` = `users`.`id`)
-# WHERE (`users`.`status` = 'active')
-
-# ========================================
-# サブクエリの例
-# ========================================
-
-active_users = subquery(
-    from(:users) |>
-    where(p_.status == "active") |>
-    select(NamedTuple, p_.id)
-)
-
-q5 = from(:orders) |>
-    where(in_subquery(p_.user_id, active_users)) |>
-    select(NamedTuple, p_.id, p_.user_id, p_.total)
-
-# 生成される SQL:
-# SELECT `orders`.`id`, `orders`.`user_id`, `orders`.`total`
-# FROM `orders`
-# WHERE (`orders`.`user_id` IN (SELECT `users`.`id` FROM `users` WHERE (`users`.`status` = 'active')))
-
-# ========================================
-# 実行前に SQL を検査
-# ========================================
-
-sql_str = sql(dialect, q4)
-println(sql_str)  # 生成された SQL を確認
-
-# ========================================
-# クエリを実行して型付き結果を取得
-# ========================================
-
-users = fetch_all(db, dialect, registry, q2)  # Vector{NamedTuple} を返す
-user = fetch_one(db, dialect, registry, q2)   # NamedTuple を返す（厳密に1件でない場合エラー）
-maybe_user = fetch_maybe(db, dialect, registry, q2)  # Union{NamedTuple, Nothing} を返す
-
-# ========================================
-# トランザクション管理
-# ========================================
-
-import SQLSketch.Core: transaction, savepoint
-
-# トランザクション内で複数の操作を実行
-result = transaction(db) do tx
-    # トランザクション内で INSERT を実行
-    insert_q = insert_into(:users, [:email, :age, :status]) |>
-        values([[param(String, :email), param(Int, :age), param(String, :status)]])
-    execute(tx, dialect, insert_q, (email = "tx@example.com", age = 40, status = "active"))
-
-    # トランザクション内で UPDATE を実行
-    update_q = update(:users) |>
-        set(:status => literal("premium")) |>
-        where(col(:users, :email) == param(String, :email))
-    execute(tx, dialect, update_q, (email = "tx@example.com",))
-
-    # 正常に完了すると自動的にコミットされます
-    return "success"
-end
-
-# セーブポイントを使ったネストされたトランザクション
-transaction(db) do tx
-    execute(tx, dialect, insert_into(:users, [:email]) |> values([[literal("outer@example.com")]]))
-
-    # セーブポイントを作成 - 内部操作のみをロールバック可能
-    try
-        savepoint(tx, :sp1) do sp
-            execute(sp, dialect, insert_into(:users, [:email]) |> values([[literal("inner@example.com")]]))
-            error("Simulated failure")  # これはセーブポイントまでロールバックされます
-        end
-    catch e
-        # セーブポイントがロールバックされました、外部のトランザクションは継続します
-    end
-
-    # 外部のトランザクションはまだアクティブで、コミットされます
-end
-
-# ========================================
-# マイグレーション
-# ========================================
-
-import SQLSketch.Core: apply_migrations, migration_status, generate_migration
-
-# 新しいマイグレーションファイルを生成
-migration_path = generate_migration("db/migrations", "add_user_roles")
-# 生成されるファイル: db/migrations/20250120150000_add_user_roles.sql
-# 内容:
-# -- UP
-#
-# -- DOWN
-#
-
-# すべての保留中のマイグレーションを適用
-applied = apply_migrations(db, dialect, "db/migrations")
-println("Applied $(length(applied)) migrations")
-
-# マイグレーションステータスを確認
-status = migration_status(db, dialect, "db/migrations")
-for s in status
-    status_icon = s.applied ? "✓" : "✗"
-    println("$status_icon $(s.migration.version) $(s.migration.name)")
-end
-
-# マイグレーション機能:
-# - タイムスタンプベースのバージョニング (YYYYMMDDHHMMSS)
-# - SHA256 チェックサム検証（変更されたマイグレーションを検出）
-# - トランザクション内での実行（失敗時の自動ロールバック）
-# - schema_migrations テーブルでの自動追跡
-# - UP/DOWN セクションのサポート（DOWN は将来の機能）
-
-# ========================================
-# DML 操作（INSERT、UPDATE、DELETE）
-# ========================================
-
-# リテラルを使った INSERT
-insert_q = insert_into(:users, [:email, :age, :status]) |>
-    values([[literal("alice@example.com"), literal(25), literal("active")]])
-execute(db, dialect, insert_q)
-# 生成される SQL:
-# INSERT INTO `users` (`email`, `age`, `status`) VALUES ('alice@example.com', 25, 'active')
-
-# パラメータを使った INSERT（型安全なバインディング）
-insert_q2 = insert_into(:users, [:email, :age, :status]) |>
-    values([[param(String, :email), param(Int, :age), param(String, :status)]])
-execute(db, dialect, insert_q2, (email="bob@example.com", age=30, status="active"))
-# 生成される SQL:
-# INSERT INTO `users` (`email`, `age`, `status`) VALUES (?, ?, ?)
-# パラメータ: ["bob@example.com", 30, "active"]
-
-# WHERE 句付き UPDATE
-update_q = update(:users) |>
-    set(:status => param(String, :status)) |>
-    where(col(:users, :email) == param(String, :email))
-execute(db, dialect, update_q, (status="inactive", email="alice@example.com"))
-# 生成される SQL:
-# UPDATE `users` SET `status` = ? WHERE (`users`.`email` = ?)
-# パラメータ: ["inactive", "alice@example.com"]
-
-# WHERE 句付き DELETE
-delete_q = delete_from(:users) |>
-    where(col(:users, :status) == literal("inactive"))
-execute(db, dialect, delete_q)
-# 生成される SQL:
-# DELETE FROM `users` WHERE (`users`.`status` = 'inactive')
+users = fetch_all(db, dialect, registry, q)
+# => Vector{NamedTuple{(:id, :email), ...}}
 
 close(db)
 ```
+
+### よくあるユースケース
+
+**1. WHERE と ORDER BY を使った基本クエリ**
+```julia
+# 必要な import:
+using SQLSketch.Core
+import SQLSketch.Core: from, where, select, order_by, col, literal
+
+q = from(:users) |>
+    where(col(:users, :age) > literal(18)) |>
+    select(NamedTuple, col(:users, :id), col(:users, :name)) |>
+    order_by(col(:users, :name))
+```
+
+**2. JOIN クエリ**
+```julia
+# 必要な import:
+import SQLSketch.Core: from, innerjoin, where, select, col, literal
+
+q = from(:users) |>
+    innerjoin(:orders, col(:orders, :user_id) == col(:users, :id)) |>
+    where(col(:users, :status) == literal("active")) |>
+    select(NamedTuple, col(:users, :name), col(:orders, :total))
+```
+
+**3. パラメータを使った INSERT**
+```julia
+# 必要な import:
+import SQLSketch.Core: insert_into, insert_values, param, execute
+
+insert_q = insert_into(:users, [:email, :age]) |>
+    insert_values([[param(String, :email), param(Int, :age)]])
+
+execute(db, dialect, insert_q, (email="alice@example.com", age=25))
+```
+
+**4. 複数操作のトランザクション**
+```julia
+# 必要な import:
+import SQLSketch.Core: transaction, insert_into, insert_values, literal, execute
+
+transaction(db) do tx
+    execute(tx, dialect,
+        insert_into(:users, [:email]) |>
+        insert_values([[literal("user@example.com")]]))
+
+    execute(tx, dialect,
+        insert_into(:orders, [:user_id, :total]) |>
+        insert_values([[literal(1), literal(99.99)]]))
+end
+```
+
+**5. データベースマイグレーション**
+```julia
+# 必要な import:
+using SQLSketch.Extras: apply_migrations, migration_status
+
+# 保留中のマイグレーションを適用
+applied = apply_migrations(db, "db/migrations")
+
+# ステータスを確認
+status = migration_status(db, "db/migrations")
+```
+
+**6. DDL - テーブル作成**
+```julia
+# 必要な import:
+import SQLSketch.Core: create_table, add_column, add_foreign_key, literal, execute
+
+table = create_table(:users) |>
+    add_column(:id, :integer; primary_key=true) |>
+    add_column(:email, :text; nullable=false) |>
+    add_column(:status, :text; default=literal("active"))
+
+execute(db, dialect, table)
+```
+
+より詳細な例は [`examples/`](examples/) を参照してください。
 
 ---
 
@@ -575,25 +279,7 @@ julia --project test/core/expr_test.jl
 julia --project
 ```
 
-### 現在のテスト状況
-
-```
-Total: 1712 tests passing ✅
-
-Phase 1 (Expression AST):         268 tests (CAST、Subquery、CASE、BETWEEN、IN、LIKE)
-Phase 2 (Query AST):              232 tests (DML、CTE、RETURNING)
-Phase 3 (SQLite Dialect):         331 tests (DML + CTE + DDL コンパイル、すべての式型)
-Phase 4 (Driver Abstraction):      41 tests (SQLite driver)
-Phase 5 (CodecRegistry):          115 tests (型変換、NULL ハンドリング)
-Phase 6 (End-to-End Integration):  95 tests (DML 実行、CTE、完全なパイプライン)
-Phase 7 (Transactions):            26 tests (transaction、savepoint、ロールバック)
-Phase 8 (Migrations):              79 tests (検出、適用、チェックサム検証)
-Phase 8.5 (Window Functions):      79 tests (ランキング、値、集約ウィンドウ関数)
-Phase 8.6 (Set Operations):       102 tests (UNION、INTERSECT、EXCEPT)
-Phase 8.7 (UPSERT):                86 tests (ON CONFLICT DO NOTHING/UPDATE)
-Phase 10 (DDL Support):           227 tests (CREATE/ALTER/DROP TABLE、CREATE/DROP INDEX)
-Phase 11 (PostgreSQL Dialect):    102 tests (PostgreSQL SQL 生成、driver、codecs)
-```
+詳細なテスト内訳は [`docs/implementation-status.md`](docs/implementation-status.md) を参照してください。
 
 ---
 
@@ -736,18 +422,7 @@ users::Vector{User} = fetch_all(db, dialect, registry, q)
 
 ## ロードマップ
 
-完全な実装計画については [`docs/roadmap.md`](docs/roadmap.md) を参照してください。
-
-**進捗状況:**
-- ✅ Phase 1-3（式、クエリ、SQLite Dialect）: 6 週間 - **完了**
-- ✅ Phase 4-6（Driver、Codec、統合）: 6 週間 - **完了**
-- ✅ Phase 7-8（トランザクション、マイグレーション）: 2 週間 - **完了**
-- ✅ Phase 8.5-8.7（Window Functions、Set Operations、UPSERT）: 1 週間 - **完了**
-- ✅ Phase 10（DDL サポート）: 1 週間 - **完了**
-- ✅ Phase 11（PostgreSQL Dialect）: 2 週間 - **完了**
-- ⏳ Phase 12（ドキュメント）: 2+ 週間 - **次**
-
-**現在のステータス:** 11/12 フェーズ完了（91.7%）
+完全な実装計画と詳細なステータスについては [`docs/roadmap.md`](docs/roadmap.md) と [`docs/implementation-status.md`](docs/implementation-status.md) を参照してください。
 
 ---
 
