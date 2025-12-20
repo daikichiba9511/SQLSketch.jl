@@ -60,23 +60,21 @@ execute(conn, """
     (8, '2025-01-03', 1300, 'West')
 """)
 
-println("=" ^ 80)
+println("="^80)
 println("Window Functions Examples")
-println("=" ^ 80)
+println("="^80)
 
 # Example 1: ROW_NUMBER - Assign unique sequential numbers within partitions
 println("\n1. Employee ranking within each department by salary (ROW_NUMBER)")
-println("-" ^ 80)
+println("-"^80)
 
 q1 = from(:employees) |>
-     select(
-         NamedTuple,
-         col(:employees, :name),
-         col(:employees, :department),
-         col(:employees, :salary),
-         row_number(over(partition_by = [col(:employees, :department)],
-                         order_by = [(col(:employees, :salary), true)]))
-     )
+     select(NamedTuple,
+            col(:employees, :name),
+            col(:employees, :department),
+            col(:employees, :salary),
+            row_number(over(; partition_by = [col(:employees, :department)],
+                            order_by = [(col(:employees, :salary), true)])))
 
 sql1, _ = compile(dialect, q1)
 println("SQL: ", sql1)
@@ -87,15 +85,13 @@ end
 
 # Example 2: RANK - Rankings with gaps for ties
 println("\n2. Employee salary ranking (RANK)")
-println("-" ^ 80)
+println("-"^80)
 
 q2 = from(:employees) |>
-     select(
-         NamedTuple,
-         col(:employees, :name),
-         col(:employees, :salary),
-         rank(over(order_by = [(col(:employees, :salary), true)]))
-     )
+     select(NamedTuple,
+            col(:employees, :name),
+            col(:employees, :salary),
+            rank(over(; order_by = [(col(:employees, :salary), true)])))
 
 sql2, _ = compile(dialect, q2)
 println("SQL: ", sql2)
@@ -106,16 +102,14 @@ end
 
 # Example 3: LAG - Access previous row's value
 println("\n3. Day-over-day sales comparison (LAG)")
-println("-" ^ 80)
+println("-"^80)
 
 q3 = from(:sales) |>
      where(col(:sales, :region) == literal("East")) |>
-     select(
-         NamedTuple,
-         col(:sales, :date),
-         col(:sales, :amount),
-         lag(col(:sales, :amount), over(order_by = [(col(:sales, :date), false)]))
-     ) |>
+     select(NamedTuple,
+            col(:sales, :date),
+            col(:sales, :amount),
+            lag(col(:sales, :amount), over(; order_by = [(col(:sales, :date), false)]))) |>
      order_by(col(:sales, :date))
 
 sql3, _ = compile(dialect, q3)
@@ -127,22 +121,16 @@ end
 
 # Example 4: Running total with SUM and frame specification
 println("\n4. Running total of sales (SUM with ROWS frame)")
-println("-" ^ 80)
+println("-"^80)
 
 q4 = from(:sales) |>
      where(col(:sales, :region) == literal("East")) |>
-     select(
-         NamedTuple,
-         col(:sales, :date),
-         col(:sales, :amount),
-         win_sum(
-             col(:sales, :amount),
-             over(
-                 order_by = [(col(:sales, :date), false)],
-                 frame = window_frame(:ROWS, :UNBOUNDED_PRECEDING, :CURRENT_ROW)
-             )
-         )
-     ) |>
+     select(NamedTuple,
+            col(:sales, :date),
+            col(:sales, :amount),
+            win_sum(col(:sales, :amount),
+                    over(; order_by = [(col(:sales, :date), false)],
+                         frame = window_frame(:ROWS, :UNBOUNDED_PRECEDING, :CURRENT_ROW)))) |>
      order_by(col(:sales, :date))
 
 sql4, _ = compile(dialect, q4)
@@ -154,23 +142,17 @@ end
 
 # Example 5: Moving average with 3-day window
 println("\n5. 3-day moving average of sales (AVG with ROWS frame)")
-println("-" ^ 80)
+println("-"^80)
 
 q5 = from(:sales) |>
      where(col(:sales, :region) == literal("East")) |>
-     select(
-         NamedTuple,
-         col(:sales, :date),
-         col(:sales, :amount),
-         win_avg(
-             col(:sales, :amount),
-             over(
-                 order_by = [(col(:sales, :date), false)],
-                 # 1 PRECEDING + CURRENT ROW + 1 FOLLOWING = 3 rows
-                 frame = window_frame(:ROWS, -1, 1)
-             )
-         )
-     ) |>
+     select(NamedTuple,
+            col(:sales, :date),
+            col(:sales, :amount),
+            win_avg(col(:sales, :amount),
+                    over(; order_by = [(col(:sales, :date), false)],
+                         # 1 PRECEDING + CURRENT ROW + 1 FOLLOWING = 3 rows
+                         frame = window_frame(:ROWS, -1, 1)))) |>
      order_by(col(:sales, :date))
 
 sql5, _ = compile(dialect, q5)
@@ -182,15 +164,13 @@ end
 
 # Example 6: NTILE - Divide into quartiles
 println("\n6. Divide employees into salary quartiles (NTILE)")
-println("-" ^ 80)
+println("-"^80)
 
 q6 = from(:employees) |>
-     select(
-         NamedTuple,
-         col(:employees, :name),
-         col(:employees, :salary),
-         ntile(4, over(order_by = [(col(:employees, :salary), true)]))
-     )
+     select(NamedTuple,
+            col(:employees, :name),
+            col(:employees, :salary),
+            ntile(4, over(; order_by = [(col(:employees, :salary), true)])))
 
 sql6, _ = compile(dialect, q6)
 println("SQL: ", sql6)
@@ -201,31 +181,22 @@ end
 
 # Example 7: FIRST_VALUE and LAST_VALUE
 println("\n7. Compare each salary to department min/max (FIRST_VALUE/LAST_VALUE)")
-println("-" ^ 80)
+println("-"^80)
 
 q7 = from(:employees) |>
-     select(
-         NamedTuple,
-         col(:employees, :name),
-         col(:employees, :department),
-         col(:employees, :salary),
-         first_value(
-             col(:employees, :salary),
-             over(
-                 partition_by = [col(:employees, :department)],
-                 order_by = [(col(:employees, :salary), false)]  # ascending for min
-             )
-         ),
-         last_value(
-             col(:employees, :salary),
-             over(
-                 partition_by = [col(:employees, :department)],
-                 order_by = [(col(:employees, :salary), false)],
-                 # Need to specify frame to include all rows
-                 frame = window_frame(:ROWS, :UNBOUNDED_PRECEDING, :UNBOUNDED_FOLLOWING)
-             )
-         )
-     )
+     select(NamedTuple,
+            col(:employees, :name),
+            col(:employees, :department),
+            col(:employees, :salary),
+            first_value(col(:employees, :salary),
+                        over(; partition_by = [col(:employees, :department)],
+                             order_by = [(col(:employees, :salary), false)])),
+            last_value(col(:employees, :salary),
+                       over(; partition_by = [col(:employees, :department)],
+                            order_by = [(col(:employees, :salary), false)],
+                            # Need to specify frame to include all rows
+                            frame = window_frame(:ROWS, :UNBOUNDED_PRECEDING,
+                                                 :UNBOUNDED_FOLLOWING))))
 
 sql7, _ = compile(dialect, q7)
 println("SQL: ", sql7)
@@ -234,6 +205,6 @@ for row in fetch_all(conn, dialect, registry, q7)
     println("  $row")
 end
 
-println("\n" * ("=" ^ 80))
+println("\n" * ("="^80))
 println("All examples completed successfully!")
-println("=" ^ 80)
+println("="^80)
