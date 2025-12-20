@@ -19,12 +19,12 @@ The code is serious; the positioning is not.
 ## 2. Design Goals
 
 - SQL is always visible and inspectable
-- Query APIs follow SQL’s *logical evaluation order*
-- Output SQL follows SQL’s *syntactic order*
+- Query APIs follow SQL's *logical evaluation order*
+- Output SQL follows SQL's *syntactic order*
 - Strong typing at query boundaries
 - Minimal hidden magic
 - Clear separation between core primitives and convenience layers
-- SQLite-first development with PostgreSQL / MySQL compatibility
+- **PostgreSQL-first development** with SQLite / MySQL compatibility
 
 ---
 
@@ -669,23 +669,34 @@ This avoids mixing NULL semantics within a single application.
 
 ---
 
-### 12.4 SQLite Normalization
+### 12.4 Database-Specific Type Handling
 
-SQLite is intentionally supported as a first-class backend
-for local development and testing.
+#### PostgreSQL (Primary Target)
+
+PostgreSQL is the primary development target with rich native type support:
+
+- Native UUID type
+- JSONB for structured data
+- Precise timestamp handling with timezone support
+- Arrays and composite types
+- Full ACID compliance with strict type checking
+
+#### SQLite (Development and Testing)
+
+SQLite is supported as a lightweight backend for local development and testing.
 
 Because SQLite is dynamically typed, the CodecRegistry plays
-a critical role in enforcing invariants.
+a critical role in enforcing invariants to maintain PostgreSQL compatibility.
 
 Examples include:
 
-- representing UUIDs as TEXT
-- normalizing DateTime values
-- enforcing boolean semantics
+- representing UUIDs as TEXT (PostgreSQL uses native UUID)
+- normalizing DateTime values (PostgreSQL has precise TIMESTAMP WITH TIME ZONE)
+- enforcing boolean semantics (PostgreSQL has native BOOLEAN)
 - validating decoded values before struct construction
 
-This ensures that SQLite-based testing remains meaningful,
-even when targeting stricter databases in production.
+This ensures that SQLite-based testing remains meaningful
+and compatible with PostgreSQL production deployments.
 
 ---
 
@@ -839,19 +850,30 @@ the system fails early with a descriptive error.
 
 ---
 
-### 14.5 SQLite as a Development Backend
+### 14.5 Cross-Database Migration Support
 
-SQLite is commonly used for local development and testing.
+#### PostgreSQL (Primary Target)
 
-SQLSketch.jl supports applying the same migration set to SQLite,
-with the understanding that:
+Migrations are primarily designed for PostgreSQL with full support for:
 
-- SQLite may accept a broader range of schemas
-- some constraints may behave differently
-- runtime normalization is enforced via CodecRegistry
+- Comprehensive constraint enforcement (CHECK, UNIQUE, FOREIGN KEY)
+- Rich data types (UUID, JSONB, arrays, timestamps with timezone)
+- Advanced features (partial indexes, exclusion constraints)
 
-This makes SQLite useful for rapid iteration without
-masking fundamental schema issues.
+#### SQLite (Development and Testing)
+
+SQLite is supported for local development and rapid iteration.
+
+When applying the same migration set to SQLite, note that:
+
+- SQLite may accept a broader range of schemas (more permissive)
+- Some constraints behave differently (e.g., FOREIGN KEY enforcement)
+- Runtime normalization is enforced via CodecRegistry to maintain PostgreSQL compatibility
+
+This approach enables:
+- Fast local testing without PostgreSQL infrastructure
+- Early detection of schema issues before PostgreSQL deployment
+- Consistent migration files across development and production databases
 
 ---
 

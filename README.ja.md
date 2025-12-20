@@ -46,7 +46,7 @@ SQLSketch.jl は、強い型付けと最小限の隠れた魔法で SQL クエ�
 - クエリ境界での強い型付け
 - 最小限の隠れた魔法
 - コアプリミティブと便利層の明確な分離
-- SQLite ファーストの開発、PostgreSQL / MySQL との互換性
+- **PostgreSQL ファーストの開発**、SQLite / MySQL との互換性
 
 ---
 

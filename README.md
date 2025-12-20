@@ -48,7 +48,7 @@ The core idea is simple:
 - Strong typing at query boundaries
 - Minimal hidden magic
 - Clear separation between core primitives and convenience layers
-- SQLite-first development with PostgreSQL / MySQL compatibility
+- **PostgreSQL-first development** with SQLite / MySQL compatibility
 
 ---
 
