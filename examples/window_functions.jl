@@ -7,58 +7,67 @@ Window functions perform calculations across a set of table rows that are
 related to the current row, without collapsing the result set like GROUP BY.
 """
 
-using SQLSketch
-using SQLSketch.Drivers
+using SQLSketch          # Core query building functions
+using SQLSketch.Drivers  # Database drivers
 
 # Setup: Create an in-memory SQLite database
-db = SQLiteDriver()
-conn = connect(db, ":memory:")
+driver = SQLiteDriver()
+conn = connect(driver, ":memory:")
 dialect = SQLiteDialect()
 registry = CodecRegistry()
 
-# Create sample tables
-execute(conn, """
-    CREATE TABLE employees (
-        id INTEGER PRIMARY KEY,
-        name TEXT NOT NULL,
-        department TEXT NOT NULL,
-        salary INTEGER NOT NULL,
-        hire_date DATE NOT NULL
-    )
-""")
+# Create sample tables using DDL API
+employees_table = create_table(:employees) |>
+                  add_column(:id, :integer; primary_key = true) |>
+                  add_column(:name, :text; nullable = false) |>
+                  add_column(:department, :text; nullable = false) |>
+                  add_column(:salary, :integer; nullable = false) |>
+                  add_column(:hire_date, :date; nullable = false)
 
-execute(conn, """
-    CREATE TABLE sales (
-        id INTEGER PRIMARY KEY,
-        date DATE NOT NULL,
-        amount INTEGER NOT NULL,
-        region TEXT NOT NULL
-    )
-""")
+execute(conn, dialect, employees_table)
+
+sales_table = create_table(:sales) |>
+              add_column(:id, :integer; primary_key = true) |>
+              add_column(:date, :date; nullable = false) |>
+              add_column(:amount, :integer; nullable = false) |>
+              add_column(:region, :text; nullable = false)
+
+execute(conn, dialect, sales_table)
 
 # Insert sample data
-execute(conn, """
-    INSERT INTO employees (id, name, department, salary, hire_date) VALUES
-    (1, 'Alice', 'Engineering', 120000, '2020-01-15'),
-    (2, 'Bob', 'Engineering', 110000, '2020-03-20'),
-    (3, 'Carol', 'Engineering', 105000, '2021-06-10'),
-    (4, 'David', 'Sales', 95000, '2020-02-01'),
-    (5, 'Eve', 'Sales', 90000, '2020-08-15'),
-    (6, 'Frank', 'Marketing', 85000, '2019-11-20'),
-    (7, 'Grace', 'Marketing', 80000, '2021-01-10')
-""")
+employees_data = [
+    (1, "Alice", "Engineering", 120000, "2020-01-15"),
+    (2, "Bob", "Engineering", 110000, "2020-03-20"),
+    (3, "Carol", "Engineering", 105000, "2021-06-10"),
+    (4, "David", "Sales", 95000, "2020-02-01"),
+    (5, "Eve", "Sales", 90000, "2020-08-15"),
+    (6, "Frank", "Marketing", 85000, "2019-11-20"),
+    (7, "Grace", "Marketing", 80000, "2021-01-10")
+]
 
-execute(conn, """
-    INSERT INTO sales (id, date, amount, region) VALUES
-    (1, '2025-01-01', 1000, 'East'),
-    (2, '2025-01-02', 1500, 'East'),
-    (3, '2025-01-03', 1200, 'East'),
-    (4, '2025-01-04', 1800, 'East'),
-    (5, '2025-01-05', 1600, 'East'),
-    (6, '2025-01-01', 900, 'West'),
-    (7, '2025-01-02', 1100, 'West'),
-    (8, '2025-01-03', 1300, 'West')
-""")
+for (id, name, dept, salary, hire_date) in employees_data
+    execute(conn, dialect,
+            insert_into(:employees, [:id, :name, :department, :salary, :hire_date]) |>
+            insert_values([[literal(id), literal(name), literal(dept),
+                           literal(salary), literal(hire_date)]]))
+end
+
+sales_data = [
+    (1, "2025-01-01", 1000, "East"),
+    (2, "2025-01-02", 1500, "East"),
+    (3, "2025-01-03", 1200, "East"),
+    (4, "2025-01-04", 1800, "East"),
+    (5, "2025-01-05", 1600, "East"),
+    (6, "2025-01-01", 900, "West"),
+    (7, "2025-01-02", 1100, "West"),
+    (8, "2025-01-03", 1300, "West")
+]
+
+for (id, date, amount, region) in sales_data
+    execute(conn, dialect,
+            insert_into(:sales, [:id, :date, :amount, :region]) |>
+            insert_values([[literal(id), literal(date), literal(amount), literal(region)]]))
+end
 
 println("="^80)
 println("Window Functions Examples")

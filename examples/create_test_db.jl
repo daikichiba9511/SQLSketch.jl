@@ -11,9 +11,8 @@ After running this script, you can inspect the database with:
     sqlite> SELECT * FROM users;
 """
 
-using SQLSketch
-using SQLSketch.Core
-using SQLSketch.Drivers
+using SQLSketch          # Core query building functions
+using SQLSketch.Drivers  # Database drivers
 using Dates
 
 println("Creating persistent SQLite database...")
@@ -31,82 +30,87 @@ end
 
 driver = SQLiteDriver()
 db = connect(driver, db_path)
+dialect = SQLiteDialect()
+registry = CodecRegistry()
 println("✓ Connected to database")
 
-# Create users table
+# Create users table using DDL API
 println("\nCreating 'users' table...")
-execute(db, """
-    CREATE TABLE users (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        name TEXT NOT NULL,
-        email TEXT UNIQUE NOT NULL,
-        age INTEGER,
-        is_active INTEGER DEFAULT 1,
-        created_at TEXT NOT NULL
-    )
-""")
+users_table = create_table(:users) |>
+              add_column(:id, :integer; primary_key = true) |>
+              add_column(:name, :text; nullable = false) |>
+              add_column(:email, :text; nullable = false, unique = true) |>
+              add_column(:age, :integer) |>
+              add_column(:is_active, :integer; default = literal(1)) |>
+              add_column(:created_at, :text; nullable = false)
+
+execute(db, dialect, users_table)
 println("✓ Table 'users' created")
 
 # Insert test data
 println("\nInserting test data...")
-users_data = [("Alice", "alice@example.com", 30, 1, "2025-01-01 10:00:00"),
-              ("Bob", "bob@example.com", 25, 1, "2025-01-02 11:00:00"),
-              ("Charlie", "charlie@example.com", 35, 0, "2025-01-03 12:00:00"),
-              ("Diana", "diana@example.com", 28, 1, "2025-01-04 13:00:00"),
-              ("Eve", "eve@example.com", 32, 1, "2025-01-05 14:00:00")]
+users_data = [
+    ("Alice", "alice@example.com", 30, 1, "2025-01-01 10:00:00"),
+    ("Bob", "bob@example.com", 25, 1, "2025-01-02 11:00:00"),
+    ("Charlie", "charlie@example.com", 35, 0, "2025-01-03 12:00:00"),
+    ("Diana", "diana@example.com", 28, 1, "2025-01-04 13:00:00"),
+    ("Eve", "eve@example.com", 32, 1, "2025-01-05 14:00:00")
+]
 
 for (name, email, age, is_active, created_at) in users_data
-    execute(db, """
-        INSERT INTO users (name, email, age, is_active, created_at)
-        VALUES (?, ?, ?, ?, ?)
-    """, [name, email, age, is_active, created_at])
+    execute(db, dialect,
+            insert_into(:users, [:name, :email, :age, :is_active, :created_at]) |>
+            insert_values([[literal(name), literal(email), literal(age),
+                           literal(is_active), literal(created_at)]]))
     println("  ✓ Inserted: $name")
 end
 
 # Create posts table (to demonstrate JOIN capability)
 println("\nCreating 'posts' table...")
-execute(db, """
-    CREATE TABLE posts (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        user_id INTEGER NOT NULL,
-        title TEXT NOT NULL,
-        content TEXT,
-        created_at TEXT NOT NULL,
-        FOREIGN KEY (user_id) REFERENCES users(id)
-    )
-""")
+posts_table = create_table(:posts) |>
+              add_column(:id, :integer; primary_key = true) |>
+              add_column(:user_id, :integer; nullable = false) |>
+              add_column(:title, :text; nullable = false) |>
+              add_column(:content, :text) |>
+              add_column(:created_at, :text; nullable = false) |>
+              add_foreign_key([:user_id], :users, [:id])
+
+execute(db, dialect, posts_table)
 println("✓ Table 'posts' created")
 
 # Insert posts data
 println("\nInserting posts data...")
-posts_data = [(1, "First Post", "Hello, World!", "2025-01-06 09:00:00"),
-              (1, "Second Post", "Julia is awesome", "2025-01-07 10:00:00"),
-              (2, "Bob's Post", "Testing SQLSketch", "2025-01-08 11:00:00"),
-              (4, "Diana's Thoughts", "Loving this framework", "2025-01-09 12:00:00"),
-              (5, "Eve's Update", "Working on new features", "2025-01-10 13:00:00")]
+posts_data = [
+    (1, "First Post", "Hello, World!", "2025-01-06 09:00:00"),
+    (1, "Second Post", "Julia is awesome", "2025-01-07 10:00:00"),
+    (2, "Bob's Post", "Testing SQLSketch", "2025-01-08 11:00:00"),
+    (4, "Diana's Thoughts", "Loving this framework", "2025-01-09 12:00:00"),
+    (5, "Eve's Update", "Working on new features", "2025-01-10 13:00:00")
+]
 
 for (user_id, title, content, created_at) in posts_data
-    execute(db, """
-        INSERT INTO posts (user_id, title, content, created_at)
-        VALUES (?, ?, ?, ?)
-    """, [user_id, title, content, created_at])
+    execute(db, dialect,
+            insert_into(:posts, [:user_id, :title, :content, :created_at]) |>
+            insert_values([[literal(user_id), literal(title), literal(content), literal(created_at)]]))
     println("  ✓ Inserted: $title")
 end
 
 # Verify data
 println("\nVerifying data...")
-result = execute(db, "SELECT COUNT(*) as count FROM users", [])
+users_count = from(:users) |> select(NamedTuple, func(:COUNT, [literal(1)]))
+result = fetch_all(db, dialect, registry, users_count)
 for row in result
-    println("  Users count: $(row.count)")
+    println("  Users count: $(row[1])")
 end
 
-result = execute(db, "SELECT COUNT(*) as count FROM posts", [])
+posts_count = from(:posts) |> select(NamedTuple, func(:COUNT, [literal(1)]))
+result = fetch_all(db, dialect, registry, posts_count)
 for row in result
-    println("  Posts count: $(row.count)")
+    println("  Posts count: $(row[1])")
 end
 
 # Close connection
-SQLSketch.Core.close(db)
+close(db)
 println("\n✓ Database connection closed")
 
 println("\n" * "=" ^ 60)

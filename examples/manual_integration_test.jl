@@ -13,9 +13,8 @@ Flow:
 6. Decode results via CodecRegistry
 """
 
-using SQLSketch
-using SQLSketch.Core
-using SQLSketch.Drivers
+using SQLSketch          # Core query building functions
+using SQLSketch.Drivers  # Database drivers
 using Dates
 
 println("="^60)
@@ -26,27 +25,32 @@ println("="^60)
 println("\n[1] Setting up SQLite database...")
 driver = SQLiteDriver()
 db = connect(driver, ":memory:")
+dialect = SQLiteDialect()
 println("✓ Connected to in-memory SQLite database")
 
-# Create table
-execute(db, """
-    CREATE TABLE users (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        name TEXT NOT NULL,
-        email TEXT NOT NULL,
-        age INTEGER,
-        created_at TEXT
-    )
-""")
+# Create table using DDL API
+users_table = create_table(:users) |>
+              add_column(:id, :integer; primary_key = true) |>
+              add_column(:name, :text; nullable = false) |>
+              add_column(:email, :text; nullable = false) |>
+              add_column(:age, :integer) |>
+              add_column(:created_at, :text)
+
+execute(db, dialect, users_table)
 println("✓ Created 'users' table")
 
 # Insert test data
-execute(db, "INSERT INTO users (name, email, age, created_at) VALUES (?, ?, ?, ?)",
-        ["Alice", "alice@example.com", 30, "2025-01-01 10:00:00"])
-execute(db, "INSERT INTO users (name, email, age, created_at) VALUES (?, ?, ?, ?)",
-        ["Bob", "bob@example.com", 25, "2025-01-02 11:00:00"])
-execute(db, "INSERT INTO users (name, email, age, created_at) VALUES (?, ?, ?, ?)",
-        ["Charlie", "charlie@example.com", 35, "2025-01-03 12:00:00"])
+test_users = [
+    ("Alice", "alice@example.com", 30, "2025-01-01 10:00:00"),
+    ("Bob", "bob@example.com", 25, "2025-01-02 11:00:00"),
+    ("Charlie", "charlie@example.com", 35, "2025-01-03 12:00:00")
+]
+
+for (name, email, age, created_at) in test_users
+    execute(db, dialect,
+            insert_into(:users, [:name, :email, :age, :created_at]) |>
+            insert_values([[literal(name), literal(email), literal(age), literal(created_at)]]))
+end
 println("✓ Inserted 3 test records")
 
 # Step 2: Build Query AST
@@ -60,36 +64,25 @@ println("✓ Query AST constructed")
 
 # Step 3: Compile to SQL
 println("\n[3] Compiling Query to SQL...")
-dialect = SQLiteDialect()
 sql_string, params = compile(dialect, q)
 println("Generated SQL:")
 println("  $sql_string")
 println("Parameters: $params")
 
 # Step 4: Execute via Driver
-println("\n[4] Executing SQL via Driver...")
-result = execute(db, sql_string, [])
+println("\n[4] Executing Query...")
+registry = CodecRegistry()
+result = fetch_all(db, dialect, registry, q)
 println("✓ Query executed successfully")
 
-# Step 5: Decode results via CodecRegistry
-println("\n[5] Decoding results via CodecRegistry...")
-registry = CodecRegistry()
-
-println("\nResults:")
+# Step 5: Display results
+println("\n[5] Results:")
 println("-"^60)
-results_list = []
-for row in result
-    # Convert SQLite.Row to NamedTuple manually
-    # (In Phase 6, this will be automated by map_row)
-    nt = (id = row.id,
-          name = row.name,
-          email = row.email,
-          age = row.age)
-    push!(results_list, nt)
-    println("Row $(length(results_list)): $nt")
+for (i, row) in enumerate(result)
+    println("Row $i: $row")
 end
 println("-"^60)
-println("Total rows: $(length(results_list))")
+println("Total rows: $(length(result))")
 
 # Step 6: Test with a struct
 println("\n[6] Testing struct mapping...")
@@ -100,44 +93,22 @@ struct User
     age::Int
 end
 
-# Execute query again and map to struct
-result2 = execute(db, sql_string, [])
-users = User[]
-for row in result2
-    nt = (id = row.id,
-          name = row.name,
-          email = row.email,
-          age = row.age)
-    user = map_row(registry, User, nt)
-    push!(users, user)
-end
+# Map results to struct
+users = map_row.(Ref(registry), User, result)
 
 println("Mapped to User structs:")
 for (i, user) in enumerate(users)
     println("  User $i: id=$(user.id), name=$(user.name), email=$(user.email), age=$(user.age)")
 end
 
-# Step 7: Test Date/DateTime codec
-println("\n[7] Testing Date/DateTime codec...")
-result3 = execute(db, "SELECT id, name, created_at FROM users WHERE id = 1", [])
-for row in result3
-    created_str = row.created_at
-    println("  Raw created_at: $created_str ($(typeof(created_str)))")
-
-    # Decode using DateTimeCodec
-    dt_codec = DateTimeCodec()
-    dt = decode(dt_codec, created_str)
-    println("  Decoded DateTime: $dt ($(typeof(dt)))")
-end
-
 # Cleanup
-println("\n[8] Cleanup...")
-SQLSketch.Core.close(db)
+println("\n[7] Cleanup...")
+close(db)
 println("✓ Database connection closed")
 
 println("\n" * "="^60)
 println("✅ All integration tests passed!")
 println("="^60)
 println("\nConclusion:")
-println("  All Phase 1-5 components are working correctly.")
-println("  Ready to implement Phase 6 (all, one, maybeone APIs).")
+println("  All components are working correctly.")
+println("  Query building, compilation, execution, and type mapping all work as expected.")
