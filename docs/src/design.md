@@ -183,9 +183,7 @@ syntactic order.
 The logical order is:
 
 ```
-
 FROM → JOIN → WHERE → GROUP BY → HAVING → SELECT → ORDER BY → LIMIT
-
 ```
 
 In SQLSketch.jl, queries are constructed as a pipeline reflecting this order.
@@ -193,22 +191,21 @@ In SQLSketch.jl, queries are constructed as a pipeline reflecting this order.
 #### Example
 
 ```julia
-q =
-  from(users) |>
-  where(_.active == true) |>
-  select(UserDTO, _.id, _.email) |>
-  order_by(_.created_at, desc=true) |>
-  limit(10)
+q = from(:users) |>
+    where(col(:users, :active) == literal(true)) |>
+    order_by(col(:users, :created_at); desc=true) |>
+    limit(10) |>
+    select(UserDTO, col(:users, :id), col(:users, :email))
 ```
 
 Internally, the query is represented as an AST.
 When compiled, it is emitted as syntactically correct SQL:
 
 ```sql
-SELECT id, email
-FROM users
-WHERE active = true
-ORDER BY created_at DESC
+SELECT "users"."id", "users"."email"
+FROM "users"
+WHERE "users"."active" = $1
+ORDER BY "users"."created_at" DESC
 LIMIT 10
 ```
 
@@ -253,13 +250,13 @@ This rule provides:
 Selecting into a struct:
 
 ```julia
-select(q, UserDTO, _.id, _.email)
+q |> select(UserDTO, col(:users, :id), col(:users, :email))
 ```
 
 Selecting into a `NamedTuple`:
 
 ```julia
-select(q, _.id, _.email)
+q |> select(NamedTuple, col(:users, :id), col(:users, :email))
 ```
 
 ---
@@ -293,18 +290,11 @@ preserving all columns explicitly.
 Example:
 
 ```julia
-from(users) |>
-join(orders, on = _.users.id == _.orders.user_id)
+from(:users) |>
+    join(:orders, col(:users, :id) == col(:orders, :user_id); kind=:inner)
 ```
 
-This produces rows conceptually equivalent to:
-
-```julia
-(
-  users = UserRow(...),
-  orders = OrderRow(...)
-)
-```
+This produces rows as `NamedTuple` values with all columns from both tables.
 
 Mapping into a domain-specific type requires an explicit `select`.
 
@@ -415,16 +405,26 @@ However, placeholders are **never required** by the Core layer.
 
 ---
 
-### 9.1 Optional Placeholder (`_`)
+### 9.1 Optional Placeholder (`p_`)
 
-A placeholder such as `_` may be used as syntactic sugar:
+The `p_` placeholder function provides syntactic sugar for parameters:
 
 ```julia
-where(_.email == param(String, :email))
+# Using placeholder
+email_param = p_(:email, String)
+q = from(:users) |>
+    where(col(:users, :email) == email_param)
+
+# Execute with parameter value
+fetch_one(conn, q, email_param => "alice@example.com")
 ```
 
-Internally, placeholder expressions are expanded into explicit
-expression nodes.
+This is equivalent to the explicit form:
+
+```julia
+q = from(:users) |>
+    where(col(:users, :email) == param(String, :email))
+```
 
 ---
 
@@ -570,13 +570,14 @@ Some features are inherently database-specific.
 Rather than forcing these into the Core API, SQLSketch.jl treats them
 as **explicit extensions** guarded by capability checks.
 
-Example:
+Example (conceptual):
 
 ```julia
-if supports(dialect, CAP_COPY_FROM)
-    copy_from(db, :table, source)
+# Hypothetical PostgreSQL COPY FROM support
+if supports(dialect, CAP_BULK_COPY)
+    bulk_copy_from(conn, :table, source)
 else
-    error("COPY FROM is not supported by this database")
+    error("BULK COPY is not supported by this database")
 end
 ```
 
@@ -839,9 +840,17 @@ Transactions follow a simple and strict rule:
 Example:
 
 ```julia
-transaction(db) do tx
-    insert(tx, ...)
-    update(tx, ...)
+transaction(conn) do tx
+    # Insert user
+    insert_q = insert_into(:users, [:email, :name]) |>
+        values([literal("alice@example.com"), literal("Alice")])
+    execute(tx, insert_q)
+
+    # Update settings
+    update_q = update(:settings) |>
+        set(:theme, literal("dark")) |>
+        where(col(:settings, :user_id) == literal(1))
+    execute(tx, update_q)
 end
 ```
 
