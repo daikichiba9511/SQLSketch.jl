@@ -1151,7 +1151,9 @@ end
 
 using .Core: DDLStatement, CreateTable, AlterTable, DropTable, CreateIndex, DropIndex
 using .Core: ColumnDef, ColumnConstraint, PrimaryKeyConstraint, NotNullConstraint,
-             UniqueConstraint, DefaultConstraint, CheckConstraint, ForeignKeyConstraint
+             UniqueConstraint, DefaultConstraint, CheckConstraint, ForeignKeyConstraint,
+             AutoIncrementConstraint, GeneratedConstraint, CollationConstraint,
+             OnUpdateConstraint, CommentConstraint, IdentityConstraint
 using .Core: TableConstraint, TablePrimaryKey, TableForeignKey, TableUnique, TableCheck
 using .Core: AlterTableOp, AddColumn, DropColumn, RenameColumn, AddTableConstraint,
              DropConstraint
@@ -1253,6 +1255,53 @@ function compile_column_constraint(dialect::SQLiteDialect,
     return Base.join(parts, " ")
 end
 
+function compile_column_constraint(dialect::SQLiteDialect,
+                                   constraint::AutoIncrementConstraint,
+                                   params::Vector{Symbol})::String
+    return "AUTOINCREMENT"
+end
+
+function compile_column_constraint(dialect::SQLiteDialect,
+                                   constraint::GeneratedConstraint,
+                                   params::Vector{Symbol})::String
+    expr_sql = compile_expr(dialect, constraint.expr, params)
+    storage = constraint.stored ? "STORED" : "VIRTUAL"
+    return "GENERATED ALWAYS AS ($expr_sql) $storage"
+end
+
+function compile_column_constraint(dialect::SQLiteDialect,
+                                   constraint::CollationConstraint,
+                                   params::Vector{Symbol})::String
+    return "COLLATE $(constraint.collation)"
+end
+
+function compile_column_constraint(dialect::SQLiteDialect,
+                                   constraint::OnUpdateConstraint,
+                                   params::Vector{Symbol})::String
+    # SQLite does not support ON UPDATE clause for columns
+    # This is MySQL-specific, so we'll ignore it for SQLite
+    @warn "ON UPDATE constraint is not supported in SQLite, ignoring"
+    return ""
+end
+
+function compile_column_constraint(dialect::SQLiteDialect,
+                                   constraint::CommentConstraint,
+                                   params::Vector{Symbol})::String
+    # SQLite does not support column comments in CREATE TABLE
+    # Comments would need to be stored in a separate metadata table
+    @warn "Column comments are not supported in SQLite, ignoring"
+    return ""
+end
+
+function compile_column_constraint(dialect::SQLiteDialect,
+                                   constraint::IdentityConstraint,
+                                   params::Vector{Symbol})::String
+    # SQLite does not support IDENTITY columns
+    # Use AUTOINCREMENT instead
+    @warn "IDENTITY constraint is not supported in SQLite, using AUTOINCREMENT instead"
+    return "AUTOINCREMENT"
+end
+
 """
     compile_column_def(dialect::SQLiteDialect, column::ColumnDef, params::Vector{Symbol}) -> String
 
@@ -1274,7 +1323,10 @@ function compile_column_def(dialect::SQLiteDialect, column::ColumnDef,
 
     for constraint in column.constraints
         constraint_sql = compile_column_constraint(dialect, constraint, params)
-        push!(parts, constraint_sql)
+        # Skip empty constraint strings (from unsupported features)
+        if !isempty(constraint_sql)
+            push!(parts, constraint_sql)
+        end
     end
 
     return Base.join(parts, " ")

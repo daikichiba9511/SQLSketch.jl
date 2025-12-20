@@ -19,6 +19,8 @@ using SQLSketch.Core: DDLStatement, CreateTable, AlterTable, DropTable, CreateIn
 using SQLSketch.Core: ColumnDef, ColumnConstraint, ColumnType
 using SQLSketch.Core: PrimaryKeyConstraint, NotNullConstraint, UniqueConstraint
 using SQLSketch.Core: DefaultConstraint, CheckConstraint, ForeignKeyConstraint
+using SQLSketch.Core: AutoIncrementConstraint, GeneratedConstraint, CollationConstraint
+using SQLSketch.Core: OnUpdateConstraint, CommentConstraint, IdentityConstraint
 using SQLSketch.Core: TableConstraint, TablePrimaryKey, TableForeignKey, TableUnique,
                       TableCheck
 using SQLSketch.Core: AlterTableOp, AddColumn, DropColumn, RenameColumn
@@ -68,6 +70,47 @@ using SQLSketch.Core: col, literal, func, BinaryOp, Literal, SQLExpr
         fk2 = ForeignKeyConstraint(:users, :id, on_delete = :cascade, on_update = :restrict)
         @test fk2.on_delete == :cascade
         @test fk2.on_update == :restrict
+
+        # AutoIncrementConstraint
+        ai = AutoIncrementConstraint()
+        @test ai isa ColumnConstraint
+        @test ai isa AutoIncrementConstraint
+
+        # GeneratedConstraint
+        gc = GeneratedConstraint(col(:users, :id) + literal(1))
+        @test gc isa ColumnConstraint
+        @test gc.expr isa BinaryOp
+        @test gc.stored == true
+
+        gc_virtual = GeneratedConstraint(col(:users, :id) + literal(1); stored = false)
+        @test gc_virtual.stored == false
+
+        # CollationConstraint
+        coll = CollationConstraint(:nocase)
+        @test coll isa ColumnConstraint
+        @test coll.collation == :nocase
+
+        # OnUpdateConstraint
+        ou = OnUpdateConstraint(literal(:current_timestamp))
+        @test ou isa ColumnConstraint
+        @test ou.value isa Literal
+
+        # CommentConstraint
+        comm = CommentConstraint("User ID")
+        @test comm isa ColumnConstraint
+        @test comm.comment == "User ID"
+
+        # IdentityConstraint
+        id_c = IdentityConstraint()
+        @test id_c isa ColumnConstraint
+        @test id_c.always == false
+        @test id_c.start === nothing
+        @test id_c.increment === nothing
+
+        id_c2 = IdentityConstraint(; always = true, start = 100, increment = 2)
+        @test id_c2.always == true
+        @test id_c2.start == 100
+        @test id_c2.increment == 2
     end
 
     @testset "Column Definitions" begin
@@ -214,6 +257,87 @@ using SQLSketch.Core: col, literal, func, BinaryOp, Literal, SQLExpr
         fk = findfirst(c -> c isa ForeignKeyConstraint, parent_col.constraints)
         @test parent_col.constraints[fk].ref_table == :users
         @test parent_col.constraints[fk].ref_column == :id
+    end
+
+    @testset "CREATE TABLE - Extended Column Constraints" begin
+        # Column-level CHECK constraint
+        ct1 = create_table(:users) |>
+              add_column(:age, :integer; check = col(:users, :age) >= literal(0))
+        age_col = ct1.columns[1]
+        @test any(c -> c isa CheckConstraint, age_col.constraints)
+        chk = findfirst(c -> c isa CheckConstraint, age_col.constraints)
+        @test age_col.constraints[chk].condition isa BinaryOp
+
+        # AUTO_INCREMENT constraint
+        ct2 = create_table(:users) |>
+              add_column(:id, :integer; primary_key = true, auto_increment = true)
+        id_col = ct2.columns[1]
+        @test any(c -> c isa AutoIncrementConstraint, id_col.constraints)
+        @test any(c -> c isa PrimaryKeyConstraint, id_col.constraints)
+
+        # GENERATED column constraint
+        ct3 = create_table(:users) |>
+              add_column(:id, :integer) |>
+              add_column(:full_name, :text;
+                         generated = func(:concat,
+                                          [col(:users, :first), literal(" "),
+                                           col(:users, :last)]))
+        gen_col = ct3.columns[2]
+        @test any(c -> c isa GeneratedConstraint, gen_col.constraints)
+        gen_idx = findfirst(c -> c isa GeneratedConstraint, gen_col.constraints)
+        @test gen_col.constraints[gen_idx].stored == true
+
+        # GENERATED VIRTUAL column
+        ct4 = create_table(:users) |>
+              add_column(:id, :integer) |>
+              add_column(:computed, :integer; generated = col(:users, :id) * literal(2),
+                         stored = false)
+        comp_col = ct4.columns[2]
+        gen_idx2 = findfirst(c -> c isa GeneratedConstraint, comp_col.constraints)
+        @test comp_col.constraints[gen_idx2].stored == false
+
+        # COLLATION constraint
+        ct5 = create_table(:users) |>
+              add_column(:email, :text; collation = :nocase)
+        email_col = ct5.columns[1]
+        @test any(c -> c isa CollationConstraint, email_col.constraints)
+        coll_idx = findfirst(c -> c isa CollationConstraint, email_col.constraints)
+        @test email_col.constraints[coll_idx].collation == :nocase
+
+        # ON UPDATE constraint (MySQL-specific)
+        ct6 = create_table(:users) |>
+              add_column(:updated_at, :timestamp;
+                         on_update = literal(:current_timestamp))
+        upd_col = ct6.columns[1]
+        @test any(c -> c isa OnUpdateConstraint, upd_col.constraints)
+
+        # Comment constraint
+        ct7 = create_table(:users) |>
+              add_column(:id, :integer; comment = "Primary key")
+        id_col2 = ct7.columns[1]
+        @test any(c -> c isa CommentConstraint, id_col2.constraints)
+        comm_idx = findfirst(c -> c isa CommentConstraint, id_col2.constraints)
+        @test id_col2.constraints[comm_idx].comment == "Primary key"
+
+        # IDENTITY constraint (PostgreSQL)
+        ct8 = create_table(:users) |>
+              add_column(:id, :integer; identity = true, identity_always = true,
+                         identity_start = 1, identity_increment = 1)
+        id_col3 = ct8.columns[1]
+        @test any(c -> c isa IdentityConstraint, id_col3.constraints)
+        ident_idx = findfirst(c -> c isa IdentityConstraint, id_col3.constraints)
+        @test id_col3.constraints[ident_idx].always == true
+        @test id_col3.constraints[ident_idx].start == 1
+        @test id_col3.constraints[ident_idx].increment == 1
+
+        # Multiple constraints combined
+        ct9 = create_table(:users) |>
+              add_column(:id, :integer; primary_key = true, auto_increment = true,
+                         comment = "Auto-incrementing primary key")
+        multi_col = ct9.columns[1]
+        @test any(c -> c isa PrimaryKeyConstraint, multi_col.constraints)
+        @test any(c -> c isa AutoIncrementConstraint, multi_col.constraints)
+        @test any(c -> c isa CommentConstraint, multi_col.constraints)
     end
 
     @testset "CREATE TABLE - Table Constraints" begin

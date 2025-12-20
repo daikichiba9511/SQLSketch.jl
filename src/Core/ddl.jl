@@ -141,6 +141,109 @@ on_delete::Symbol = :no_action,
 on_update::Symbol = :no_action) = ForeignKeyConstraint(ref_table, ref_column, on_delete,
                                                        on_update)
 
+"""
+    AutoIncrementConstraint()
+
+AUTO_INCREMENT / SERIAL constraint for a column.
+
+Mapped to dialect-specific syntax:
+
+  - SQLite: AUTOINCREMENT
+  - PostgreSQL: SERIAL / BIGSERIAL
+  - MySQL: AUTO_INCREMENT
+"""
+struct AutoIncrementConstraint <: ColumnConstraint end
+
+"""
+    GeneratedConstraint(expr::SQLExpr, stored::Bool)
+
+GENERATED column constraint with expression.
+
+# Fields
+
+  - `expr::SQLExpr` – Generation expression
+  - `stored::Bool` – true for STORED, false for VIRTUAL
+"""
+struct GeneratedConstraint <: ColumnConstraint
+    expr::SQLExpr
+    stored::Bool
+end
+
+GeneratedConstraint(expr::SQLExpr; stored::Bool = true) = GeneratedConstraint(expr, stored)
+
+"""
+    CollationConstraint(collation::Symbol)
+
+COLLATE constraint for string columns.
+
+# Example
+
+```julia
+CollationConstraint(:nocase)  # SQLite
+CollationConstraint(:utf8mb4_unicode_ci)  # MySQL
+```
+"""
+struct CollationConstraint <: ColumnConstraint
+    collation::Symbol
+end
+
+"""
+    OnUpdateConstraint(value::SQLExpr)
+
+ON UPDATE constraint (MySQL-specific).
+
+# Example
+
+```julia
+OnUpdateConstraint(literal(:current_timestamp))
+```
+"""
+struct OnUpdateConstraint <: ColumnConstraint
+    value::SQLExpr
+end
+
+"""
+    CommentConstraint(comment::String)
+
+Column comment (PostgreSQL, MySQL).
+
+# Example
+
+```julia
+CommentConstraint("User's email address")
+```
+"""
+struct CommentConstraint <: ColumnConstraint
+    comment::String
+end
+
+"""
+    IdentityConstraint(always::Bool, start::Union{Int, Nothing}, increment::Union{Int, Nothing})
+
+IDENTITY column constraint (PostgreSQL 10+).
+
+# Fields
+
+  - `always::Bool` – true for ALWAYS, false for BY DEFAULT
+  - `start::Union{Int, Nothing}` – Starting value
+  - `increment::Union{Int, Nothing}` – Increment value
+
+# Example
+
+```julia
+IdentityConstraint(true, 1, 1)  # GENERATED ALWAYS AS IDENTITY (START WITH 1 INCREMENT BY 1)
+```
+"""
+struct IdentityConstraint <: ColumnConstraint
+    always::Bool
+    start::Union{Int, Nothing}
+    increment::Union{Int, Nothing}
+end
+
+IdentityConstraint(; always::Bool = false, start::Union{Int, Nothing} = nothing,
+increment::Union{Int, Nothing} = nothing) = IdentityConstraint(always, start,
+                                                               increment)
+
 #
 # Column Definition
 #
@@ -506,7 +609,18 @@ end
     add_column(ct::CreateTable, name::Symbol, type::ColumnType;
                primary_key::Bool=false, nullable::Bool=true, unique::Bool=false,
                default::Union{SQLExpr, Nothing}=nothing,
-               references::Union{Tuple{Symbol, Symbol}, Nothing}=nothing) -> CreateTable
+               references::Union{Tuple{Symbol, Symbol}, Nothing}=nothing,
+               check::Union{SQLExpr, Nothing}=nothing,
+               auto_increment::Bool=false,
+               generated::Union{SQLExpr, Nothing}=nothing,
+               stored::Bool=true,
+               collation::Union{Symbol, Nothing}=nothing,
+               on_update::Union{SQLExpr, Nothing}=nothing,
+               comment::Union{String, Nothing}=nothing,
+               identity::Bool=false,
+               identity_always::Bool=false,
+               identity_start::Union{Int, Nothing}=nothing,
+               identity_increment::Union{Int, Nothing}=nothing) -> CreateTable
 
 Add a column to a CREATE TABLE statement.
 
@@ -517,13 +631,25 @@ Add a column to a CREATE TABLE statement.
   - `unique::Bool` – Add UNIQUE constraint
   - `default::Union{SQLExpr, Nothing}` – Default value expression
   - `references::Union{Tuple{Symbol, Symbol}, Nothing}` – Foreign key reference (table, column)
+  - `check::Union{SQLExpr, Nothing}` – Column-level CHECK constraint
+  - `auto_increment::Bool` – AUTO_INCREMENT / SERIAL (dialect-specific)
+  - `generated::Union{SQLExpr, Nothing}` – GENERATED column expression
+  - `stored::Bool` – STORED (true) or VIRTUAL (false) for GENERATED columns
+  - `collation::Union{Symbol, Nothing}` – COLLATE clause for string columns
+  - `on_update::Union{SQLExpr, Nothing}` – ON UPDATE clause (MySQL)
+  - `comment::Union{String, Nothing}` – Column comment
+  - `identity::Bool` – IDENTITY column (PostgreSQL)
+  - `identity_always::Bool` – ALWAYS (true) or BY DEFAULT (false) for IDENTITY
+  - `identity_start::Union{Int, Nothing}` – Starting value for IDENTITY
+  - `identity_increment::Union{Int, Nothing}` – Increment value for IDENTITY
 
 # Example
 
 ```julia
 create_table(:users) |>
-add_column(:id, :integer; primary_key = true) |>
-add_column(:email, :text; nullable = false, unique = true) |>
+add_column(:id, :integer; primary_key = true, auto_increment = true) |>
+add_column(:email, :text; nullable = false, unique = true, collation = :nocase) |>
+add_column(:age, :integer; check = col(:users, :age) >= literal(0)) |>
 add_column(:created_at, :timestamp; default = literal(:current_timestamp))
 ```
 """
@@ -532,7 +658,18 @@ function add_column(ct::CreateTable, name::Symbol, type::ColumnType;
                     nullable::Bool = true,
                     unique::Bool = false,
                     default::Union{SQLExpr, Nothing} = nothing,
-                    references::Union{Tuple{Symbol, Symbol}, Nothing} = nothing)::CreateTable
+                    references::Union{Tuple{Symbol, Symbol}, Nothing} = nothing,
+                    check::Union{SQLExpr, Nothing} = nothing,
+                    auto_increment::Bool = false,
+                    generated::Union{SQLExpr, Nothing} = nothing,
+                    stored::Bool = true,
+                    collation::Union{Symbol, Nothing} = nothing,
+                    on_update::Union{SQLExpr, Nothing} = nothing,
+                    comment::Union{String, Nothing} = nothing,
+                    identity::Bool = false,
+                    identity_always::Bool = false,
+                    identity_start::Union{Int, Nothing} = nothing,
+                    identity_increment::Union{Int, Nothing} = nothing)::CreateTable
     constraints = ColumnConstraint[]
 
     if primary_key
@@ -556,6 +693,36 @@ function add_column(ct::CreateTable, name::Symbol, type::ColumnType;
         push!(constraints, ForeignKeyConstraint(ref_table, ref_column))
     end
 
+    if check !== nothing
+        push!(constraints, CheckConstraint(check))
+    end
+
+    if auto_increment
+        push!(constraints, AutoIncrementConstraint())
+    end
+
+    if generated !== nothing
+        push!(constraints, GeneratedConstraint(generated; stored = stored))
+    end
+
+    if collation !== nothing
+        push!(constraints, CollationConstraint(collation))
+    end
+
+    if on_update !== nothing
+        push!(constraints, OnUpdateConstraint(on_update))
+    end
+
+    if comment !== nothing
+        push!(constraints, CommentConstraint(comment))
+    end
+
+    if identity
+        push!(constraints,
+              IdentityConstraint(; always = identity_always, start = identity_start,
+                                 increment = identity_increment))
+    end
+
     column = ColumnDef(name, type, constraints)
     new_columns = vcat(ct.columns, [column])
 
@@ -573,8 +740,8 @@ Curried version of `add_column` for pipeline composition.
 
 ```julia
 create_table(:users) |>
-add_column(:id, :integer; primary_key = true) |>
-add_column(:email, :text; nullable = false)
+add_column(:id, :integer; primary_key = true, auto_increment = true) |>
+add_column(:email, :text; nullable = false, collation = :nocase)
 ```
 """
 function add_column(name::Symbol, type::ColumnType;
@@ -582,13 +749,35 @@ function add_column(name::Symbol, type::ColumnType;
                     nullable::Bool = true,
                     unique::Bool = false,
                     default::Union{SQLExpr, Nothing} = nothing,
-                    references::Union{Tuple{Symbol, Symbol}, Nothing} = nothing)
+                    references::Union{Tuple{Symbol, Symbol}, Nothing} = nothing,
+                    check::Union{SQLExpr, Nothing} = nothing,
+                    auto_increment::Bool = false,
+                    generated::Union{SQLExpr, Nothing} = nothing,
+                    stored::Bool = true,
+                    collation::Union{Symbol, Nothing} = nothing,
+                    on_update::Union{SQLExpr, Nothing} = nothing,
+                    comment::Union{String, Nothing} = nothing,
+                    identity::Bool = false,
+                    identity_always::Bool = false,
+                    identity_start::Union{Int, Nothing} = nothing,
+                    identity_increment::Union{Int, Nothing} = nothing)
     return ct -> add_column(ct, name, type;
                             primary_key = primary_key,
                             nullable = nullable,
                             unique = unique,
                             default = default,
-                            references = references)
+                            references = references,
+                            check = check,
+                            auto_increment = auto_increment,
+                            generated = generated,
+                            stored = stored,
+                            collation = collation,
+                            on_update = on_update,
+                            comment = comment,
+                            identity = identity,
+                            identity_always = identity_always,
+                            identity_start = identity_start,
+                            identity_increment = identity_increment)
 end
 
 """
@@ -739,7 +928,7 @@ Add a column to an existing table (ALTER TABLE ADD COLUMN).
 
 ```julia
 alter_table(:users) |>
-add_alter_column(:age, :integer; nullable = false)
+add_alter_column(:age, :integer; nullable = false, check = col(:users, :age) >= literal(0))
 ```
 """
 function add_alter_column(at::AlterTable, name::Symbol, type::ColumnType;
@@ -747,7 +936,18 @@ function add_alter_column(at::AlterTable, name::Symbol, type::ColumnType;
                           nullable::Bool = true,
                           unique::Bool = false,
                           default::Union{SQLExpr, Nothing} = nothing,
-                          references::Union{Tuple{Symbol, Symbol}, Nothing} = nothing)::AlterTable
+                          references::Union{Tuple{Symbol, Symbol}, Nothing} = nothing,
+                          check::Union{SQLExpr, Nothing} = nothing,
+                          auto_increment::Bool = false,
+                          generated::Union{SQLExpr, Nothing} = nothing,
+                          stored::Bool = true,
+                          collation::Union{Symbol, Nothing} = nothing,
+                          on_update::Union{SQLExpr, Nothing} = nothing,
+                          comment::Union{String, Nothing} = nothing,
+                          identity::Bool = false,
+                          identity_always::Bool = false,
+                          identity_start::Union{Int, Nothing} = nothing,
+                          identity_increment::Union{Int, Nothing} = nothing)::AlterTable
     constraints = ColumnConstraint[]
 
     if primary_key
@@ -771,6 +971,36 @@ function add_alter_column(at::AlterTable, name::Symbol, type::ColumnType;
         push!(constraints, ForeignKeyConstraint(ref_table, ref_column))
     end
 
+    if check !== nothing
+        push!(constraints, CheckConstraint(check))
+    end
+
+    if auto_increment
+        push!(constraints, AutoIncrementConstraint())
+    end
+
+    if generated !== nothing
+        push!(constraints, GeneratedConstraint(generated; stored = stored))
+    end
+
+    if collation !== nothing
+        push!(constraints, CollationConstraint(collation))
+    end
+
+    if on_update !== nothing
+        push!(constraints, OnUpdateConstraint(on_update))
+    end
+
+    if comment !== nothing
+        push!(constraints, CommentConstraint(comment))
+    end
+
+    if identity
+        push!(constraints,
+              IdentityConstraint(; always = identity_always, start = identity_start,
+                                 increment = identity_increment))
+    end
+
     column = ColumnDef(name, type, constraints)
     op = AddColumn(column)
     new_ops = vcat(at.operations, [op])
@@ -784,13 +1014,35 @@ function add_alter_column(name::Symbol, type::ColumnType;
                           nullable::Bool = true,
                           unique::Bool = false,
                           default::Union{SQLExpr, Nothing} = nothing,
-                          references::Union{Tuple{Symbol, Symbol}, Nothing} = nothing)
+                          references::Union{Tuple{Symbol, Symbol}, Nothing} = nothing,
+                          check::Union{SQLExpr, Nothing} = nothing,
+                          auto_increment::Bool = false,
+                          generated::Union{SQLExpr, Nothing} = nothing,
+                          stored::Bool = true,
+                          collation::Union{Symbol, Nothing} = nothing,
+                          on_update::Union{SQLExpr, Nothing} = nothing,
+                          comment::Union{String, Nothing} = nothing,
+                          identity::Bool = false,
+                          identity_always::Bool = false,
+                          identity_start::Union{Int, Nothing} = nothing,
+                          identity_increment::Union{Int, Nothing} = nothing)
     return at -> add_alter_column(at, name, type;
                                   primary_key = primary_key,
                                   nullable = nullable,
                                   unique = unique,
                                   default = default,
-                                  references = references)
+                                  references = references,
+                                  check = check,
+                                  auto_increment = auto_increment,
+                                  generated = generated,
+                                  stored = stored,
+                                  collation = collation,
+                                  on_update = on_update,
+                                  comment = comment,
+                                  identity = identity,
+                                  identity_always = identity_always,
+                                  identity_start = identity_start,
+                                  identity_increment = identity_increment)
 end
 
 """

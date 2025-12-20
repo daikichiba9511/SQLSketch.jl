@@ -103,6 +103,8 @@ export DDLStatement
 export ColumnType, ColumnConstraint, ColumnDef
 export PrimaryKeyConstraint, NotNullConstraint, UniqueConstraint, DefaultConstraint
 export CheckConstraint, ForeignKeyConstraint
+export AutoIncrementConstraint, GeneratedConstraint, CollationConstraint
+export OnUpdateConstraint, CommentConstraint, IdentityConstraint
 export TableConstraint, TablePrimaryKey, TableForeignKey, TableUnique, TableCheck
 export CreateTable, AlterTable, DropTable, CreateIndex, DropIndex
 export AlterTableOp, AddColumn, DropColumn, RenameColumn, AddTableConstraint, DropConstraint
@@ -207,6 +209,8 @@ export DDLStatement
 export ColumnType, ColumnConstraint, ColumnDef
 export PrimaryKeyConstraint, NotNullConstraint, UniqueConstraint, DefaultConstraint
 export CheckConstraint, ForeignKeyConstraint
+export AutoIncrementConstraint, GeneratedConstraint, CollationConstraint
+export OnUpdateConstraint, CommentConstraint, IdentityConstraint
 export TableConstraint, TablePrimaryKey, TableForeignKey, TableUnique, TableCheck
 export CreateTable, AlterTable, DropTable, CreateIndex, DropIndex
 export AlterTableOp, AddColumn, DropColumn, RenameColumn, AddTableConstraint, DropConstraint

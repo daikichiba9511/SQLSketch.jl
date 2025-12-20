@@ -1429,6 +1429,51 @@ using SQLSketch.Core: drop_table, create_index, drop_index
                        sql)
     end
 
+    @testset "Extended Column Constraints - SQLite" begin
+        # Column-level CHECK constraint
+        ddl = create_table(:users) |>
+              add_column(:age, :integer; check = col(:users, :age) >= literal(18))
+        sql, _ = compile(dialect, ddl)
+        @test occursin("CHECK ((`users`.`age` >= 18))", sql)
+
+        # AUTO_INCREMENT constraint
+        ddl2 = create_table(:users) |>
+               add_column(:id, :integer; primary_key = true, auto_increment = true)
+        sql2, _ = compile(dialect, ddl2)
+        @test occursin("INTEGER PRIMARY KEY AUTOINCREMENT", sql2)
+
+        # GENERATED column (STORED)
+        ddl3 = create_table(:users) |>
+               add_column(:id, :integer) |>
+               add_column(:double_id, :integer;
+                          generated = col(:users, :id) * literal(2))
+        sql3, _ = compile(dialect, ddl3)
+        @test occursin("GENERATED ALWAYS AS ((`users`.`id` * 2)) STORED", sql3)
+
+        # GENERATED column (VIRTUAL)
+        ddl4 = create_table(:users) |>
+               add_column(:id, :integer) |>
+               add_column(:double_id, :integer;
+                          generated = col(:users, :id) * literal(2), stored = false)
+        sql4, _ = compile(dialect, ddl4)
+        @test occursin("GENERATED ALWAYS AS ((`users`.`id` * 2)) VIRTUAL", sql4)
+
+        # COLLATION constraint
+        ddl5 = create_table(:users) |>
+               add_column(:email, :text; collation = :nocase)
+        sql5, _ = compile(dialect, ddl5)
+        @test occursin("TEXT COLLATE nocase", sql5)
+
+        # Multiple constraints combined
+        ddl6 = create_table(:users) |>
+               add_column(:id, :integer; primary_key = true, auto_increment = true) |>
+               add_column(:age, :integer; nullable = false,
+                          check = col(:users, :age) >= literal(0))
+        sql6, _ = compile(dialect, ddl6)
+        @test occursin("INTEGER PRIMARY KEY AUTOINCREMENT", sql6)
+        @test occursin("INTEGER NOT NULL CHECK", sql6)
+    end
+
     @testset "Identifier Quoting in DDL" begin
         # Table names with special characters
         ddl = create_table(Symbol("user data")) |> add_column(:id, :integer)

@@ -816,7 +816,9 @@ end
 
 using .Core: DDLStatement, CreateTable, AlterTable, DropTable, CreateIndex, DropIndex
 using .Core: ColumnDef, ColumnConstraint, PrimaryKeyConstraint, NotNullConstraint,
-             UniqueConstraint, DefaultConstraint, CheckConstraint, ForeignKeyConstraint
+             UniqueConstraint, DefaultConstraint, CheckConstraint, ForeignKeyConstraint,
+             AutoIncrementConstraint, GeneratedConstraint, CollationConstraint,
+             OnUpdateConstraint, CommentConstraint, IdentityConstraint
 using .Core: TableConstraint, TablePrimaryKey, TableForeignKey, TableUnique, TableCheck
 using .Core: AlterTableOp, AddColumn, DropColumn, RenameColumn, AddTableConstraint,
              DropConstraint
@@ -906,15 +908,103 @@ function compile_column_constraint(dialect::PostgreSQLDialect,
     return Base.join(parts, " ")
 end
 
+function compile_column_constraint(dialect::PostgreSQLDialect,
+                                   constraint::AutoIncrementConstraint,
+                                   params::Vector{Symbol})::String
+    # PostgreSQL uses SERIAL type instead of AUTOINCREMENT
+    # This is handled by converting :integer -> SERIAL during type compilation
+    # when AUTO_INCREMENT constraint is present
+    # For now, we'll return empty and handle it in compile_column_def
+    return ""
+end
+
+function compile_column_constraint(dialect::PostgreSQLDialect,
+                                   constraint::GeneratedConstraint,
+                                   params::Vector{Symbol})::String
+    expr_sql = compile_expr(dialect, constraint.expr, params)
+    storage = constraint.stored ? "STORED" : ""
+    return "GENERATED ALWAYS AS ($expr_sql) $storage"
+end
+
+function compile_column_constraint(dialect::PostgreSQLDialect,
+                                   constraint::CollationConstraint,
+                                   params::Vector{Symbol})::String
+    return "COLLATE \"$(constraint.collation)\""
+end
+
+function compile_column_constraint(dialect::PostgreSQLDialect,
+                                   constraint::OnUpdateConstraint,
+                                   params::Vector{Symbol})::String
+    # PostgreSQL does not support ON UPDATE in column definitions
+    # This is MySQL-specific, would need to use triggers in PostgreSQL
+    @warn "ON UPDATE constraint is not supported in PostgreSQL column definitions, ignoring"
+    return ""
+end
+
+function compile_column_constraint(dialect::PostgreSQLDialect,
+                                   constraint::CommentConstraint,
+                                   params::Vector{Symbol})::String
+    # PostgreSQL column comments require a separate COMMENT ON COLUMN statement
+    # Cannot be included inline in CREATE TABLE
+    @warn "Column comments in PostgreSQL require separate COMMENT ON COLUMN statement, ignoring inline comment"
+    return ""
+end
+
+function compile_column_constraint(dialect::PostgreSQLDialect,
+                                   constraint::IdentityConstraint,
+                                   params::Vector{Symbol})::String
+    always_or_default = constraint.always ? "ALWAYS" : "BY DEFAULT"
+    parts = ["GENERATED $always_or_default AS IDENTITY"]
+
+    options = String[]
+    if constraint.start !== nothing
+        push!(options, "START WITH $(constraint.start)")
+    end
+    if constraint.increment !== nothing
+        push!(options, "INCREMENT BY $(constraint.increment)")
+    end
+
+    if !isempty(options)
+        options_str = Base.join(options, " ")
+        push!(parts, "($options_str)")
+    end
+
+    return Base.join(parts, " ")
+end
+
 function compile_column_def(dialect::PostgreSQLDialect, column::ColumnDef,
                             params::Vector{Symbol})::String
     name = quote_identifier(dialect, column.name)
-    type_sql = compile_column_type(dialect, column.type)
+
+    # Check if AUTO_INCREMENT constraint is present
+    has_auto_increment = any(c -> c isa AutoIncrementConstraint, column.constraints)
+
+    # If AUTO_INCREMENT, convert type to SERIAL/BIGSERIAL
+    if has_auto_increment
+        if column.type == :integer
+            type_sql = "SERIAL"
+        elseif column.type == :bigint
+            type_sql = "BIGSERIAL"
+        else
+            type_sql = compile_column_type(dialect, column.type)
+        end
+    else
+        type_sql = compile_column_type(dialect, column.type)
+    end
+
     parts = [name, type_sql]
 
     for constraint in column.constraints
+        # Skip AutoIncrementConstraint as it's handled by SERIAL type
+        if constraint isa AutoIncrementConstraint
+            continue
+        end
+
         constraint_sql = compile_column_constraint(dialect, constraint, params)
-        push!(parts, constraint_sql)
+        # Skip empty constraint strings (from unsupported features)
+        if !isempty(constraint_sql)
+            push!(parts, constraint_sql)
+        end
     end
 
     return Base.join(parts, " ")
