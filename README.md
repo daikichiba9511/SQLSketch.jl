@@ -59,7 +59,7 @@ SQLSketch is designed as a two-layer system:
 
 ```
 ┌─────────────────────────────────┐
-│      Extras Layer (future)        │  ← Optional convenience
+│      Extras Layer (future)       │  ← Optional convenience
 │  Repository, CRUD, Relations    │
 └─────────────────────────────────┘
                ↓
@@ -92,6 +92,7 @@ SQLSketch is designed as a two-layer system:
 **Completed:** 12/12 phases | **Tests:** 1712 passing ✅
 
 Core features implemented:
+
 - ✅ Expression & Query AST (500 tests)
 - ✅ SQLite & PostgreSQL dialects (433 tests)
 - ✅ Type-safe execution & codecs (251 tests)
@@ -135,6 +136,7 @@ close(db)
 ### Common Use Cases
 
 **1. Basic Query with WHERE and ORDER BY**
+
 ```julia
 # Required imports:
 using SQLSketch.Core
@@ -147,6 +149,7 @@ q = from(:users) |>
 ```
 
 **2. JOIN Query**
+
 ```julia
 # Required imports:
 import SQLSketch.Core: from, innerjoin, where, select, col, literal
@@ -158,6 +161,7 @@ q = from(:users) |>
 ```
 
 **3. INSERT with Parameters**
+
 ```julia
 # Required imports:
 import SQLSketch.Core: insert_into, insert_values, param, execute
@@ -169,6 +173,7 @@ execute(db, dialect, insert_q, (email="alice@example.com", age=25))
 ```
 
 **4. Transaction with Multiple Operations**
+
 ```julia
 # Required imports:
 import SQLSketch.Core: transaction, insert_into, insert_values, literal, execute
@@ -185,6 +190,7 @@ end
 ```
 
 **5. Database Migrations**
+
 ```julia
 # Required imports:
 using SQLSketch.Extras: apply_migrations, migration_status
@@ -197,6 +203,7 @@ status = migration_status(db, "db/migrations")
 ```
 
 **6. DDL - Create Table**
+
 ```julia
 # Required imports:
 import SQLSketch.Core: create_table, add_column, add_foreign_key, literal, execute
