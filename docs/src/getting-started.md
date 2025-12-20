@@ -122,20 +122,83 @@ user = fetch_one(driver, q, user_id => 42)
 
 ## Core Concepts
 
-### Query Building Blocks
+### Query Building Styles
 
-SQLSketch uses a **pipeline API** where each operation returns a new query node:
+SQLSketch provides flexible query building. Here are three approaches:
+
+#### 1. Pipeline Style (Recommended)
+
+The pipeline style uses `|>` to chain operations, mirroring SQL's logical evaluation order:
 
 ```julia
-# FROM clause - starting point
-q1 = from(:users)
-
-# WHERE clause - filter rows
-q2 = q1 |> where(col(:users, :active) == literal(true))
-
-# SELECT clause - choose columns and output type
-q3 = q2 |> select(NamedTuple, col(:users, :id), col(:users, :email))
+q = from(:users) |>
+    where(col(:users, :active) == literal(true)) |>
+    order_by(col(:users, :created_at); desc=true) |>
+    limit(10) |>
+    select(User, col(:users, :id), col(:users, :email))
 ```
+
+**Advantages:**
+- Reads naturally from top to bottom (FROM → WHERE → ORDER BY → LIMIT → SELECT)
+- Matches SQL's logical evaluation order
+- Easy to add/remove operations
+- Most readable for complex queries
+
+#### 2. Nested Style
+
+Functions can be nested, but this reads inside-out:
+
+```julia
+q = select(
+    limit(
+        order_by(
+            where(
+                from(:users),
+                col(:users, :active) == literal(true)
+            ),
+            col(:users, :created_at); desc=true
+        ),
+        10
+    ),
+    User,
+    col(:users, :id),
+    col(:users, :email)
+)
+```
+
+**Drawbacks:**
+- Reads from innermost to outermost (reverse order)
+- Hard to scan visually
+- Difficult to modify
+
+#### 3. Step-by-Step Style
+
+Queries can be built incrementally by assigning intermediate results:
+
+```julia
+q1 = from(:users)
+q2 = where(q1, col(:users, :active) == literal(true))
+q3 = order_by(q2, col(:users, :created_at); desc=true)
+q4 = limit(q3, 10)
+q5 = select(q4, User, col(:users, :id), col(:users, :email))
+```
+
+**Use cases:**
+- Conditional query building
+- Debugging intermediate steps
+- When clarity is more important than conciseness
+
+**All three styles generate identical SQL:**
+
+```sql
+SELECT "users"."id", "users"."email"
+FROM "users"
+WHERE "users"."active" = $1
+ORDER BY "users"."created_at" DESC
+LIMIT $2
+```
+
+**Recommendation:** Use the pipeline style for most cases. Use step-by-step when you need conditional logic or debugging.
 
 ### Shape-Preserving vs Shape-Changing
 
