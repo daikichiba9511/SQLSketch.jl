@@ -914,3 +914,51 @@ drop_index(:idx_users_email; if_exists = true)
 function drop_index(name::Symbol; if_exists::Bool = false)::DropIndex
     return DropIndex(name, if_exists)
 end
+
+#
+# DDL Execution
+#
+
+"""
+    execute_ddl(conn, dialect, ddl_statement) -> Nothing
+
+Execute a DDL (Data Definition Language) statement.
+
+# Arguments
+- `conn::Connection`: Active database connection
+- `dialect::Dialect`: SQL dialect to use for compilation
+- `ddl_statement::DDLStatement`: DDL statement to execute (CREATE TABLE, DROP TABLE, etc.)
+
+# Example
+```julia
+ddl = create_table(:users) |>
+      add_column(:id, :integer; primary_key=true) |>
+      add_column(:name, :text; nullable=false)
+
+execute_ddl(db, dialect, ddl)
+```
+"""
+function execute_ddl(conn::Connection,
+                     dialect::Dialect,
+                     ddl_statement::DDLStatement)::Nothing
+    # Compile DDL to SQL (returns tuple (sql, params))
+    sql, _params = compile(dialect, ddl_statement)
+
+    # Execute DDL (no parameters needed)
+    execute(conn, sql, Any[])
+
+    return nothing
+end
+
+# Allow execute_ddl to work with TransactionHandle
+function execute_ddl(tx::TransactionHandle,
+                     dialect::Dialect,
+                     ddl_statement::DDLStatement)::Nothing
+    # Compile DDL to SQL (returns tuple (sql, params))
+    sql, _params = compile(dialect, ddl_statement)
+
+    # Execute DDL (no parameters needed)
+    execute(tx, sql, Any[])
+
+    return nothing
+end

@@ -115,6 +115,7 @@ export AlterTableOp, AddColumn, DropColumn, RenameColumn, AddTableConstraint, Dr
 export create_table, add_column, add_primary_key, add_foreign_key, add_unique, add_check
 export alter_table, add_alter_column, drop_alter_column, rename_alter_column
 export drop_table, create_index, drop_index
+export execute_ddl
 end # module Core
 
 # Dialect implementations
@@ -209,6 +210,7 @@ export AlterTableOp, AddColumn, DropColumn, RenameColumn, AddTableConstraint, Dr
 export create_table, add_column, add_primary_key, add_foreign_key, add_unique, add_check
 export alter_table, add_alter_column, drop_alter_column, rename_alter_column
 export drop_table, create_index, drop_index
+export execute_ddl
 
 # Export Dialect implementations
 export SQLiteDialect, PostgreSQLDialect

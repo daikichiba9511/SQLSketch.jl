@@ -28,4 +28,7 @@ Thumbs.db
 examples/*.db
 examples/*.db-*
 
+# Local documentation and scratch files
+/tmp/
+
 CLAUDE.md

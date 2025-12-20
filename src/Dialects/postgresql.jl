@@ -36,6 +36,7 @@ using .Core: Query, From, Where, Select, Join, OrderBy, Limit, Offset, Distinct,
 using .Core: SQLExpr, ColRef, Literal, Param, BinaryOp, UnaryOp, FuncCall, PlaceholderField,
              BetweenOp, InOp, Cast, Subquery, CaseExpr, WindowFunc, Over, WindowFrame
 import .Core: compile, compile_expr, quote_identifier, placeholder, supports
+using Dates
 
 # Shared helper functions (resolve_placeholders, contains_placeholder, get_primary_table)
 # are included in the main SQLSketch module before dialects
@@ -168,6 +169,14 @@ function compile_expr(dialect::PostgreSQLDialect, expr::Literal, params::Vector{
         # Escape single quotes by doubling them
         escaped = replace(string(value), "'" => "''")
         return "'$escaped'"
+    elseif value isa Dates.DateTime
+        # PostgreSQL TIMESTAMP format: 'YYYY-MM-DD HH:MM:SS'
+        formatted = Dates.format(value, "yyyy-mm-dd HH:MM:SS")
+        return "'$formatted'"
+    elseif value isa Dates.Date
+        # PostgreSQL DATE format: 'YYYY-MM-DD'
+        formatted = Dates.format(value, "yyyy-mm-dd")
+        return "'$formatted'"
     else
         error("Unsupported literal type: $(typeof(value))")
     end

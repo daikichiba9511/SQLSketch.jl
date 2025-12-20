@@ -1,0 +1,31 @@
+version: '3.8'
+
+services:
+  postgres:
+    image: postgres:14-alpine
+    container_name: sqlsketch_test_postgres
+    environment:
+      POSTGRES_DB: sqlsketch_test
+      POSTGRES_USER: test_user
+      POSTGRES_PASSWORD: test_password
+      POSTGRES_INITDB_ARGS: "-E UTF8"
+      POSTGRES_HOST_AUTH_METHOD: trust  # For testing only - DO NOT use in production
+    ports:
+      - "5433:5432"  # Use 5433 on host to avoid conflict with existing PostgreSQL
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U test_user -d sqlsketch_test"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    command: >
+      postgres
+      -c max_connections=100
+      -c shared_buffers=128MB
+      -c log_statement=all
+      -c log_destination=stderr
+      -c logging_collector=off
+
+volumes:
+  postgres_data:
