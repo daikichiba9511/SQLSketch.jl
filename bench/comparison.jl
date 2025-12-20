@@ -30,7 +30,8 @@ suite["raw_sql"] = BenchmarkGroup()
 
 # Benchmark SQLSketch queries
 for (name, q) in query_asts
-    suite["sqlsketch"][string(name)] = @benchmarkable fetch_all($conn, $dialect, $registry, $q)
+    suite["sqlsketch"][string(name)] = @benchmarkable fetch_all($conn, $dialect, $registry,
+                                                                $q)
 end
 
 # Benchmark raw SQL queries
@@ -49,7 +50,7 @@ println("SQLSketch vs Raw SQL Comparison")
 println("=" ^ 80)
 println()
 
-results = run(suite, verbose=true)
+results = run(suite; verbose = true)
 
 # Calculate and display comparison
 println()

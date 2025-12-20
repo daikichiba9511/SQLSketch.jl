@@ -19,12 +19,10 @@ println("=" ^ 80)
 println()
 
 # Run each benchmark file
-benchmarks = [
-    ("Query Construction", "query_construction.jl"),
-    ("SQL Compilation", "compilation.jl"),
-    ("Query Execution", "execution.jl"),
-    ("Comparison", "comparison.jl")
-]
+benchmarks = [("Query Construction", "query_construction.jl"),
+              ("SQL Compilation", "compilation.jl"),
+              ("Query Execution", "execution.jl"),
+              ("Comparison", "comparison.jl")]
 
 for (name, file) in benchmarks
     println()

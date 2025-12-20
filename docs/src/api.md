@@ -126,10 +126,11 @@ fetch_one
 fetch_maybe
 ```
 
-### Executing DML
+### Executing Statements
 
 ```@docs
-execute_dml
+execute
+ExecResult
 ```
 
 ### Transactions

@@ -158,7 +158,7 @@ result = transaction(driver) do tx
     user_id = fetch_one(tx, insert_user_query)
 
     savepoint(tx, :create_profile) do sp
-        execute_dml(sp, create_profile_query)
+        execute(sp, create_profile_query)
     end
 
     user_id
@@ -176,7 +176,7 @@ q = create_table(:users) |>
     not_null(:email) |>
     unique_constraint(:email)
 
-execute_dml(driver, q)
+execute(driver, q)
 ```
 
 ### Window Functions

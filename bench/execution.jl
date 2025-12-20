@@ -34,7 +34,7 @@ println("Query Execution Benchmarks")
 println("=" ^ 80)
 println()
 
-results = run(suite, verbose=true)
+results = run(suite; verbose = true)
 
 println()
 println("Summary:")

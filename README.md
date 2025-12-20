@@ -144,7 +144,7 @@ SQLSketch is designed as a two-layer system:
 - ✅ **Phase 6: End-to-End Integration** (95 tests)
 
   - Query execution API (`fetch_all`, `fetch_one`, `fetch_maybe`)
-  - **DML execution API (`execute_dml`)**
+  - **DML execution API (`execute`)**
   - Type-safe parameter binding
   - Full pipeline: Query AST → Dialect → Driver → CodecRegistry
   - Observability API (`sql`, `explain`)
@@ -261,7 +261,7 @@ import SQLSketch.Core: update, set, delete_from
 import SQLSketch.Core: create_table, add_column, add_foreign_key
 
 # Import execution functions
-import SQLSketch.Core: fetch_all, fetch_one, fetch_maybe, execute_dml, execute_ddl, sql
+import SQLSketch.Core: fetch_all, fetch_one, fetch_maybe, execute, sql
 
 # Import transaction functions
 import SQLSketch.Core: transaction, savepoint
@@ -280,7 +280,7 @@ users_table = create_table(:users) |>
     add_column(:status, :text; default=literal("active")) |>
     add_column(:created_at, :timestamp)
 
-execute_ddl(db, dialect, users_table)
+execute(db, dialect, users_table)
 
 orders_table = create_table(:orders) |>
     add_column(:id, :integer; primary_key=true) |>
@@ -288,7 +288,7 @@ orders_table = create_table(:orders) |>
     add_column(:total, :real) |>
     add_foreign_key([:user_id], :users, [:id])
 
-execute_ddl(db, dialect, orders_table)
+execute(db, dialect, orders_table)
 
 # ========================================
 # Basic Query - Explicit column references with col()
@@ -407,14 +407,14 @@ maybe_user = fetch_maybe(db, dialect, registry, q2)  # Returns Union{NamedTuple,
 # INSERT with literals
 insert_q = insert_into(:users, [:email, :age, :status]) |>
     insert_values([[literal("alice@example.com"), literal(25), literal("active")]])
-execute_dml(db, dialect, insert_q)
+execute(db, dialect, insert_q)
 # Generated SQL:
 # INSERT INTO `users` (`email`, `age`, `status`) VALUES ('alice@example.com', 25, 'active')
 
 # INSERT with parameters (type-safe binding)
 insert_q2 = insert_into(:users, [:email, :age, :status]) |>
     insert_values([[param(String, :email), param(Int, :age), param(String, :status)]])
-execute_dml(db, dialect, insert_q2, (email="bob@example.com", age=30, status="active"))
+execute(db, dialect, insert_q2, (email="bob@example.com", age=30, status="active"))
 # Generated SQL:
 # INSERT INTO `users` (`email`, `age`, `status`) VALUES (?, ?, ?)
 # Params: ["bob@example.com", 30, "active"]
@@ -423,7 +423,7 @@ execute_dml(db, dialect, insert_q2, (email="bob@example.com", age=30, status="ac
 update_q = update(:users) |>
     set(:status => param(String, :status)) |>
     where(col(:users, :email) == param(String, :email))
-execute_dml(db, dialect, update_q, (status="inactive", email="alice@example.com"))
+execute(db, dialect, update_q, (status="inactive", email="alice@example.com"))
 # Generated SQL:
 # UPDATE `users` SET `status` = ? WHERE (`users`.`email` = ?)
 # Params: ["inactive", "alice@example.com"]
@@ -431,7 +431,7 @@ execute_dml(db, dialect, update_q, (status="inactive", email="alice@example.com"
 # DELETE with WHERE
 delete_q = delete_from(:users) |>
     where(col(:users, :status) == literal("inactive"))
-execute_dml(db, dialect, delete_q)
+execute(db, dialect, delete_q)
 # Generated SQL:
 # DELETE FROM `users` WHERE (`users`.`status` = 'inactive')
 
@@ -442,12 +442,12 @@ execute_dml(db, dialect, delete_q)
 # Basic transaction - automatic commit/rollback
 transaction(db) do tx
     # Insert user
-    execute_dml(tx, dialect,
+    execute(tx, dialect,
                 insert_into(:users, [:email, :age, :status]) |>
                 insert_values([[literal("charlie@example.com"), literal(35), literal("active")]]))
 
     # Insert order for the user
-    execute_dml(tx, dialect,
+    execute(tx, dialect,
                 insert_into(:orders, [:user_id, :total]) |>
                 insert_values([[literal(3), literal(150.0)]]))
 
@@ -466,14 +466,14 @@ end
 
 # Nested transactions using savepoints
 transaction(db) do tx
-    execute_dml(tx, dialect,
+    execute(tx, dialect,
                 insert_into(:users, [:email, :age, :status]) |>
                 insert_values([[literal("david@example.com"), literal(40), literal("active")]]))
 
     # Savepoint for risky operation
     try
         savepoint(tx, :risky_update) do sp
-            execute_dml(sp, dialect,
+            execute(sp, dialect,
                         update(:users) |>
                         set(:status => literal("suspended")) |>
                         where(col(:users, :age) > literal(30)))

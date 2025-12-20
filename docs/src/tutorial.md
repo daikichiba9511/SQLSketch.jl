@@ -87,7 +87,7 @@ create_users = create_table(:users) |>
     unique_constraint(:email) |>
     unique_constraint(:username)
 
-execute_dml(driver, create_users)
+execute(driver, create_users)
 
 # Create posts table
 create_posts = create_table(:posts) |>
@@ -104,7 +104,7 @@ create_posts = create_table(:posts) |>
     not_null(:published) |>
     foreign_key(:user_id, :users, :id)
 
-execute_dml(driver, create_posts)
+execute(driver, create_posts)
 
 # Create comments table
 create_comments = create_table(:comments) |>
@@ -120,7 +120,7 @@ create_comments = create_table(:comments) |>
     foreign_key(:post_id, :posts, :id) |>
     foreign_key(:user_id, :users, :id)
 
-execute_dml(driver, create_comments)
+execute(driver, create_comments)
 
 # Create tags table
 create_tags = create_table(:tags) |>
@@ -130,7 +130,7 @@ create_tags = create_table(:tags) |>
     not_null(:name) |>
     unique_constraint(:name)
 
-execute_dml(driver, create_tags)
+execute(driver, create_tags)
 
 # Create posts_tags junction table
 create_posts_tags = create_table(:posts_tags) |>
@@ -140,12 +140,12 @@ create_posts_tags = create_table(:posts_tags) |>
     foreign_key(:post_id, :posts, :id) |>
     foreign_key(:tag_id, :tags, :id)
 
-execute_dml(driver, create_posts_tags)
+execute(driver, create_posts_tags)
 
 # Create indexes for performance
-create_index(:idx_posts_user_id) |> on(:posts, :user_id) |> execute_dml(driver)
-create_index(:idx_comments_post_id) |> on(:comments, :post_id) |> execute_dml(driver)
-create_index(:idx_posts_created_at) |> on(:posts, :created_at) |> execute_dml(driver)
+create_index(:idx_posts_user_id) |> on(:posts, :user_id) |> execute(driver)
+create_index(:idx_comments_post_id) |> on(:comments, :post_id) |> execute(driver)
+create_index(:idx_posts_created_at) |> on(:posts, :created_at) |> execute(driver)
 ```
 
 ## 4. Insert Data
@@ -367,7 +367,7 @@ function publish_post(driver, post_id::UUID)
         set_(:updated_at, literal(now())) |>
         where(col(:posts, :id) == literal(post_id))
 
-    execute_dml(driver, q)
+    execute(driver, q)
 end
 
 publish_post(driver, post.id)
@@ -383,7 +383,7 @@ function edit_post(driver, post_id::UUID, new_title::String, new_content::String
         set_(:updated_at, literal(now())) |>
         where(col(:posts, :id) == literal(post_id))
 
-    execute_dml(driver, q)
+    execute(driver, q)
 end
 
 edit_post(driver, post.id, "Updated Title", "Updated content!")
@@ -431,7 +431,7 @@ function create_post_with_tags(driver, user_id::UUID, title::String, content::St
             link_q = insert_into(:posts_tags, [:post_id, :tag_id]) |>
                 values([literal(post_id), literal(tag_id)])
 
-            execute_dml(tx, link_q)
+            execute(tx, link_q)
         end
 
         post_id
@@ -491,11 +491,11 @@ users = fetch_all(driver, q)
 
 ```julia
 # Drop all tables (in correct order due to foreign keys)
-execute_dml(driver, drop_table(:posts_tags))
-execute_dml(driver, drop_table(:comments))
-execute_dml(driver, drop_table(:posts))
-execute_dml(driver, drop_table(:tags))
-execute_dml(driver, drop_table(:users))
+execute(driver, drop_table(:posts_tags))
+execute(driver, drop_table(:comments))
+execute(driver, drop_table(:posts))
+execute(driver, drop_table(:tags))
+execute(driver, drop_table(:users))
 ```
 
 ## Summary

@@ -277,7 +277,7 @@ q = from(:users) |>
 q = insert_into(:users, [:email, :active]) |>
     values([literal("new@example.com"), literal(true)])
 
-execute_dml(driver, q)
+execute(driver, q)
 ```
 
 ### UPDATE
@@ -287,7 +287,7 @@ q = update(:users) |>
     set_(:email, literal("updated@example.com")) |>
     where(col(:users, :id) == literal(1))
 
-execute_dml(driver, q)
+execute(driver, q)
 ```
 
 ### DELETE
@@ -296,7 +296,7 @@ execute_dml(driver, q)
 q = delete_from(:users) |>
     where(col(:users, :active) == literal(false))
 
-execute_dml(driver, q)
+execute(driver, q)
 ```
 
 ### RETURNING (PostgreSQL)
@@ -314,8 +314,8 @@ new_id = fetch_one(driver, q)
 ```julia
 result = transaction(driver) do tx
     # Multiple operations in transaction
-    execute_dml(tx, insert_query)
-    execute_dml(tx, update_query)
+    execute(tx, insert_query)
+    execute(tx, update_query)
 
     # Fetch within transaction
     user = fetch_one(tx, select_query)
@@ -331,14 +331,14 @@ end
 
 ```julia
 transaction(driver) do tx
-    execute_dml(tx, query1)
+    execute(tx, query1)
 
     savepoint(tx, :sp1) do sp
-        execute_dml(sp, query2)
+        execute(sp, query2)
         # Rolls back to sp1 on error
     end
 
-    execute_dml(tx, query3)
+    execute(tx, query3)
 end
 ```
 
@@ -368,7 +368,7 @@ metadata = Dict("tags" => ["admin", "verified"], "score" => 100)
 q = insert_into(:users, [:email, :metadata]) |>
     values([literal("user@example.com"), literal(metadata)])
 
-execute_dml(driver, q)
+execute(driver, q)
 ```
 
 ### Arrays

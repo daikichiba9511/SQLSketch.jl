@@ -133,7 +133,7 @@ SQLSketch は2層システムとして設計されています：
 
 - ✅ **Phase 6: End-to-End Integration** (95 tests)
   - クエリ実行 API（`fetch_all`, `fetch_one`, `fetch_maybe`）
-  - **DML 実行 API（`execute_dml`）**
+  - **DML 実行 API（`execute`）**
   - 型安全なパラメータバインディング
   - 完全なパイプライン: Query AST → Dialect → Driver → CodecRegistry
   - 可観測性 API（`sql`, `explain`）
@@ -244,7 +244,7 @@ import SQLSketch.Core: update, set, delete_from
 import SQLSketch.Core: create_table, add_column, add_foreign_key
 
 # 実行関数をインポート
-import SQLSketch.Core: fetch_all, fetch_one, fetch_maybe, execute_dml, execute_ddl, sql
+import SQLSketch.Core: fetch_all, fetch_one, fetch_maybe, execute, sql
 
 # トランザクション関数をインポート
 import SQLSketch.Core: transaction, savepoint
@@ -263,7 +263,7 @@ users_table = create_table(:users) |>
     add_column(:status, :text; default=literal("active")) |>
     add_column(:created_at, :timestamp)
 
-execute_ddl(db, dialect, users_table)
+execute(db, dialect, users_table)
 
 orders_table = create_table(:orders) |>
     add_column(:id, :integer; primary_key=true) |>
@@ -271,7 +271,7 @@ orders_table = create_table(:orders) |>
     add_column(:total, :real) |>
     add_foreign_key([:user_id], :users, [:id])
 
-execute_ddl(db, dialect, orders_table)
+execute(db, dialect, orders_table)
 
 # ========================================
 # 基本クエリ - col() で明示的なカラム参照
@@ -394,13 +394,13 @@ result = transaction(db) do tx
     # トランザクション内で INSERT を実行
     insert_q = insert_into(:users, [:email, :age, :status]) |>
         values([[param(String, :email), param(Int, :age), param(String, :status)]])
-    execute_dml(tx, dialect, insert_q, (email = "tx@example.com", age = 40, status = "active"))
+    execute(tx, dialect, insert_q, (email = "tx@example.com", age = 40, status = "active"))
 
     # トランザクション内で UPDATE を実行
     update_q = update(:users) |>
         set(:status => literal("premium")) |>
         where(col(:users, :email) == param(String, :email))
-    execute_dml(tx, dialect, update_q, (email = "tx@example.com",))
+    execute(tx, dialect, update_q, (email = "tx@example.com",))
 
     # 正常に完了すると自動的にコミットされます
     return "success"
@@ -408,12 +408,12 @@ end
 
 # セーブポイントを使ったネストされたトランザクション
 transaction(db) do tx
-    execute_dml(tx, dialect, insert_into(:users, [:email]) |> values([[literal("outer@example.com")]]))
+    execute(tx, dialect, insert_into(:users, [:email]) |> values([[literal("outer@example.com")]]))
 
     # セーブポイントを作成 - 内部操作のみをロールバック可能
     try
         savepoint(tx, :sp1) do sp
-            execute_dml(sp, dialect, insert_into(:users, [:email]) |> values([[literal("inner@example.com")]]))
+            execute(sp, dialect, insert_into(:users, [:email]) |> values([[literal("inner@example.com")]]))
             error("Simulated failure")  # これはセーブポイントまでロールバックされます
         end
     catch e
@@ -463,14 +463,14 @@ end
 # リテラルを使った INSERT
 insert_q = insert_into(:users, [:email, :age, :status]) |>
     values([[literal("alice@example.com"), literal(25), literal("active")]])
-execute_dml(db, dialect, insert_q)
+execute(db, dialect, insert_q)
 # 生成される SQL:
 # INSERT INTO `users` (`email`, `age`, `status`) VALUES ('alice@example.com', 25, 'active')
 
 # パラメータを使った INSERT（型安全なバインディング）
 insert_q2 = insert_into(:users, [:email, :age, :status]) |>
     values([[param(String, :email), param(Int, :age), param(String, :status)]])
-execute_dml(db, dialect, insert_q2, (email="bob@example.com", age=30, status="active"))
+execute(db, dialect, insert_q2, (email="bob@example.com", age=30, status="active"))
 # 生成される SQL:
 # INSERT INTO `users` (`email`, `age`, `status`) VALUES (?, ?, ?)
 # パラメータ: ["bob@example.com", 30, "active"]
@@ -479,7 +479,7 @@ execute_dml(db, dialect, insert_q2, (email="bob@example.com", age=30, status="ac
 update_q = update(:users) |>
     set(:status => param(String, :status)) |>
     where(col(:users, :email) == param(String, :email))
-execute_dml(db, dialect, update_q, (status="inactive", email="alice@example.com"))
+execute(db, dialect, update_q, (status="inactive", email="alice@example.com"))
 # 生成される SQL:
 # UPDATE `users` SET `status` = ? WHERE (`users`.`email` = ?)
 # パラメータ: ["inactive", "alice@example.com"]
@@ -487,7 +487,7 @@ execute_dml(db, dialect, update_q, (status="inactive", email="alice@example.com"
 # WHERE 句付き DELETE
 delete_q = delete_from(:users) |>
     where(col(:users, :status) == literal("inactive"))
-execute_dml(db, dialect, delete_q)
+execute(db, dialect, delete_q)
 # 生成される SQL:
 # DELETE FROM `users` WHERE (`users`.`status` = 'inactive')
 
