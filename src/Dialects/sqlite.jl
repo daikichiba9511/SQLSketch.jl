@@ -29,7 +29,8 @@ using .Core: Dialect, Capability, CAP_CTE, CAP_RETURNING, CAP_UPSERT, CAP_WINDOW
              CAP_LATERAL, CAP_BULK_COPY, CAP_SAVEPOINT, CAP_ADVISORY_LOCK
 using .Core: Query, From, Where, Select, Join, OrderBy, Limit, Offset, Distinct, GroupBy,
              Having, InsertInto, InsertValues, Update, UpdateSet, UpdateWhere,
-             DeleteFrom, DeleteWhere, Returning, CTE, With, SetUnion, SetIntersect, SetExcept,
+             DeleteFrom, DeleteWhere, Returning, CTE, With, SetUnion, SetIntersect,
+             SetExcept,
              OnConflict
 using .Core: SQLExpr, ColRef, Literal, Param, BinaryOp, UnaryOp, FuncCall, PlaceholderField,
              BetweenOp, InOp, Cast, Subquery, CaseExpr, WindowFunc, Over, WindowFrame
@@ -918,8 +919,9 @@ end
 Compile an ON CONFLICT clause (UPSERT) for SQLite.
 
 SQLite supports two forms:
-- `ON CONFLICT DO NOTHING` - ignore conflicts
-- `ON CONFLICT (...) DO UPDATE SET ...` - update on conflict
+
+  - `ON CONFLICT DO NOTHING` - ignore conflicts
+  - `ON CONFLICT (...) DO UPDATE SET ...` - update on conflict
 
 # Examples
 
@@ -927,7 +929,7 @@ SQLite supports two forms:
 # ON CONFLICT DO NOTHING
 q = from(:users) |>
     insert_into(:id, :email) |>
-    values((id=1, email="alice@example.com")) |>
+    values((id = 1, email = "alice@example.com")) |>
     on_conflict_do_nothing()
 
 sql, params = compile(dialect, q)
@@ -936,11 +938,9 @@ sql, params = compile(dialect, q)
 # ON CONFLICT (email) DO UPDATE SET name = excluded.name
 q = from(:users) |>
     insert_into(:id, :email, :name) |>
-    values((id=1, email="alice@example.com", name="Alice")) |>
-    on_conflict_do_update(
-        [:email],
-        :name => col(:excluded, :name)
-    )
+    values((id = 1, email = "alice@example.com", name = "Alice")) |>
+    on_conflict_do_update([:email],
+                          :name => col(:excluded, :name))
 
 sql, params = compile(dialect, q)
 # → "INSERT INTO `users` (`id`, `email`, `name`) VALUES (?, ?, ?) ON CONFLICT (`email`) DO UPDATE SET `name` = `excluded`.`name`"
@@ -1156,6 +1156,7 @@ using .Core: AlterTableOp, AddColumn, DropColumn, RenameColumn, AddTableConstrai
 Map portable column types to SQLite types.
 
 # Example
+
 ```julia
 compile_column_type(SQLiteDialect(), :integer)  # → "INTEGER"
 compile_column_type(SQLiteDialect(), :text)     # → "TEXT"
@@ -1193,40 +1194,40 @@ end
 Compile a column-level constraint to SQL.
 """
 function compile_column_constraint(dialect::SQLiteDialect,
-                                    constraint::PrimaryKeyConstraint,
-                                    params::Vector{Symbol})::String
+                                   constraint::PrimaryKeyConstraint,
+                                   params::Vector{Symbol})::String
     return "PRIMARY KEY"
 end
 
 function compile_column_constraint(dialect::SQLiteDialect,
-                                    constraint::NotNullConstraint,
-                                    params::Vector{Symbol})::String
+                                   constraint::NotNullConstraint,
+                                   params::Vector{Symbol})::String
     return "NOT NULL"
 end
 
 function compile_column_constraint(dialect::SQLiteDialect,
-                                    constraint::UniqueConstraint,
-                                    params::Vector{Symbol})::String
+                                   constraint::UniqueConstraint,
+                                   params::Vector{Symbol})::String
     return "UNIQUE"
 end
 
 function compile_column_constraint(dialect::SQLiteDialect,
-                                    constraint::DefaultConstraint,
-                                    params::Vector{Symbol})::String
+                                   constraint::DefaultConstraint,
+                                   params::Vector{Symbol})::String
     value_sql = compile_expr(dialect, constraint.value, params)
     return "DEFAULT $value_sql"
 end
 
 function compile_column_constraint(dialect::SQLiteDialect,
-                                    constraint::CheckConstraint,
-                                    params::Vector{Symbol})::String
+                                   constraint::CheckConstraint,
+                                   params::Vector{Symbol})::String
     condition_sql = compile_expr(dialect, constraint.condition, params)
     return "CHECK ($condition_sql)"
 end
 
 function compile_column_constraint(dialect::SQLiteDialect,
-                                    constraint::ForeignKeyConstraint,
-                                    params::Vector{Symbol})::String
+                                   constraint::ForeignKeyConstraint,
+                                   params::Vector{Symbol})::String
     ref_table = quote_identifier(dialect, constraint.ref_table)
     ref_column = quote_identifier(dialect, constraint.ref_column)
     parts = ["REFERENCES $ref_table($ref_column)"]
@@ -1252,6 +1253,7 @@ end
 Compile a column definition to SQL.
 
 # Example
+
 ```julia
 col = ColumnDef(:email, :text, [NotNullConstraint(), UniqueConstraint()])
 compile_column_def(SQLiteDialect(), col, Symbol[])
@@ -1259,7 +1261,7 @@ compile_column_def(SQLiteDialect(), col, Symbol[])
 ```
 """
 function compile_column_def(dialect::SQLiteDialect, column::ColumnDef,
-                             params::Vector{Symbol})::String
+                            params::Vector{Symbol})::String
     name = quote_identifier(dialect, column.name)
     type_sql = compile_column_type(dialect, column.type)
     parts = [name, type_sql]
@@ -1278,8 +1280,8 @@ end
 Compile a table-level constraint to SQL.
 """
 function compile_table_constraint(dialect::SQLiteDialect,
-                                   constraint::TablePrimaryKey,
-                                   params::Vector{Symbol})::String
+                                  constraint::TablePrimaryKey,
+                                  params::Vector{Symbol})::String
     columns = [quote_identifier(dialect, col) for col in constraint.columns]
     columns_str = Base.join(columns, ", ")
 
@@ -1292,8 +1294,8 @@ function compile_table_constraint(dialect::SQLiteDialect,
 end
 
 function compile_table_constraint(dialect::SQLiteDialect,
-                                   constraint::TableForeignKey,
-                                   params::Vector{Symbol})::String
+                                  constraint::TableForeignKey,
+                                  params::Vector{Symbol})::String
     columns = [quote_identifier(dialect, col) for col in constraint.columns]
     columns_str = Base.join(columns, ", ")
 
@@ -1326,8 +1328,8 @@ function compile_table_constraint(dialect::SQLiteDialect,
 end
 
 function compile_table_constraint(dialect::SQLiteDialect,
-                                   constraint::TableUnique,
-                                   params::Vector{Symbol})::String
+                                  constraint::TableUnique,
+                                  params::Vector{Symbol})::String
     columns = [quote_identifier(dialect, col) for col in constraint.columns]
     columns_str = Base.join(columns, ", ")
 
@@ -1340,8 +1342,8 @@ function compile_table_constraint(dialect::SQLiteDialect,
 end
 
 function compile_table_constraint(dialect::SQLiteDialect,
-                                   constraint::TableCheck,
-                                   params::Vector{Symbol})::String
+                                  constraint::TableCheck,
+                                  params::Vector{Symbol})::String
     condition_sql = compile_expr(dialect, constraint.condition, params)
 
     if constraint.name !== nothing
@@ -1358,10 +1360,11 @@ end
 Compile a CREATE TABLE statement to SQL.
 
 # Example
+
 ```julia
 ddl = create_table(:users) |>
-    add_column(:id, :integer, primary_key=true) |>
-    add_column(:email, :text, nullable=false)
+      add_column(:id, :integer; primary_key = true) |>
+      add_column(:email, :text; nullable = false)
 
 sql, params = compile(SQLiteDialect(), ddl)
 # sql → "CREATE TABLE `users` (`id` INTEGER PRIMARY KEY, `email` TEXT NOT NULL)"
@@ -1391,7 +1394,8 @@ function compile(dialect::SQLiteDialect,
     column_defs = [compile_column_def(dialect, col, params) for col in ddl.columns]
 
     # Compile table constraints
-    constraint_defs = [compile_table_constraint(dialect, con, params) for con in ddl.constraints]
+    constraint_defs = [compile_table_constraint(dialect, con, params)
+                       for con in ddl.constraints]
 
     # Combine columns and constraints
     all_defs = vcat(column_defs, constraint_defs)
@@ -1411,9 +1415,10 @@ Note: SQLite has limited ALTER TABLE support. Only ADD COLUMN and RENAME COLUMN
 are supported directly. Other operations may require table recreation.
 
 # Example
+
 ```julia
 ddl = alter_table(:users) |>
-    add_alter_column(:age, :integer)
+      add_alter_column(:age, :integer)
 
 sql, params = compile(SQLiteDialect(), ddl)
 # sql → "ALTER TABLE `users` ADD COLUMN `age` INTEGER"
@@ -1463,8 +1468,9 @@ end
 Compile a DROP TABLE statement to SQL.
 
 # Example
+
 ```julia
-ddl = drop_table(:users, if_exists=true)
+ddl = drop_table(:users; if_exists = true)
 sql, params = compile(SQLiteDialect(), ddl)
 # sql → "DROP TABLE IF EXISTS `users`"
 ```
@@ -1498,8 +1504,9 @@ end
 Compile a CREATE INDEX statement to SQL.
 
 # Example
+
 ```julia
-ddl = create_index(:idx_users_email, :users, [:email], unique=true)
+ddl = create_index(:idx_users_email, :users, [:email]; unique = true)
 sql, params = compile(SQLiteDialect(), ddl)
 # sql → "CREATE UNIQUE INDEX `idx_users_email` ON `users` (`email`)"
 ```
@@ -1549,8 +1556,9 @@ end
 Compile a DROP INDEX statement to SQL.
 
 # Example
+
 ```julia
-ddl = drop_index(:idx_users_email, if_exists=true)
+ddl = drop_index(:idx_users_email; if_exists = true)
 sql, params = compile(SQLiteDialect(), ddl)
 # sql → "DROP INDEX IF EXISTS `idx_users_email`"
 ```

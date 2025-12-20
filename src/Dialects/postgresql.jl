@@ -31,7 +31,8 @@ using .Core: Dialect, Capability, CAP_CTE, CAP_RETURNING, CAP_UPSERT, CAP_WINDOW
              CAP_LATERAL, CAP_BULK_COPY, CAP_SAVEPOINT, CAP_ADVISORY_LOCK
 using .Core: Query, From, Where, Select, Join, OrderBy, Limit, Offset, Distinct, GroupBy,
              Having, InsertInto, InsertValues, Update, UpdateSet, UpdateWhere,
-             DeleteFrom, DeleteWhere, Returning, CTE, With, SetUnion, SetIntersect, SetExcept,
+             DeleteFrom, DeleteWhere, Returning, CTE, With, SetUnion, SetIntersect,
+             SetExcept,
              OnConflict
 using .Core: SQLExpr, ColRef, Literal, Param, BinaryOp, UnaryOp, FuncCall, PlaceholderField,
              BetweenOp, InOp, Cast, Subquery, CaseExpr, WindowFunc, Over, WindowFrame
@@ -149,13 +150,15 @@ end
 
 Compile an expression AST into a SQL fragment.
 """
-function compile_expr(dialect::PostgreSQLDialect, expr::ColRef, params::Vector{Symbol})::String
+function compile_expr(dialect::PostgreSQLDialect, expr::ColRef,
+                      params::Vector{Symbol})::String
     table = quote_identifier(dialect, expr.table)
     column = quote_identifier(dialect, expr.column)
     return "$table.$column"
 end
 
-function compile_expr(dialect::PostgreSQLDialect, expr::Literal, params::Vector{Symbol})::String
+function compile_expr(dialect::PostgreSQLDialect, expr::Literal,
+                      params::Vector{Symbol})::String
     value = expr.value
 
     if value === nothing || value === missing
@@ -182,7 +185,8 @@ function compile_expr(dialect::PostgreSQLDialect, expr::Literal, params::Vector{
     end
 end
 
-function compile_expr(dialect::PostgreSQLDialect, expr::Param, params::Vector{Symbol})::String
+function compile_expr(dialect::PostgreSQLDialect, expr::Param,
+                      params::Vector{Symbol})::String
     push!(params, expr.name)
     return placeholder(dialect, length(params))
 end
@@ -231,7 +235,8 @@ function compile_expr(dialect::PostgreSQLDialect, expr::BinaryOp,
     return "($left_sql $op_str $right_sql)"
 end
 
-function compile_expr(dialect::PostgreSQLDialect, expr::UnaryOp, params::Vector{Symbol})::String
+function compile_expr(dialect::PostgreSQLDialect, expr::UnaryOp,
+                      params::Vector{Symbol})::String
     operand_sql = compile_expr(dialect, expr.expr, params)
 
     if expr.op == :NOT
@@ -840,40 +845,40 @@ function compile_column_type(dialect::PostgreSQLDialect, type::Symbol)::String
 end
 
 function compile_column_constraint(dialect::PostgreSQLDialect,
-                                    constraint::PrimaryKeyConstraint,
-                                    params::Vector{Symbol})::String
+                                   constraint::PrimaryKeyConstraint,
+                                   params::Vector{Symbol})::String
     return "PRIMARY KEY"
 end
 
 function compile_column_constraint(dialect::PostgreSQLDialect,
-                                    constraint::NotNullConstraint,
-                                    params::Vector{Symbol})::String
+                                   constraint::NotNullConstraint,
+                                   params::Vector{Symbol})::String
     return "NOT NULL"
 end
 
 function compile_column_constraint(dialect::PostgreSQLDialect,
-                                    constraint::UniqueConstraint,
-                                    params::Vector{Symbol})::String
+                                   constraint::UniqueConstraint,
+                                   params::Vector{Symbol})::String
     return "UNIQUE"
 end
 
 function compile_column_constraint(dialect::PostgreSQLDialect,
-                                    constraint::DefaultConstraint,
-                                    params::Vector{Symbol})::String
+                                   constraint::DefaultConstraint,
+                                   params::Vector{Symbol})::String
     value_sql = compile_expr(dialect, constraint.value, params)
     return "DEFAULT $value_sql"
 end
 
 function compile_column_constraint(dialect::PostgreSQLDialect,
-                                    constraint::CheckConstraint,
-                                    params::Vector{Symbol})::String
+                                   constraint::CheckConstraint,
+                                   params::Vector{Symbol})::String
     condition_sql = compile_expr(dialect, constraint.condition, params)
     return "CHECK ($condition_sql)"
 end
 
 function compile_column_constraint(dialect::PostgreSQLDialect,
-                                    constraint::ForeignKeyConstraint,
-                                    params::Vector{Symbol})::String
+                                   constraint::ForeignKeyConstraint,
+                                   params::Vector{Symbol})::String
     ref_table = quote_identifier(dialect, constraint.ref_table)
     ref_column = quote_identifier(dialect, constraint.ref_column)
     parts = ["REFERENCES $ref_table($ref_column)"]
@@ -894,7 +899,7 @@ function compile_column_constraint(dialect::PostgreSQLDialect,
 end
 
 function compile_column_def(dialect::PostgreSQLDialect, column::ColumnDef,
-                             params::Vector{Symbol})::String
+                            params::Vector{Symbol})::String
     name = quote_identifier(dialect, column.name)
     type_sql = compile_column_type(dialect, column.type)
     parts = [name, type_sql]
@@ -908,8 +913,8 @@ function compile_column_def(dialect::PostgreSQLDialect, column::ColumnDef,
 end
 
 function compile_table_constraint(dialect::PostgreSQLDialect,
-                                   constraint::TablePrimaryKey,
-                                   params::Vector{Symbol})::String
+                                  constraint::TablePrimaryKey,
+                                  params::Vector{Symbol})::String
     columns = [quote_identifier(dialect, col) for col in constraint.columns]
     columns_str = Base.join(columns, ", ")
 
@@ -922,8 +927,8 @@ function compile_table_constraint(dialect::PostgreSQLDialect,
 end
 
 function compile_table_constraint(dialect::PostgreSQLDialect,
-                                   constraint::TableForeignKey,
-                                   params::Vector{Symbol})::String
+                                  constraint::TableForeignKey,
+                                  params::Vector{Symbol})::String
     columns = [quote_identifier(dialect, col) for col in constraint.columns]
     columns_str = Base.join(columns, ", ")
 
@@ -956,8 +961,8 @@ function compile_table_constraint(dialect::PostgreSQLDialect,
 end
 
 function compile_table_constraint(dialect::PostgreSQLDialect,
-                                   constraint::TableUnique,
-                                   params::Vector{Symbol})::String
+                                  constraint::TableUnique,
+                                  params::Vector{Symbol})::String
     columns = [quote_identifier(dialect, col) for col in constraint.columns]
     columns_str = Base.join(columns, ", ")
 
@@ -970,8 +975,8 @@ function compile_table_constraint(dialect::PostgreSQLDialect,
 end
 
 function compile_table_constraint(dialect::PostgreSQLDialect,
-                                   constraint::TableCheck,
-                                   params::Vector{Symbol})::String
+                                  constraint::TableCheck,
+                                  params::Vector{Symbol})::String
     condition_sql = compile_expr(dialect, constraint.condition, params)
 
     if constraint.name !== nothing
@@ -1002,7 +1007,8 @@ function compile(dialect::PostgreSQLDialect,
     push!(parts, table)
 
     column_defs = [compile_column_def(dialect, col, params) for col in ddl.columns]
-    constraint_defs = [compile_table_constraint(dialect, con, params) for con in ddl.constraints]
+    constraint_defs = [compile_table_constraint(dialect, con, params)
+                       for con in ddl.constraints]
 
     all_defs = vcat(column_defs, constraint_defs)
     defs_str = Base.join(all_defs, ", ")

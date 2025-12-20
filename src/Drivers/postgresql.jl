@@ -95,12 +95,13 @@ db = connect(PostgreSQLDriver(), "postgresql://user:password@localhost:5432/mydb
 # Connection String Format
 
 The connection string uses libpq format with space-separated key=value pairs:
-- `host=localhost` - Server hostname
-- `port=5432` - Server port (default: 5432)
-- `dbname=mydb` - Database name
-- `user=postgres` - Username
-- `password=secret` - Password
-- `sslmode=require` - SSL mode (disable, allow, prefer, require, verify-ca, verify-full)
+
+  - `host=localhost` - Server hostname
+  - `port=5432` - Server port (default: 5432)
+  - `dbname=mydb` - Database name
+  - `user=postgres` - Username
+  - `password=secret` - Password
+  - `sslmode=require` - SSL mode (disable, allow, prefer, require, verify-ca, verify-full)
 
 Alternatively, use PostgreSQL URI format:
 `postgresql://[user[:password]@][host][:port][/dbname][?param1=value1&...]`

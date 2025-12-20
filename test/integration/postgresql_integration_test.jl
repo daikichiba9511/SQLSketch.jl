@@ -19,14 +19,16 @@ To stop PostgreSQL:
 
 using Test
 using SQLSketch
-using SQLSketch.Core: from, where, select, join, order_by, limit, offset, distinct, group_by, having
+using SQLSketch.Core: from, where, select, join, order_by, limit, offset, distinct,
+                      group_by, having
 using SQLSketch.Core: insert_into, values, update, set, delete_from, returning
 using SQLSketch.Core: col, literal, param, func, p_
 using SQLSketch.Core: cte, with, union, intersect, except
 using SQLSketch.Core: on_conflict_do_nothing, on_conflict_do_update
 using SQLSketch.Core: transaction, savepoint
 using SQLSketch.Core: create_table, add_column, drop_table, create_index, drop_index
-using SQLSketch.Core: compile, fetch_all, fetch_one, fetch_maybe, execute_dml, execute_ddl, sql
+using SQLSketch.Core: compile, fetch_all, fetch_one, fetch_maybe, execute_dml, execute_ddl,
+                      sql
 using SQLSketch.Core: CodecRegistry, register!
 using SQLSketch: PostgreSQLDialect, PostgreSQLDriver, SQLiteDialect, SQLiteDriver
 using Dates
@@ -61,25 +63,25 @@ Create test tables for integration testing.
 function setup_test_tables(conn, dialect)
     # Drop tables if they exist
     try
-        execute_ddl(conn, dialect, drop_table(:orders; if_exists=true, cascade=true))
-        execute_ddl(conn, dialect, drop_table(:users; if_exists=true, cascade=true))
+        execute_ddl(conn, dialect, drop_table(:orders; if_exists = true, cascade = true))
+        execute_ddl(conn, dialect, drop_table(:users; if_exists = true, cascade = true))
     catch
     end
 
     # Create users table
-    users_ddl = create_table(:users; if_not_exists=true) |>
-                add_column(:id, :integer; primary_key=true) |>
-                add_column(:email, :text; nullable=false, unique=true) |>
-                add_column(:name, :text; nullable=false) |>
+    users_ddl = create_table(:users; if_not_exists = true) |>
+                add_column(:id, :integer; primary_key = true) |>
+                add_column(:email, :text; nullable = false, unique = true) |>
+                add_column(:name, :text; nullable = false) |>
                 add_column(:age, :integer) |>
-                add_column(:active, :boolean; default=literal(true)) |>
+                add_column(:active, :boolean; default = literal(true)) |>
                 add_column(:created_at, :timestamp)
 
     execute_ddl(conn, dialect, users_ddl)
 
     # Create orders table
-    orders_ddl = create_table(:orders; if_not_exists=true) |>
-                 add_column(:id, :integer; primary_key=true) |>
+    orders_ddl = create_table(:orders; if_not_exists = true) |>
+                 add_column(:id, :integer; primary_key = true) |>
                  add_column(:user_id, :integer) |>
                  add_column(:total, :real) |>
                  add_column(:status, :text) |>
@@ -95,28 +97,25 @@ Insert test data into tables.
 """
 function insert_test_data(conn, dialect)
     # Insert users
-    users_data = [
-        (1, "alice@example.com", "Alice", 30, true, DateTime(2024, 1, 1)),
-        (2, "bob@example.com", "Bob", 25, true, DateTime(2024, 1, 2)),
-        (3, "charlie@example.com", "Charlie", 35, false, DateTime(2024, 1, 3)),
-        (4, "diana@example.com", "Diana", 28, true, DateTime(2024, 1, 4)),
-    ]
+    users_data = [(1, "alice@example.com", "Alice", 30, true, DateTime(2024, 1, 1)),
+                  (2, "bob@example.com", "Bob", 25, true, DateTime(2024, 1, 2)),
+                  (3, "charlie@example.com", "Charlie", 35, false, DateTime(2024, 1, 3)),
+                  (4, "diana@example.com", "Diana", 28, true, DateTime(2024, 1, 4))]
 
     for (id, email, name, age, active, created_at) in users_data
         q = insert_into(:users, [:id, :email, :name, :age, :active, :created_at]) |>
-            values([[literal(id), literal(email), literal(name), literal(age), literal(active),
+            values([[literal(id), literal(email), literal(name), literal(age),
+                     literal(active),
                      literal(created_at)]])
         execute_dml(conn, dialect, q)
     end
 
     # Insert orders
-    orders_data = [
-        (1, 1, 100.50, "completed", DateTime(2024, 1, 10)),
-        (2, 1, 50.25, "pending", DateTime(2024, 1, 11)),
-        (3, 2, 75.00, "completed", DateTime(2024, 1, 12)),
-        (4, 2, 200.00, "completed", DateTime(2024, 1, 13)),
-        (5, 4, 150.00, "cancelled", DateTime(2024, 1, 14)),
-    ]
+    orders_data = [(1, 1, 100.50, "completed", DateTime(2024, 1, 10)),
+                   (2, 1, 50.25, "pending", DateTime(2024, 1, 11)),
+                   (3, 2, 75.00, "completed", DateTime(2024, 1, 12)),
+                   (4, 2, 200.00, "completed", DateTime(2024, 1, 13)),
+                   (5, 4, 150.00, "cancelled", DateTime(2024, 1, 14))]
 
     for (id, user_id, total, status, created_at) in orders_data
         q = insert_into(:orders, [:id, :user_id, :total, :status, :created_at]) |>
@@ -184,7 +183,8 @@ else
 
             @testset "Comparison: JOIN" begin
                 q = from(:users) |>
-                    join(:orders, col(:users, :id) == col(:orders, :user_id); kind=:inner) |>
+                    join(:orders, col(:users, :id) == col(:orders, :user_id);
+                         kind = :inner) |>
                     where(col(:orders, :status) == literal("completed")) |>
                     select(NamedTuple, col(:users, :name), col(:orders, :total)) |>
                     order_by(col(:users, :id)) |>
@@ -244,7 +244,8 @@ else
             @testset "PostgreSQL: RETURNING clause" begin
                 # Test INSERT RETURNING
                 q = insert_into(:users, [:id, :email, :name, :age, :active]) |>
-                    values([[literal(5), literal("eve@example.com"), literal("Eve"), literal(32),
+                    values([[literal(5), literal("eve@example.com"), literal("Eve"),
+                             literal(32),
                              literal(true)]]) |>
                     returning(NamedTuple, p_.id, p_.email, p_.name)
 
@@ -279,7 +280,8 @@ else
             @testset "PostgreSQL: UPSERT (ON CONFLICT)" begin
                 # Test ON CONFLICT DO NOTHING
                 q1 = insert_into(:users, [:id, :email, :name, :age, :active]) |>
-                     values([[literal(1), literal("alice@example.com"), literal("Alice Updated"),
+                     values([[literal(1), literal("alice@example.com"),
+                              literal("Alice Updated"),
                               literal(31), literal(true)]]) |>
                      on_conflict_do_nothing()
 
@@ -288,17 +290,18 @@ else
 
                 # Verify Alice's name didn't change
                 verify_q = from(:users) |>
-                          where(p_.id == literal(1)) |>
-                          select(NamedTuple, p_.name)
+                           where(p_.id == literal(1)) |>
+                           select(NamedTuple, p_.name)
                 result = fetch_one(pg_conn, pg_dialect, pg_registry, verify_q)
                 @test result.name == "Alice"
 
                 # Test ON CONFLICT DO UPDATE
                 q2 = insert_into(:users, [:id, :email, :name, :age]) |>
-                     values([[literal(1), literal("alice@example.com"), literal("Alice Updated"),
+                     values([[literal(1), literal("alice@example.com"),
+                              literal("Alice Updated"),
                               literal(31)]]) |>
                      on_conflict_do_update([:email], :name => col(:excluded, :name),
-                                          :age => col(:excluded, :age))
+                                           :age => col(:excluded, :age))
 
                 execute_dml(pg_conn, pg_dialect, q2)
 
@@ -307,8 +310,8 @@ else
                 @test result2.name == "Alice Updated"
 
                 verify_age_q = from(:users) |>
-                              where(p_.id == literal(1)) |>
-                              select(NamedTuple, p_.age)
+                               where(p_.id == literal(1)) |>
+                               select(NamedTuple, p_.age)
                 result3 = fetch_one(pg_conn, pg_dialect, pg_registry, verify_age_q)
                 @test result3.age == 31
             end
@@ -324,8 +327,8 @@ else
 
                 # Verify Frank was inserted
                 verify_q = from(:users) |>
-                          where(p_.id == literal(6)) |>
-                          select(NamedTuple, p_.name)
+                           where(p_.id == literal(6)) |>
+                           select(NamedTuple, p_.name)
                 result = fetch_one(pg_conn, pg_dialect, pg_registry, verify_q)
                 @test result.name == "Frank"
 
@@ -333,7 +336,8 @@ else
                 try
                     transaction(pg_conn) do tx
                         q = insert_into(:users, [:id, :email, :name, :age, :active]) |>
-                            values([[literal(7), literal("grace@example.com"), literal("Grace"),
+                            values([[literal(7), literal("grace@example.com"),
+                                     literal("Grace"),
                                      literal(45), literal(true)]])
                         execute_dml(tx, pg_dialect, q)
 
@@ -345,7 +349,7 @@ else
 
                 # Verify Grace was NOT inserted
                 verify_q2 = from(:users) |>
-                           where(p_.id == literal(7))
+                            where(p_.id == literal(7))
                 result2 = fetch_maybe(pg_conn, pg_dialect, pg_registry, verify_q2)
                 @test result2 === nothing
 
@@ -353,7 +357,8 @@ else
                 transaction(pg_conn) do tx
                     # Insert Henry
                     q1 = insert_into(:users, [:id, :email, :name, :age, :active]) |>
-                         values([[literal(8), literal("henry@example.com"), literal("Henry"),
+                         values([[literal(8), literal("henry@example.com"),
+                                  literal("Henry"),
                                   literal(50), literal(true)]])
                     execute_dml(tx, pg_dialect, q1)
 
@@ -361,7 +366,8 @@ else
                     try
                         savepoint(tx, :sp1) do sp
                             q2 = insert_into(:users, [:id, :email, :name, :age, :active]) |>
-                                 values([[literal(9), literal("iris@example.com"), literal("Iris"),
+                                 values([[literal(9), literal("iris@example.com"),
+                                          literal("Iris"),
                                           literal(55), literal(true)]])
                             execute_dml(sp, pg_dialect, q2)
 
@@ -375,26 +381,26 @@ else
 
                 # Verify Henry was inserted
                 verify_q3 = from(:users) |>
-                           where(p_.id == literal(8)) |>
-                           select(NamedTuple, p_.name)
+                            where(p_.id == literal(8)) |>
+                            select(NamedTuple, p_.name)
                 result3 = fetch_one(pg_conn, pg_dialect, pg_registry, verify_q3)
                 @test result3.name == "Henry"
 
                 # Verify Iris was NOT inserted
                 verify_q4 = from(:users) |>
-                           where(p_.id == literal(9))
+                            where(p_.id == literal(9))
                 result4 = fetch_maybe(pg_conn, pg_dialect, pg_registry, verify_q4)
                 @test result4 === nothing
             end
 
             @testset "PostgreSQL: CTE" begin
                 active_users_cte = cte(:active_users,
-                                      from(:users) |>
-                                      where(p_.active == literal(true)))
+                                       from(:users) |>
+                                       where(p_.active == literal(true)))
 
                 main_q = from(:active_users) |>
-                        select(NamedTuple, col(:active_users, :name)) |>
-                        order_by(col(:active_users, :id))
+                         select(NamedTuple, col(:active_users, :name)) |>
+                         order_by(col(:active_users, :id))
 
                 q = with([active_users_cte], main_q)
 

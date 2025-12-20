@@ -1168,33 +1168,32 @@ using SQLSketch.Core: drop_table, create_index, drop_index
 
         # Single column
         ddl = create_table(:users) |>
-              add_column(:id, :integer, primary_key=true)
+              add_column(:id, :integer, primary_key = true)
         sql, params = compile(dialect, ddl)
         @test sql == "CREATE TABLE `users` (`id` INTEGER PRIMARY KEY)"
         @test isempty(params)
 
         # Multiple columns
         ddl = create_table(:users) |>
-              add_column(:id, :integer, primary_key=true) |>
-              add_column(:email, :text, nullable=false)
+              add_column(:id, :integer, primary_key = true) |>
+              add_column(:email, :text, nullable = false)
         sql, params = compile(dialect, ddl)
-        @test sql == "CREATE TABLE `users` (`id` INTEGER PRIMARY KEY, `email` TEXT NOT NULL)"
+        @test sql ==
+              "CREATE TABLE `users` (`id` INTEGER PRIMARY KEY, `email` TEXT NOT NULL)"
         @test isempty(params)
     end
 
     @testset "CREATE TABLE - Column Types" begin
-        test_types = [
-            (:integer, "INTEGER"),
-            (:bigint, "INTEGER"),
-            (:real, "REAL"),
-            (:text, "TEXT"),
-            (:blob, "BLOB"),
-            (:boolean, "INTEGER"),
-            (:timestamp, "TEXT"),
-            (:date, "TEXT"),
-            (:uuid, "TEXT"),
-            (:json, "TEXT")
-        ]
+        test_types = [(:integer, "INTEGER"),
+                      (:bigint, "INTEGER"),
+                      (:real, "REAL"),
+                      (:text, "TEXT"),
+                      (:blob, "BLOB"),
+                      (:boolean, "INTEGER"),
+                      (:timestamp, "TEXT"),
+                      (:date, "TEXT"),
+                      (:uuid, "TEXT"),
+                      (:json, "TEXT")]
 
         for (col_type, expected_sql_type) in test_types
             ddl = create_table(:test) |> add_column(:col, col_type)
@@ -1205,34 +1204,36 @@ using SQLSketch.Core: drop_table, create_index, drop_index
 
     @testset "CREATE TABLE - Column Constraints" begin
         # NOT NULL
-        ddl = create_table(:users) |> add_column(:email, :text, nullable=false)
+        ddl = create_table(:users) |> add_column(:email, :text, nullable = false)
         sql, _ = compile(dialect, ddl)
         @test occursin("NOT NULL", sql)
 
         # UNIQUE
-        ddl = create_table(:users) |> add_column(:email, :text, unique=true)
+        ddl = create_table(:users) |> add_column(:email, :text, unique = true)
         sql, _ = compile(dialect, ddl)
         @test occursin("UNIQUE", sql)
 
         # DEFAULT with literal
-        ddl = create_table(:users) |> add_column(:active, :boolean, default=literal(true))
+        ddl = create_table(:users) |> add_column(:active, :boolean, default = literal(true))
         sql, params = compile(dialect, ddl)
         @test occursin("DEFAULT", sql)
         @test isempty(params)  # Literal is inline
 
         # DEFAULT with current_timestamp
-        ddl = create_table(:users) |> add_column(:created_at, :timestamp, default=func(:CURRENT_TIMESTAMP, SQLExpr[]))
+        ddl = create_table(:users) |> add_column(:created_at, :timestamp,
+                                                 default = func(:CURRENT_TIMESTAMP, SQLExpr[]))
         sql, _ = compile(dialect, ddl)
         @test occursin("DEFAULT", sql)
 
         # FOREIGN KEY (column-level)
-        ddl = create_table(:posts) |> add_column(:user_id, :integer, references=(:users, :id))
+        ddl = create_table(:posts) |>
+              add_column(:user_id, :integer, references = (:users, :id))
         sql, _ = compile(dialect, ddl)
         @test occursin("REFERENCES `users`(`id`)", sql)
 
         # Multiple constraints on one column
         ddl = create_table(:users) |>
-              add_column(:email, :text, nullable=false, unique=true)
+              add_column(:email, :text, nullable = false, unique = true)
         sql, _ = compile(dialect, ddl)
         @test occursin("NOT NULL", sql)
         @test occursin("UNIQUE", sql)
@@ -1257,7 +1258,7 @@ using SQLSketch.Core: drop_table, create_index, drop_index
         # FOREIGN KEY with CASCADE
         ddl = create_table(:posts) |>
               add_column(:user_id, :integer) |>
-              add_foreign_key([:user_id], :users, [:id], on_delete=:cascade)
+              add_foreign_key([:user_id], :users, [:id], on_delete = :cascade)
         sql, _ = compile(dialect, ddl)
         @test occursin("FOREIGN KEY (`user_id`) REFERENCES `users`(`id`)", sql)
         @test occursin("ON DELETE CASCADE", sql)
@@ -1280,21 +1281,21 @@ using SQLSketch.Core: drop_table, create_index, drop_index
 
     @testset "CREATE TABLE - Options" begin
         # IF NOT EXISTS
-        ddl = create_table(:users, if_not_exists=true) |>
+        ddl = create_table(:users, if_not_exists = true) |>
               add_column(:id, :integer)
         sql, _ = compile(dialect, ddl)
         @test occursin("IF NOT EXISTS", sql)
         @test occursin("CREATE TABLE IF NOT EXISTS `users`", sql)
 
         # TEMPORARY
-        ddl = create_table(:temp_data, temporary=true) |>
+        ddl = create_table(:temp_data, temporary = true) |>
               add_column(:id, :integer)
         sql, _ = compile(dialect, ddl)
         @test occursin("TEMPORARY", sql)
         @test occursin("CREATE TEMPORARY TABLE `temp_data`", sql)
 
         # Both options
-        ddl = create_table(:temp_cache, if_not_exists=true, temporary=true) |>
+        ddl = create_table(:temp_cache, if_not_exists = true, temporary = true) |>
               add_column(:key, :text)
         sql, _ = compile(dialect, ddl)
         @test occursin("CREATE TEMPORARY TABLE IF NOT EXISTS `temp_cache`", sql)
@@ -1308,7 +1309,8 @@ using SQLSketch.Core: drop_table, create_index, drop_index
 
         # With constraints
         ddl = alter_table(:users) |>
-              add_alter_column(:email_verified, :boolean, nullable=false, default=literal(false))
+              add_alter_column(:email_verified, :boolean, nullable = false,
+                               default = literal(false))
         sql, _ = compile(dialect, ddl)
         @test occursin("ALTER TABLE `users` ADD COLUMN `email_verified`", sql)
         @test occursin("NOT NULL", sql)
@@ -1341,12 +1343,12 @@ using SQLSketch.Core: drop_table, create_index, drop_index
         @test isempty(params)
 
         # IF EXISTS
-        ddl = drop_table(:users, if_exists=true)
+        ddl = drop_table(:users, if_exists = true)
         sql, _ = compile(dialect, ddl)
         @test sql == "DROP TABLE IF EXISTS `users`"
 
         # CASCADE (not supported, should warn)
-        ddl = drop_table(:users, cascade=true)
+        ddl = drop_table(:users, cascade = true)
         @test_logs (:warn,) compile(dialect, ddl)
     end
 
@@ -1358,12 +1360,12 @@ using SQLSketch.Core: drop_table, create_index, drop_index
         @test isempty(params)
 
         # UNIQUE index
-        ddl = create_index(:idx_users_email, :users, [:email], unique=true)
+        ddl = create_index(:idx_users_email, :users, [:email], unique = true)
         sql, _ = compile(dialect, ddl)
         @test sql == "CREATE UNIQUE INDEX `idx_users_email` ON `users` (`email`)"
 
         # IF NOT EXISTS
-        ddl = create_index(:idx_users_email, :users, [:email], if_not_exists=true)
+        ddl = create_index(:idx_users_email, :users, [:email], if_not_exists = true)
         sql, _ = compile(dialect, ddl)
         @test occursin("IF NOT EXISTS", sql)
 
@@ -1374,7 +1376,7 @@ using SQLSketch.Core: drop_table, create_index, drop_index
 
         # Partial index (with WHERE)
         ddl = create_index(:idx_active_users, :users, [:id],
-                          where=col(:users, :active) == literal(true))
+                           where = col(:users, :active) == literal(true))
         sql, params = compile(dialect, ddl)
         @test occursin("WHERE", sql)
         @test occursin("`users`.`active`", sql)
@@ -1387,18 +1389,19 @@ using SQLSketch.Core: drop_table, create_index, drop_index
         @test isempty(params)
 
         # IF EXISTS
-        ddl = drop_index(:idx_users_email, if_exists=true)
+        ddl = drop_index(:idx_users_email, if_exists = true)
         sql, _ = compile(dialect, ddl)
         @test sql == "DROP INDEX IF EXISTS `idx_users_email`"
     end
 
     @testset "Complex Schema Compilation" begin
         # Complete users table
-        users = create_table(:users, if_not_exists=true) |>
-                add_column(:id, :integer, primary_key=true) |>
-                add_column(:email, :text, nullable=false) |>
-                add_column(:username, :text, nullable=false) |>
-                add_column(:created_at, :timestamp, default=func(:CURRENT_TIMESTAMP, SQLExpr[])) |>
+        users = create_table(:users, if_not_exists = true) |>
+                add_column(:id, :integer, primary_key = true) |>
+                add_column(:email, :text, nullable = false) |>
+                add_column(:username, :text, nullable = false) |>
+                add_column(:created_at, :timestamp,
+                           default = func(:CURRENT_TIMESTAMP, SQLExpr[])) |>
                 add_unique([:email]) |>
                 add_unique([:username])
 
@@ -1413,15 +1416,16 @@ using SQLSketch.Core: drop_table, create_index, drop_index
 
         # Posts table with foreign key
         posts = create_table(:posts) |>
-                add_column(:id, :integer, primary_key=true) |>
-                add_column(:user_id, :integer, nullable=false) |>
-                add_column(:title, :text, nullable=false) |>
+                add_column(:id, :integer, primary_key = true) |>
+                add_column(:user_id, :integer, nullable = false) |>
+                add_column(:title, :text, nullable = false) |>
                 add_column(:body, :text) |>
-                add_foreign_key([:user_id], :users, [:id], on_delete=:cascade)
+                add_foreign_key([:user_id], :users, [:id], on_delete = :cascade)
 
         sql, _ = compile(dialect, posts)
         @test occursin("CREATE TABLE `posts`", sql)
-        @test occursin("FOREIGN KEY (`user_id`) REFERENCES `users`(`id`) ON DELETE CASCADE", sql)
+        @test occursin("FOREIGN KEY (`user_id`) REFERENCES `users`(`id`) ON DELETE CASCADE",
+                       sql)
     end
 
     @testset "Identifier Quoting in DDL" begin

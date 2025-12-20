@@ -925,15 +925,17 @@ end
 Execute a DDL (Data Definition Language) statement.
 
 # Arguments
-- `conn::Connection`: Active database connection
-- `dialect::Dialect`: SQL dialect to use for compilation
-- `ddl_statement::DDLStatement`: DDL statement to execute (CREATE TABLE, DROP TABLE, etc.)
+
+  - `conn::Connection`: Active database connection
+  - `dialect::Dialect`: SQL dialect to use for compilation
+  - `ddl_statement::DDLStatement`: DDL statement to execute (CREATE TABLE, DROP TABLE, etc.)
 
 # Example
+
 ```julia
 ddl = create_table(:users) |>
-      add_column(:id, :integer; primary_key=true) |>
-      add_column(:name, :text; nullable=false)
+      add_column(:id, :integer; primary_key = true) |>
+      add_column(:name, :text; nullable = false)
 
 execute_ddl(db, dialect, ddl)
 ```

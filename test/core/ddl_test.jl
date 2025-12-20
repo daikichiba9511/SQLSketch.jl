@@ -14,11 +14,13 @@ See `docs/roadmap.md` Phase 10 for implementation plan.
 """
 
 using Test
-using SQLSketch.Core: DDLStatement, CreateTable, AlterTable, DropTable, CreateIndex, DropIndex
+using SQLSketch.Core: DDLStatement, CreateTable, AlterTable, DropTable, CreateIndex,
+                      DropIndex
 using SQLSketch.Core: ColumnDef, ColumnConstraint, ColumnType
 using SQLSketch.Core: PrimaryKeyConstraint, NotNullConstraint, UniqueConstraint
 using SQLSketch.Core: DefaultConstraint, CheckConstraint, ForeignKeyConstraint
-using SQLSketch.Core: TableConstraint, TablePrimaryKey, TableForeignKey, TableUnique, TableCheck
+using SQLSketch.Core: TableConstraint, TablePrimaryKey, TableForeignKey, TableUnique,
+                      TableCheck
 using SQLSketch.Core: AlterTableOp, AddColumn, DropColumn, RenameColumn
 using SQLSketch.Core: create_table, add_column, add_primary_key, add_foreign_key
 using SQLSketch.Core: add_unique, add_check
@@ -63,7 +65,7 @@ using SQLSketch.Core: col, literal, func, BinaryOp, Literal, SQLExpr
         @test fk.on_update == :no_action
 
         # ForeignKeyConstraint with actions
-        fk2 = ForeignKeyConstraint(:users, :id, on_delete=:cascade, on_update=:restrict)
+        fk2 = ForeignKeyConstraint(:users, :id, on_delete = :cascade, on_update = :restrict)
         @test fk2.on_delete == :cascade
         @test fk2.on_update == :restrict
     end
@@ -107,7 +109,7 @@ using SQLSketch.Core: col, literal, func, BinaryOp, Literal, SQLExpr
         @test tfk.name === nothing
 
         tfk_cascade = TableForeignKey([:user_id], :users, [:id],
-                                       on_delete=:cascade, name=:fk_posts_user)
+                                      on_delete = :cascade, name = :fk_posts_user)
         @test tfk_cascade.on_delete == :cascade
         @test tfk_cascade.name == :fk_posts_user
 
@@ -136,7 +138,7 @@ using SQLSketch.Core: col, literal, func, BinaryOp, Literal, SQLExpr
         @test ct.temporary == false
 
         # With options
-        ct2 = CreateTable(:temp_data, if_not_exists=true, temporary=true)
+        ct2 = CreateTable(:temp_data, if_not_exists = true, temporary = true)
         @test ct2.if_not_exists == true
         @test ct2.temporary == true
 
@@ -145,14 +147,14 @@ using SQLSketch.Core: col, literal, func, BinaryOp, Literal, SQLExpr
         @test ct3 isa CreateTable
         @test ct3.table == :products
 
-        ct4 = create_table(:cache, temporary=true)
+        ct4 = create_table(:cache, temporary = true)
         @test ct4.temporary == true
     end
 
     @testset "CREATE TABLE - Pipeline API" begin
         # Single column
         ct = create_table(:users) |>
-             add_column(:id, :integer, primary_key=true)
+             add_column(:id, :integer, primary_key = true)
 
         @test ct isa CreateTable
         @test length(ct.columns) == 1
@@ -163,9 +165,10 @@ using SQLSketch.Core: col, literal, func, BinaryOp, Literal, SQLExpr
 
         # Multiple columns
         ct2 = create_table(:users) |>
-              add_column(:id, :integer, primary_key=true) |>
-              add_column(:email, :text, nullable=false, unique=true) |>
-              add_column(:created_at, :timestamp, default=func(:CURRENT_TIMESTAMP, SQLExpr[]))
+              add_column(:id, :integer, primary_key = true) |>
+              add_column(:email, :text, nullable = false, unique = true) |>
+              add_column(:created_at, :timestamp,
+                         default = func(:CURRENT_TIMESTAMP, SQLExpr[]))
 
         @test length(ct2.columns) == 3
 
@@ -187,11 +190,11 @@ using SQLSketch.Core: col, literal, func, BinaryOp, Literal, SQLExpr
 
     @testset "CREATE TABLE - Column Options" begin
         ct = create_table(:users) |>
-             add_column(:id, :integer, primary_key=true) |>
-             add_column(:email, :text, nullable=false) |>
-             add_column(:bio, :text, nullable=true) |>
-             add_column(:status, :text, default=literal("active")) |>
-             add_column(:parent_id, :integer, references=(:users, :id))
+             add_column(:id, :integer, primary_key = true) |>
+             add_column(:email, :text, nullable = false) |>
+             add_column(:bio, :text, nullable = true) |>
+             add_column(:status, :text, default = literal("active")) |>
+             add_column(:parent_id, :integer, references = (:users, :id))
 
         # Check NOT NULL
         email_col = ct.columns[2]
@@ -233,9 +236,9 @@ using SQLSketch.Core: col, literal, func, BinaryOp, Literal, SQLExpr
 
         # Add foreign key
         ct3 = create_table(:posts) |>
-              add_column(:id, :integer, primary_key=true) |>
+              add_column(:id, :integer, primary_key = true) |>
               add_column(:user_id, :integer) |>
-              add_foreign_key([:user_id], :users, [:id], on_delete=:cascade)
+              add_foreign_key([:user_id], :users, [:id], on_delete = :cascade)
 
         @test length(ct3.constraints) == 1
         @test ct3.constraints[1] isa TableForeignKey
@@ -284,7 +287,8 @@ using SQLSketch.Core: col, literal, func, BinaryOp, Literal, SQLExpr
 
         # Add column with constraints
         at2 = alter_table(:users) |>
-              add_alter_column(:email_verified, :boolean, nullable=false, default=literal(false))
+              add_alter_column(:email_verified, :boolean, nullable = false,
+                               default = literal(false))
 
         @test length(at2.operations) == 1
         col_def = at2.operations[1].column
@@ -330,14 +334,14 @@ using SQLSketch.Core: col, literal, func, BinaryOp, Literal, SQLExpr
         @test dt.cascade == false
 
         # With options
-        dt2 = drop_table(:users, if_exists=true)
+        dt2 = drop_table(:users, if_exists = true)
         @test dt2.if_exists == true
 
-        dt3 = drop_table(:users, cascade=true)
+        dt3 = drop_table(:users, cascade = true)
         @test dt3.cascade == true
 
         # Both options
-        dt4 = drop_table(:users, if_exists=true, cascade=true)
+        dt4 = drop_table(:users, if_exists = true, cascade = true)
         @test dt4.if_exists == true
         @test dt4.cascade == true
     end
@@ -359,16 +363,16 @@ using SQLSketch.Core: col, literal, func, BinaryOp, Literal, SQLExpr
         @test ci2.columns == [:id]
 
         # Unique index
-        ci3 = create_index(:idx_users_email, :users, [:email], unique=true)
+        ci3 = create_index(:idx_users_email, :users, [:email], unique = true)
         @test ci3.unique == true
 
         # With IF NOT EXISTS
-        ci4 = create_index(:idx_users_email, :users, [:email], if_not_exists=true)
+        ci4 = create_index(:idx_users_email, :users, [:email], if_not_exists = true)
         @test ci4.if_not_exists == true
 
         # Partial index (with WHERE clause)
         ci5 = create_index(:idx_active_users, :users, [:id],
-                          where=col(:users, :active) == literal(true))
+                           where = col(:users, :active) == literal(true))
         @test ci5.where !== nothing
         @test ci5.where isa BinaryOp
 
@@ -386,32 +390,33 @@ using SQLSketch.Core: col, literal, func, BinaryOp, Literal, SQLExpr
         @test di.if_exists == false
 
         # With IF EXISTS
-        di2 = drop_index(:idx_users_email, if_exists=true)
+        di2 = drop_index(:idx_users_email, if_exists = true)
         @test di2.if_exists == true
     end
 
     @testset "Complex Schema Example" begin
         # Build a complete schema with multiple tables
-        users = create_table(:users, if_not_exists=true) |>
-                add_column(:id, :integer, primary_key=true) |>
-                add_column(:email, :text, nullable=false) |>
-                add_column(:username, :text, nullable=false) |>
-                add_column(:created_at, :timestamp, default=func(:CURRENT_TIMESTAMP, SQLExpr[])) |>
+        users = create_table(:users, if_not_exists = true) |>
+                add_column(:id, :integer, primary_key = true) |>
+                add_column(:email, :text, nullable = false) |>
+                add_column(:username, :text, nullable = false) |>
+                add_column(:created_at, :timestamp,
+                           default = func(:CURRENT_TIMESTAMP, SQLExpr[])) |>
                 add_unique([:email]) |>
                 add_unique([:username]) |>
-                add_check(col(:users, :email) != literal(""), name=:email_not_empty)
+                add_check(col(:users, :email) != literal(""), name = :email_not_empty)
 
         @test users.if_not_exists == true
         @test length(users.columns) == 4
         @test length(users.constraints) == 3  # 2 unique + 1 check
 
         posts = create_table(:posts) |>
-                add_column(:id, :integer, primary_key=true) |>
-                add_column(:user_id, :integer, nullable=false) |>
-                add_column(:title, :text, nullable=false) |>
+                add_column(:id, :integer, primary_key = true) |>
+                add_column(:user_id, :integer, nullable = false) |>
+                add_column(:title, :text, nullable = false) |>
                 add_column(:body, :text) |>
-                add_column(:published, :boolean, default=literal(false)) |>
-                add_foreign_key([:user_id], :users, [:id], on_delete=:cascade)
+                add_column(:published, :boolean, default = literal(false)) |>
+                add_foreign_key([:user_id], :users, [:id], on_delete = :cascade)
 
         @test length(posts.columns) == 5
         @test length(posts.constraints) == 1
@@ -422,7 +427,7 @@ using SQLSketch.Core: col, literal, func, BinaryOp, Literal, SQLExpr
     @testset "Immutability" begin
         # CREATE TABLE should be immutable
         ct = create_table(:users)
-        ct2 = add_column(ct, :id, :integer, primary_key=true)
+        ct2 = add_column(ct, :id, :integer, primary_key = true)
 
         @test ct !== ct2
         @test isempty(ct.columns)

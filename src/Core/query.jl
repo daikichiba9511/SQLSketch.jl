@@ -1239,7 +1239,7 @@ q = insert_into(:users, [:email, :name]) |>
 ```
 """
 function on_conflict_do_nothing(source::InsertValues{T};
-                                 target::Union{Vector{Symbol}, Nothing} = nothing)::OnConflict{T} where {T}
+                                target::Union{Vector{Symbol}, Nothing} = nothing)::OnConflict{T} where {T}
     return OnConflict{T}(source, target, :DO_NOTHING, Pair{Symbol, SQLExpr}[], nothing)
 end
 
@@ -1281,14 +1281,14 @@ q = insert_into(:users, [:email, :name]) |>
 q = insert_into(:users, [:email, :name]) |>
     values([[literal("test@example.com"), literal("Test")]]) |>
     on_conflict_do_update([:email],
-                          :login_count => col(:users, :login_count) + literal(1),
+                          :login_count => col(:users, :login_count) + literal(1);
                           where = col(:users, :active) == literal(true))
 ```
 """
 function on_conflict_do_update(source::InsertValues{T},
-                                target::Union{Vector{Symbol}, Nothing},
-                                updates::Pair{Symbol, <:SQLExpr}...;
-                                where::Union{SQLExpr, Nothing} = nothing)::OnConflict{T} where {T}
+                               target::Union{Vector{Symbol}, Nothing},
+                               updates::Pair{Symbol, <:SQLExpr}...;
+                               where::Union{SQLExpr, Nothing} = nothing)::OnConflict{T} where {T}
     # Convert updates to Vector{Pair{Symbol, SQLExpr}}
     converted = Pair{Symbol, SQLExpr}[k => v for (k, v) in updates]
     return OnConflict{T}(source, target, :DO_UPDATE, converted, where)
@@ -1296,8 +1296,8 @@ end
 
 # Curried version for pipeline composition
 function on_conflict_do_update(target::Union{Vector{Symbol}, Nothing},
-                                updates::Pair{Symbol, <:SQLExpr}...;
-                                where::Union{SQLExpr, Nothing} = nothing)
+                               updates::Pair{Symbol, <:SQLExpr}...;
+                               where::Union{SQLExpr, Nothing} = nothing)
     return source -> on_conflict_do_update(source, target, updates...; where = where)
 end
 
@@ -1312,7 +1312,7 @@ end
 
 # Hash function for ON CONFLICT
 Base.hash(a::OnConflict{T}, h::UInt) where {T} = hash((a.source, a.target, a.action,
-                                                        a.updates, a.where_clause), h)
+                                                       a.updates, a.where_clause), h)
 
 #
 # CTE (Common Table Expressions) Query Types
@@ -1394,7 +1394,7 @@ q2 = from(:admins) |> select(NamedTuple, col(:admins, :email))
 q = union(q1, q2)
 
 # UNION ALL (keeps duplicates)
-q = union(q1, q2, all=true)
+q = union(q1, q2; all = true)
 ```
 
 # Database Support
@@ -1528,7 +1528,7 @@ q = from(:users) |> select(NamedTuple, col(:users, :email)) |>
 
 # UNION ALL
 q = from(:users) |> select(NamedTuple, col(:users, :email)) |>
-    union(from(:admins) |> select(NamedTuple, col(:admins, :email)), all=true)
+    union(from(:admins) |> select(NamedTuple, col(:admins, :email)); all = true)
 
 # Explicit style
 q1 = from(:users) |> select(NamedTuple, col(:users, :email))
@@ -1571,13 +1571,14 @@ q2 = from(:orders) |> select(NamedTuple, col(:orders, :customer_id))
 q = q1 |> intersect(q2)
 ```
 """
-function intersect(left::Query{T}, right::Query{T}; all::Bool = false)::SetIntersect{T} where {T}
+function intersect(left::Query{T}, right::Query{T};
+                   all::Bool = false)::SetIntersect{T} where {T}
     return SetIntersect{T}(left, right, all)
 end
 
 # Curried version for pipeline composition
 intersect(right::Query{T}; all::Bool = false) where {T} = left -> intersect(left, right;
-                                                                             all = all)
+                                                                            all = all)
 
 """
     except(left::Query{T}, right::Query{T}; all::Bool=false)::SetExcept{T}
@@ -1612,18 +1613,20 @@ function except(left::Query{T}, right::Query{T}; all::Bool = false)::SetExcept{T
 end
 
 # Curried version for pipeline composition
-except(right::Query{T}; all::Bool = false) where {T} = left -> except(left, right; all = all)
+except(right::Query{T}; all::Bool = false) where {T} = left -> except(left, right;
+                                                                      all = all)
 
 # Structural Equality for Set Operations
 Base.isequal(a::SetUnion{T}, b::SetUnion{T}) where {T} = isequal(a.left, b.left) &&
-                                                          isequal(a.right, b.right) &&
-                                                          a.all == b.all
+                                                         isequal(a.right, b.right) &&
+                                                         a.all == b.all
 Base.isequal(a::SetIntersect{T}, b::SetIntersect{T}) where {T} = isequal(a.left, b.left) &&
-                                                                  isequal(a.right, b.right) &&
-                                                                  a.all == b.all
+                                                                 isequal(a.right,
+                                                                         b.right) &&
+                                                                 a.all == b.all
 Base.isequal(a::SetExcept{T}, b::SetExcept{T}) where {T} = isequal(a.left, b.left) &&
-                                                            isequal(a.right, b.right) &&
-                                                            a.all == b.all
+                                                           isequal(a.right, b.right) &&
+                                                           a.all == b.all
 
 # Hash functions for Set Operations
 Base.hash(a::SetUnion{T}, h::UInt) where {T} = hash((a.left, a.right, a.all), h)

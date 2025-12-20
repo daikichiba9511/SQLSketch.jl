@@ -136,7 +136,8 @@ struct TextArrayCodec <: Codec end
 encode(::TextArrayCodec, value::Vector{String})::Vector{String} = value
 encode(::TextArrayCodec, ::Missing) = missing
 decode(::TextArrayCodec, value::Vector{String})::Vector{String} = value
-decode(::TextArrayCodec, value::Vector{Any})::Vector{String} = String[string(v) for v in value]
+decode(::TextArrayCodec, value::Vector{Any})::Vector{String} = String[string(v)
+                                                                      for v in value]
 decode(::TextArrayCodec, ::Missing) = missing
 
 """
@@ -232,12 +233,13 @@ end
 Create a CodecRegistry with PostgreSQL-specific codecs registered.
 
 This registry includes:
-- All default codecs from Core.CodecRegistry
-- PostgreSQL native UUID (replaces TEXT-based UUID)
-- PostgreSQL native BOOLEAN (replaces INTEGER-based Bool)
-- PostgreSQL native DATE/TIMESTAMP (replaces TEXT-based)
-- JSONB support
-- Array type support
+
+  - All default codecs from Core.CodecRegistry
+  - PostgreSQL native UUID (replaces TEXT-based UUID)
+  - PostgreSQL native BOOLEAN (replaces INTEGER-based Bool)
+  - PostgreSQL native DATE/TIMESTAMP (replaces TEXT-based)
+  - JSONB support
+  - Array type support
 
 # Example
 
