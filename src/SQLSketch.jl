@@ -118,12 +118,24 @@ export drop_table, create_index, drop_index
 end # module Core
 
 # Dialect implementations
+# Include shared helpers once before dialects
+include("Dialects/shared_helpers.jl")
 include("Dialects/sqlite.jl")
+include("Dialects/postgresql.jl")
 
 # Driver implementations
 module Drivers
 include("Drivers/sqlite.jl")
+include("Drivers/postgresql.jl")
 export SQLiteDriver, SQLiteConnection
+export PostgreSQLDriver, PostgreSQLConnection
+end
+
+# PostgreSQL-specific codecs
+module Codecs
+module PostgreSQL
+include("Codecs/postgresql.jl")
+end
 end
 
 # Re-export everything from Core for convenience
@@ -199,10 +211,14 @@ export alter_table, add_alter_column, drop_alter_column, rename_alter_column
 export drop_table, create_index, drop_index
 
 # Export Dialect implementations
-export SQLiteDialect
+export SQLiteDialect, PostgreSQLDialect
 
 # Re-export Driver implementations
 using .Drivers
 export SQLiteDriver, SQLiteConnection
+export PostgreSQLDriver, PostgreSQLConnection
+
+# Export PostgreSQL codecs module (users can access via SQLSketch.Codecs.PostgreSQL)
+# Do not re-export individual codec types to avoid namespace pollution
 
 end # module SQLSketch
