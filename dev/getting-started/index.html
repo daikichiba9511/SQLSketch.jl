@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width, initial-scale=1.0"/><title>Getting Started · SQLSketch.jl</title><meta name="title" content="Getting Started · SQLSketch.jl"/><meta property="og:title" content="Getting Started · SQLSketch.jl"/><meta property="twitter:title" content="Getting Started · SQLSketch.jl"/><meta name="description" content="Documentation for SQLSketch.jl."/><meta property="og:description" content="Documentation for SQLSketch.jl."/><meta property="twitter:description" content="Documentation for SQLSketch.jl."/><meta property="og:url" content="https://daikichiba9511.github.io/SQLSketch.jl/getting-started/"/><meta property="twitter:url" content="https://daikichiba9511.github.io/SQLSketch.jl/getting-started/"/><link rel="canonical" href="https://daikichiba9511.github.io/SQLSketch.jl/getting-started/"/><script data-outdated-warner src="../assets/warner.js"></script><link href="https://cdnjs.cloudflare.com/ajax/libs/lato-font/3.0.0/css/lato-font.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/juliamono/0.050/juliamono.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/fontawesome.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/solid.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/brands.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.8/katex.min.css" rel="stylesheet" type="text/css"/><script>documenterBaseURL=".."</script><script src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.6/require.min.js" data-main="../assets/documenter.js"></script><script src="../search_index.js"></script><script src="../siteinfo.js"></script><script src="../../versions.js"></script><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../assets/themes/catppuccin-mocha.css" data-theme-name="catppuccin-mocha"/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../assets/themes/catppuccin-macchiato.css" data-theme-name="catppuccin-macchiato"/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../assets/themes/catppuccin-frappe.css" data-theme-name="catppuccin-frappe"/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../assets/themes/catppuccin-latte.css" data-theme-name="catppuccin-latte"/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../assets/themes/documenter-dark.css" data-theme-name="documenter-dark" data-theme-primary-dark/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../assets/themes/documenter-light.css" data-theme-name="documenter-light" data-theme-primary/><script src="../assets/themeswap.js"></script></head><body><div id="documenter"><nav class="docs-sidebar"><div class="docs-package-name"><span class="docs-autofit"><a href="../">SQLSketch.jl</a></span></div><button class="docs-search-query input is-rounded is-small is-clickable my-2 mx-auto py-1 px-2" id="documenter-search-query">Search docs (Ctrl + /)</button><ul class="docs-menu"><li><a class="tocitem" href="../">Home</a></li><li class="is-active"><a class="tocitem" href>Getting Started</a><ul class="internal"><li><a class="tocitem" href="#Installation"><span>Installation</span></a></li><li><a class="tocitem" href="#Database-Setup"><span>Database Setup</span></a></li><li><a class="tocitem" href="#Your-First-Query"><span>Your First Query</span></a></li><li><a class="tocitem" href="#Core-Concepts"><span>Core Concepts</span></a></li><li><a class="tocitem" href="#Common-Patterns"><span>Common Patterns</span></a></li><li><a class="tocitem" href="#DML-Operations"><span>DML Operations</span></a></li><li><a class="tocitem" href="#Transactions"><span>Transactions</span></a></li><li><a class="tocitem" href="#PostgreSQL-Specific-Features"><span>PostgreSQL-Specific Features</span></a></li><li><a class="tocitem" href="#Next-Steps"><span>Next Steps</span></a></li><li><a class="tocitem" href="#Getting-Help"><span>Getting Help</span></a></li></ul></li><li><a class="tocitem" href="../tutorial/">Tutorial</a></li><li><a class="tocitem" href="../api/">API Reference</a></li><li><a class="tocitem" href="../design/">Design</a></li></ul><div class="docs-version-selector field has-addons"><div class="control"><span class="docs-label button is-static is-size-7">Version</span></div><div class="docs-selector control is-expanded"><div class="select is-fullwidth is-size-7"><select id="documenter-version-selector"></select></div></div></div></nav><div class="docs-main"><header class="docs-navbar"><a class="docs-sidebar-button docs-navbar-link fa-solid fa-bars is-hidden-desktop" id="documenter-sidebar-button" href="#"></a><nav class="breadcrumb"><ul class="is-hidden-mobile"><li class="is-active"><a href>Getting Started</a></li></ul><ul class="is-hidden-tablet"><li class="is-active"><a href>Getting Started</a></li></ul></nav><div class="docs-right"><a class="docs-navbar-link" href="https://github.com/daikichiba9511/SQLSketch.jl/blob/main/docs/src/getting-started.md#" title="Edit source on GitHub"><span class="docs-icon fa-solid"></span></a><a class="docs-settings-button docs-navbar-link fa-solid fa-gear" id="documenter-settings-button" href="#" title="Settings"></a><a class="docs-article-toggle-button fa-solid fa-chevron-up" id="documenter-article-toggle-button" href="javascript:;" title="Collapse all docstrings"></a></div></header><article class="content" id="documenter-page"><h1 id="Getting-Started-with-SQLSketch.jl"><a class="docs-heading-anchor" href="#Getting-Started-with-SQLSketch.jl">Getting Started with SQLSketch.jl</a><a id="Getting-Started-with-SQLSketch.jl-1"></a><a class="docs-heading-anchor-permalink" href="#Getting-Started-with-SQLSketch.jl" title="Permalink"></a></h1><p>SQLSketch.jl is a type-safe, composable SQL query builder for Julia. It provides a fluent API for constructing SQL queries that are checked at compile time while remaining transparent and inspectable.</p><h2 id="Installation"><a class="docs-heading-anchor" href="#Installation">Installation</a><a id="Installation-1"></a><a class="docs-heading-anchor-permalink" href="#Installation" title="Permalink"></a></h2><pre><code class="language-julia hljs">using Pkg
+Pkg.add(url=&quot;https://github.com/daikichiba9511/SQLSketch.jl&quot;)</code></pre><h2 id="Database-Setup"><a class="docs-heading-anchor" href="#Database-Setup">Database Setup</a><a id="Database-Setup-1"></a><a class="docs-heading-anchor-permalink" href="#Database-Setup" title="Permalink"></a></h2><h3 id="PostgreSQL-(Primary-Target)"><a class="docs-heading-anchor" href="#PostgreSQL-(Primary-Target)">PostgreSQL (Primary Target)</a><a id="PostgreSQL-(Primary-Target)-1"></a><a class="docs-heading-anchor-permalink" href="#PostgreSQL-(Primary-Target)" title="Permalink"></a></h3><p>SQLSketch is designed with PostgreSQL as the primary target database. PostgreSQL offers rich native types (UUID, JSONB, ARRAY, TIMESTAMP WITH TIME ZONE) and advanced SQL features.</p><p><strong>Install PostgreSQL driver:</strong></p><pre><code class="language-julia hljs">Pkg.add(&quot;LibPQ&quot;)</code></pre><p><strong>Connect to PostgreSQL:</strong></p><pre><code class="language-julia hljs">using SQLSketch
+using SQLSketch.Drivers: PostgreSQLDriver
+
+# Create driver with connection string
+driver = PostgreSQLDriver(&quot;host=localhost dbname=mydb user=myuser password=mypass&quot;)
+
+# Or use environment variables
+driver = PostgreSQLDriver(ENV[&quot;DATABASE_URL&quot;])</code></pre><h3 id="SQLite-(Development/Testing)"><a class="docs-heading-anchor" href="#SQLite-(Development/Testing)">SQLite (Development/Testing)</a><a id="SQLite-(Development/Testing)-1"></a><a class="docs-heading-anchor-permalink" href="#SQLite-(Development/Testing)" title="Permalink"></a></h3><p>SQLite is supported for fast local development and testing, but applications should target PostgreSQL for production.</p><p><strong>Install SQLite driver:</strong></p><pre><code class="language-julia hljs">Pkg.add(&quot;SQLite&quot;)</code></pre><p><strong>Connect to SQLite:</strong></p><pre><code class="language-julia hljs">using SQLSketch
+using SQLSketch.Drivers: SQLiteDriver
+
+# In-memory database
+driver = SQLiteDriver(&quot;:memory:&quot;)
+
+# Or file-based
+driver = SQLiteDriver(&quot;dev.db&quot;)</code></pre><h2 id="Your-First-Query"><a class="docs-heading-anchor" href="#Your-First-Query">Your First Query</a><a id="Your-First-Query-1"></a><a class="docs-heading-anchor-permalink" href="#Your-First-Query" title="Permalink"></a></h2><h3 id="Basic-SELECT"><a class="docs-heading-anchor" href="#Basic-SELECT">Basic SELECT</a><a id="Basic-SELECT-1"></a><a class="docs-heading-anchor-permalink" href="#Basic-SELECT" title="Permalink"></a></h3><pre><code class="language-julia hljs">using SQLSketch
+
+# Build a query
+q = from(:users) |&gt;
+    where(col(:users, :active) == literal(true)) |&gt;
+    select(NamedTuple, col(:users, :id), col(:users, :email))
+
+# Inspect generated SQL
+println(sql(q, PostgreSQLDialect()))
+# SELECT &quot;users&quot;.&quot;id&quot;, &quot;users&quot;.&quot;email&quot; FROM &quot;users&quot; WHERE &quot;users&quot;.&quot;active&quot; = $1
+
+# Execute query
+results = fetch_all(driver, q)
+# Vector{NamedTuple{(:id, :email), Tuple{Int64, String}}}
+
+for row in results
+    println(&quot;$(row.id): $(row.email)&quot;)
+end</code></pre><h3 id="Type-Safe-Structs"><a class="docs-heading-anchor" href="#Type-Safe-Structs">Type-Safe Structs</a><a id="Type-Safe-Structs-1"></a><a class="docs-heading-anchor-permalink" href="#Type-Safe-Structs" title="Permalink"></a></h3><p>Map query results directly to structs:</p><pre><code class="language-julia hljs">struct User
+    id::Int64
+    email::String
+    created_at::DateTime
+end
+
+q = from(:users) |&gt;
+    select(User,
+           col(:users, :id),
+           col(:users, :email),
+           col(:users, :created_at))
+
+users = fetch_all(driver, q)
+# Vector{User}</code></pre><h3 id="Parameterized-Queries"><a class="docs-heading-anchor" href="#Parameterized-Queries">Parameterized Queries</a><a id="Parameterized-Queries-1"></a><a class="docs-heading-anchor-permalink" href="#Parameterized-Queries" title="Permalink"></a></h3><p>Use placeholders for safe parameter binding:</p><pre><code class="language-julia hljs"># Define parameter
+user_id = p_(:user_id, Int64)
+
+q = from(:users) |&gt;
+    where(col(:users, :id) == user_id) |&gt;
+    select(User, col(:users, :id), col(:users, :email), col(:users, :created_at))
+
+# Execute with parameter values
+user = fetch_one(driver, q, user_id =&gt; 42)
+# User(42, &quot;user@example.com&quot;, DateTime(...))</code></pre><h2 id="Core-Concepts"><a class="docs-heading-anchor" href="#Core-Concepts">Core Concepts</a><a id="Core-Concepts-1"></a><a class="docs-heading-anchor-permalink" href="#Core-Concepts" title="Permalink"></a></h2><h3 id="Query-Building-Blocks"><a class="docs-heading-anchor" href="#Query-Building-Blocks">Query Building Blocks</a><a id="Query-Building-Blocks-1"></a><a class="docs-heading-anchor-permalink" href="#Query-Building-Blocks" title="Permalink"></a></h3><p>SQLSketch uses a <strong>pipeline API</strong> where each operation returns a new query node:</p><pre><code class="language-julia hljs"># FROM clause - starting point
+q1 = from(:users)
+
+# WHERE clause - filter rows
+q2 = q1 |&gt; where(col(:users, :active) == literal(true))
+
+# SELECT clause - choose columns and output type
+q3 = q2 |&gt; select(NamedTuple, col(:users, :id), col(:users, :email))</code></pre><h3 id="Shape-Preserving-vs-Shape-Changing"><a class="docs-heading-anchor" href="#Shape-Preserving-vs-Shape-Changing">Shape-Preserving vs Shape-Changing</a><a id="Shape-Preserving-vs-Shape-Changing-1"></a><a class="docs-heading-anchor-permalink" href="#Shape-Preserving-vs-Shape-Changing" title="Permalink"></a></h3><ul><li><p><strong>Shape-Preserving</strong>: Operations that don&#39;t change the output type</p><ul><li><code>from</code>, <code>where</code>, <code>join</code>, <code>order_by</code>, <code>limit</code>, <code>offset</code>, <code>distinct</code>, <code>group_by</code>, <code>having</code></li></ul></li><li><p><strong>Shape-Changing</strong>: Only <code>select</code> changes the output type</p><ul><li>Must specify output type: <code>select(NamedTuple, ...)</code> or <code>select(User, ...)</code></li></ul></li></ul><h3 id="SQL-Transparency"><a class="docs-heading-anchor" href="#SQL-Transparency">SQL Transparency</a><a id="SQL-Transparency-1"></a><a class="docs-heading-anchor-permalink" href="#SQL-Transparency" title="Permalink"></a></h3><p>All queries are inspectable before execution:</p><pre><code class="language-julia hljs">q = from(:users) |&gt; where(col(:users, :active) == literal(true))
+
+# View generated SQL
+println(sql(q, PostgreSQLDialect()))
+
+# Get SQL with parameter positions
+compiled = compile(PostgreSQLDialect(), q)
+println(compiled.sql)
+println(compiled.param_order)
+
+# View EXPLAIN plan
+println(explain(q, PostgreSQLDialect()))</code></pre><h2 id="Common-Patterns"><a class="docs-heading-anchor" href="#Common-Patterns">Common Patterns</a><a id="Common-Patterns-1"></a><a class="docs-heading-anchor-permalink" href="#Common-Patterns" title="Permalink"></a></h2><h3 id="Joins"><a class="docs-heading-anchor" href="#Joins">Joins</a><a id="Joins-1"></a><a class="docs-heading-anchor-permalink" href="#Joins" title="Permalink"></a></h3><pre><code class="language-julia hljs">q = from(:users) |&gt;
+    join(:posts, col(:posts, :user_id) == col(:users, :id); kind=:left) |&gt;
+    select(NamedTuple,
+           col(:users, :email),
+           col(:posts, :title))</code></pre><h3 id="Ordering-and-Limiting"><a class="docs-heading-anchor" href="#Ordering-and-Limiting">Ordering and Limiting</a><a id="Ordering-and-Limiting-1"></a><a class="docs-heading-anchor-permalink" href="#Ordering-and-Limiting" title="Permalink"></a></h3><pre><code class="language-julia hljs">q = from(:users) |&gt;
+    order_by(col(:users, :created_at); desc=true) |&gt;
+    limit(10)</code></pre><h3 id="Aggregation"><a class="docs-heading-anchor" href="#Aggregation">Aggregation</a><a id="Aggregation-1"></a><a class="docs-heading-anchor-permalink" href="#Aggregation" title="Permalink"></a></h3><pre><code class="language-julia hljs">q = from(:orders) |&gt;
+    group_by(col(:orders, :user_id)) |&gt;
+    select(NamedTuple,
+           col(:orders, :user_id),
+           count_star())</code></pre><h3 id="Subqueries"><a class="docs-heading-anchor" href="#Subqueries">Subqueries</a><a id="Subqueries-1"></a><a class="docs-heading-anchor-permalink" href="#Subqueries" title="Permalink"></a></h3><pre><code class="language-julia hljs">subq = from(:orders) |&gt;
+       select(NamedTuple, col(:orders, :user_id))
+
+q = from(:users) |&gt;
+    where(col(:users, :id) |&gt; in_(subquery(subq)))</code></pre><h2 id="DML-Operations"><a class="docs-heading-anchor" href="#DML-Operations">DML Operations</a><a id="DML-Operations-1"></a><a class="docs-heading-anchor-permalink" href="#DML-Operations" title="Permalink"></a></h2><h3 id="INSERT"><a class="docs-heading-anchor" href="#INSERT">INSERT</a><a id="INSERT-1"></a><a class="docs-heading-anchor-permalink" href="#INSERT" title="Permalink"></a></h3><pre><code class="language-julia hljs">q = insert_into(:users, [:email, :active]) |&gt;
+    values([literal(&quot;new@example.com&quot;), literal(true)])
+
+execute_dml(driver, q)</code></pre><h3 id="UPDATE"><a class="docs-heading-anchor" href="#UPDATE">UPDATE</a><a id="UPDATE-1"></a><a class="docs-heading-anchor-permalink" href="#UPDATE" title="Permalink"></a></h3><pre><code class="language-julia hljs">q = update(:users) |&gt;
+    set_(:email, literal(&quot;updated@example.com&quot;)) |&gt;
+    where(col(:users, :id) == literal(1))
+
+execute_dml(driver, q)</code></pre><h3 id="DELETE"><a class="docs-heading-anchor" href="#DELETE">DELETE</a><a id="DELETE-1"></a><a class="docs-heading-anchor-permalink" href="#DELETE" title="Permalink"></a></h3><pre><code class="language-julia hljs">q = delete_from(:users) |&gt;
+    where(col(:users, :active) == literal(false))
+
+execute_dml(driver, q)</code></pre><h3 id="RETURNING-(PostgreSQL)"><a class="docs-heading-anchor" href="#RETURNING-(PostgreSQL)">RETURNING (PostgreSQL)</a><a id="RETURNING-(PostgreSQL)-1"></a><a class="docs-heading-anchor-permalink" href="#RETURNING-(PostgreSQL)" title="Permalink"></a></h3><pre><code class="language-julia hljs">q = insert_into(:users, [:email, :active]) |&gt;
+    values([literal(&quot;new@example.com&quot;), literal(true)]) |&gt;
+    returning(col(:users, :id))
+
+new_id = fetch_one(driver, q)</code></pre><h2 id="Transactions"><a class="docs-heading-anchor" href="#Transactions">Transactions</a><a id="Transactions-1"></a><a class="docs-heading-anchor-permalink" href="#Transactions" title="Permalink"></a></h2><pre><code class="language-julia hljs">result = transaction(driver) do tx
+    # Multiple operations in transaction
+    execute_dml(tx, insert_query)
+    execute_dml(tx, update_query)
+
+    # Fetch within transaction
+    user = fetch_one(tx, select_query)
+
+    # Return value from transaction
+    user.id
+end
+
+# Automatically commits on success, rolls back on error</code></pre><h3 id="Savepoints-(Nested-Transactions)"><a class="docs-heading-anchor" href="#Savepoints-(Nested-Transactions)">Savepoints (Nested Transactions)</a><a id="Savepoints-(Nested-Transactions)-1"></a><a class="docs-heading-anchor-permalink" href="#Savepoints-(Nested-Transactions)" title="Permalink"></a></h3><pre><code class="language-julia hljs">transaction(driver) do tx
+    execute_dml(tx, query1)
+
+    savepoint(tx, :sp1) do sp
+        execute_dml(sp, query2)
+        # Rolls back to sp1 on error
+    end
+
+    execute_dml(tx, query3)
+end</code></pre><h2 id="PostgreSQL-Specific-Features"><a class="docs-heading-anchor" href="#PostgreSQL-Specific-Features">PostgreSQL-Specific Features</a><a id="PostgreSQL-Specific-Features-1"></a><a class="docs-heading-anchor-permalink" href="#PostgreSQL-Specific-Features" title="Permalink"></a></h2><h3 id="UUID"><a class="docs-heading-anchor" href="#UUID">UUID</a><a id="UUID-1"></a><a class="docs-heading-anchor-permalink" href="#UUID" title="Permalink"></a></h3><pre><code class="language-julia hljs">using UUIDs
+
+struct User
+    id::UUID
+    email::String
+end
+
+q = from(:users) |&gt;
+    where(col(:users, :id) == literal(uuid4())) |&gt;
+    select(User, col(:users, :id), col(:users, :email))</code></pre><h3 id="JSONB"><a class="docs-heading-anchor" href="#JSONB">JSONB</a><a id="JSONB-1"></a><a class="docs-heading-anchor-permalink" href="#JSONB" title="Permalink"></a></h3><pre><code class="language-julia hljs"># Store JSON data
+metadata = Dict(&quot;tags&quot; =&gt; [&quot;admin&quot;, &quot;verified&quot;], &quot;score&quot; =&gt; 100)
+
+q = insert_into(:users, [:email, :metadata]) |&gt;
+    values([literal(&quot;user@example.com&quot;), literal(metadata)])
+
+execute_dml(driver, q)</code></pre><h3 id="Arrays"><a class="docs-heading-anchor" href="#Arrays">Arrays</a><a id="Arrays-1"></a><a class="docs-heading-anchor-permalink" href="#Arrays" title="Permalink"></a></h3><pre><code class="language-julia hljs"># Query with array literal
+tags = [&quot;julia&quot;, &quot;database&quot;]
+
+q = from(:posts) |&gt;
+    where(col(:posts, :tags) == literal(tags))</code></pre><h2 id="Next-Steps"><a class="docs-heading-anchor" href="#Next-Steps">Next Steps</a><a id="Next-Steps-1"></a><a class="docs-heading-anchor-permalink" href="#Next-Steps" title="Permalink"></a></h2><ul><li><strong><a href="../api/">API Reference</a></strong> - Complete API documentation</li><li><strong><a href="../tutorial/">Tutorial</a></strong> - Step-by-step learning path</li><li><strong><a href="../design/">Design Philosophy</a></strong> - Understanding SQLSketch&#39;s architecture</li></ul><h2 id="Getting-Help"><a class="docs-heading-anchor" href="#Getting-Help">Getting Help</a><a id="Getting-Help-1"></a><a class="docs-heading-anchor-permalink" href="#Getting-Help" title="Permalink"></a></h2><ul><li>Check the <a href="../api/">API Reference</a> for function documentation</li><li>Report issues at <a href="https://github.com/daikichiba9511/SQLSketch.jl/issues">GitHub Issues</a></li></ul></article><nav class="docs-footer"><a class="docs-footer-prevpage" href="../">« Home</a><a class="docs-footer-nextpage" href="../tutorial/">Tutorial »</a><div class="flexbox-break"></div><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="auto">Automatic (OS)</option><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option><option value="catppuccin-latte">catppuccin-latte</option><option value="catppuccin-frappe">catppuccin-frappe</option><option value="catppuccin-macchiato">catppuccin-macchiato</option><option value="catppuccin-mocha">catppuccin-mocha</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> version 1.16.1 on <span class="colophon-date" title="Saturday 20 December 2025 06:36">Saturday 20 December 2025</span>. Using Julia version 1.12.3.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>

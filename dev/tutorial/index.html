@@ -1,0 +1,370 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width, initial-scale=1.0"/><title>Tutorial · SQLSketch.jl</title><meta name="title" content="Tutorial · SQLSketch.jl"/><meta property="og:title" content="Tutorial · SQLSketch.jl"/><meta property="twitter:title" content="Tutorial · SQLSketch.jl"/><meta name="description" content="Documentation for SQLSketch.jl."/><meta property="og:description" content="Documentation for SQLSketch.jl."/><meta property="twitter:description" content="Documentation for SQLSketch.jl."/><meta property="og:url" content="https://daikichiba9511.github.io/SQLSketch.jl/tutorial/"/><meta property="twitter:url" content="https://daikichiba9511.github.io/SQLSketch.jl/tutorial/"/><link rel="canonical" href="https://daikichiba9511.github.io/SQLSketch.jl/tutorial/"/><script data-outdated-warner src="../assets/warner.js"></script><link href="https://cdnjs.cloudflare.com/ajax/libs/lato-font/3.0.0/css/lato-font.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/juliamono/0.050/juliamono.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/fontawesome.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/solid.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/brands.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.8/katex.min.css" rel="stylesheet" type="text/css"/><script>documenterBaseURL=".."</script><script src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.6/require.min.js" data-main="../assets/documenter.js"></script><script src="../search_index.js"></script><script src="../siteinfo.js"></script><script src="../../versions.js"></script><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../assets/themes/catppuccin-mocha.css" data-theme-name="catppuccin-mocha"/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../assets/themes/catppuccin-macchiato.css" data-theme-name="catppuccin-macchiato"/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../assets/themes/catppuccin-frappe.css" data-theme-name="catppuccin-frappe"/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../assets/themes/catppuccin-latte.css" data-theme-name="catppuccin-latte"/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../assets/themes/documenter-dark.css" data-theme-name="documenter-dark" data-theme-primary-dark/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../assets/themes/documenter-light.css" data-theme-name="documenter-light" data-theme-primary/><script src="../assets/themeswap.js"></script></head><body><div id="documenter"><nav class="docs-sidebar"><div class="docs-package-name"><span class="docs-autofit"><a href="../">SQLSketch.jl</a></span></div><button class="docs-search-query input is-rounded is-small is-clickable my-2 mx-auto py-1 px-2" id="documenter-search-query">Search docs (Ctrl + /)</button><ul class="docs-menu"><li><a class="tocitem" href="../">Home</a></li><li><a class="tocitem" href="../getting-started/">Getting Started</a></li><li class="is-active"><a class="tocitem" href>Tutorial</a><ul class="internal"><li><a class="tocitem" href="#Prerequisites"><span>Prerequisites</span></a></li><li><a class="tocitem" href="#1.-Database-Setup"><span>1. Database Setup</span></a></li><li><a class="tocitem" href="#2.-Define-Data-Models"><span>2. Define Data Models</span></a></li><li><a class="tocitem" href="#3.-Create-Database-Schema"><span>3. Create Database Schema</span></a></li><li><a class="tocitem" href="#4.-Insert-Data"><span>4. Insert Data</span></a></li><li><a class="tocitem" href="#5.-Query-Data"><span>5. Query Data</span></a></li><li><a class="tocitem" href="#6.-Update-Data"><span>6. Update Data</span></a></li><li><a class="tocitem" href="#7.-Transactions"><span>7. Transactions</span></a></li><li><a class="tocitem" href="#8.-Window-Functions"><span>8. Window Functions</span></a></li><li><a class="tocitem" href="#9.-Advanced:-Subqueries"><span>9. Advanced: Subqueries</span></a></li><li><a class="tocitem" href="#10.-Cleanup"><span>10. Cleanup</span></a></li><li><a class="tocitem" href="#Summary"><span>Summary</span></a></li><li><a class="tocitem" href="#Next-Steps"><span>Next Steps</span></a></li></ul></li><li><a class="tocitem" href="../api/">API Reference</a></li><li><a class="tocitem" href="../design/">Design</a></li></ul><div class="docs-version-selector field has-addons"><div class="control"><span class="docs-label button is-static is-size-7">Version</span></div><div class="docs-selector control is-expanded"><div class="select is-fullwidth is-size-7"><select id="documenter-version-selector"></select></div></div></div></nav><div class="docs-main"><header class="docs-navbar"><a class="docs-sidebar-button docs-navbar-link fa-solid fa-bars is-hidden-desktop" id="documenter-sidebar-button" href="#"></a><nav class="breadcrumb"><ul class="is-hidden-mobile"><li class="is-active"><a href>Tutorial</a></li></ul><ul class="is-hidden-tablet"><li class="is-active"><a href>Tutorial</a></li></ul></nav><div class="docs-right"><a class="docs-navbar-link" href="https://github.com/daikichiba9511/SQLSketch.jl/blob/main/docs/src/tutorial.md#" title="Edit source on GitHub"><span class="docs-icon fa-solid"></span></a><a class="docs-settings-button docs-navbar-link fa-solid fa-gear" id="documenter-settings-button" href="#" title="Settings"></a><a class="docs-article-toggle-button fa-solid fa-chevron-up" id="documenter-article-toggle-button" href="javascript:;" title="Collapse all docstrings"></a></div></header><article class="content" id="documenter-page"><h1 id="Tutorial:-Building-a-Blog-Application"><a class="docs-heading-anchor" href="#Tutorial:-Building-a-Blog-Application">Tutorial: Building a Blog Application</a><a id="Tutorial:-Building-a-Blog-Application-1"></a><a class="docs-heading-anchor-permalink" href="#Tutorial:-Building-a-Blog-Application" title="Permalink"></a></h1><p>This tutorial walks through building a complete blog application with SQLSketch.jl, demonstrating key features and best practices.</p><h2 id="Prerequisites"><a class="docs-heading-anchor" href="#Prerequisites">Prerequisites</a><a id="Prerequisites-1"></a><a class="docs-heading-anchor-permalink" href="#Prerequisites" title="Permalink"></a></h2><pre><code class="language-julia hljs">using Pkg
+Pkg.add(url=&quot;https://github.com/daikichiba9511/SQLSketch.jl&quot;)
+Pkg.add(&quot;LibPQ&quot;)  # PostgreSQL driver
+Pkg.add(&quot;Dates&quot;)
+Pkg.add(&quot;UUIDs&quot;)</code></pre><h2 id="1.-Database-Setup"><a class="docs-heading-anchor" href="#1.-Database-Setup">1. Database Setup</a><a id="1.-Database-Setup-1"></a><a class="docs-heading-anchor-permalink" href="#1.-Database-Setup" title="Permalink"></a></h2><p>First, create a PostgreSQL database and connect:</p><pre><code class="language-julia hljs">using SQLSketch
+using SQLSketch.Drivers: PostgreSQLDriver
+using SQLSketch.Dialects: PostgreSQLDialect
+using Dates
+using UUIDs
+
+# Connect to PostgreSQL
+driver = PostgreSQLDriver(&quot;host=localhost dbname=blog_dev user=postgres password=postgres&quot;)
+dialect = PostgreSQLDialect()</code></pre><h2 id="2.-Define-Data-Models"><a class="docs-heading-anchor" href="#2.-Define-Data-Models">2. Define Data Models</a><a id="2.-Define-Data-Models-1"></a><a class="docs-heading-anchor-permalink" href="#2.-Define-Data-Models" title="Permalink"></a></h2><p>Define Julia structs that map to our database tables:</p><pre><code class="language-julia hljs"># User model
+struct User
+    id::UUID
+    email::String
+    username::String
+    created_at::DateTime
+end
+
+# Post model
+struct Post
+    id::UUID
+    user_id::UUID
+    title::String
+    content::String
+    published::Bool
+    created_at::DateTime
+    updated_at::Union{Nothing,DateTime}
+end
+
+# Comment model
+struct Comment
+    id::UUID
+    post_id::UUID
+    user_id::UUID
+    content::String
+    created_at::DateTime
+end
+
+# Tag model
+struct Tag
+    id::Int64
+    name::String
+end</code></pre><h2 id="3.-Create-Database-Schema"><a class="docs-heading-anchor" href="#3.-Create-Database-Schema">3. Create Database Schema</a><a id="3.-Create-Database-Schema-1"></a><a class="docs-heading-anchor-permalink" href="#3.-Create-Database-Schema" title="Permalink"></a></h2><p>Use SQLSketch&#39;s DDL operations to create tables:</p><pre><code class="language-julia hljs"># Create users table
+create_users = create_table(:users) |&gt;
+    add_column(:id, :uuid) |&gt;
+    add_column(:email, :text) |&gt;
+    add_column(:username, :text) |&gt;
+    add_column(:created_at, :timestamp) |&gt;
+    primary_key(:id) |&gt;
+    not_null(:email) |&gt;
+    not_null(:username) |&gt;
+    unique_constraint(:email) |&gt;
+    unique_constraint(:username)
+
+execute_dml(driver, create_users)
+
+# Create posts table
+create_posts = create_table(:posts) |&gt;
+    add_column(:id, :uuid) |&gt;
+    add_column(:user_id, :uuid) |&gt;
+    add_column(:title, :text) |&gt;
+    add_column(:content, :text) |&gt;
+    add_column(:published, :boolean) |&gt;
+    add_column(:created_at, :timestamp) |&gt;
+    add_column(:updated_at, :timestamp) |&gt;
+    primary_key(:id) |&gt;
+    not_null(:user_id) |&gt;
+    not_null(:title) |&gt;
+    not_null(:published) |&gt;
+    foreign_key(:user_id, :users, :id)
+
+execute_dml(driver, create_posts)
+
+# Create comments table
+create_comments = create_table(:comments) |&gt;
+    add_column(:id, :uuid) |&gt;
+    add_column(:post_id, :uuid) |&gt;
+    add_column(:user_id, :uuid) |&gt;
+    add_column(:content, :text) |&gt;
+    add_column(:created_at, :timestamp) |&gt;
+    primary_key(:id) |&gt;
+    not_null(:post_id) |&gt;
+    not_null(:user_id) |&gt;
+    not_null(:content) |&gt;
+    foreign_key(:post_id, :posts, :id) |&gt;
+    foreign_key(:user_id, :users, :id)
+
+execute_dml(driver, create_comments)
+
+# Create tags table
+create_tags = create_table(:tags) |&gt;
+    add_column(:id, :serial) |&gt;
+    add_column(:name, :text) |&gt;
+    primary_key(:id) |&gt;
+    not_null(:name) |&gt;
+    unique_constraint(:name)
+
+execute_dml(driver, create_tags)
+
+# Create posts_tags junction table
+create_posts_tags = create_table(:posts_tags) |&gt;
+    add_column(:post_id, :uuid) |&gt;
+    add_column(:tag_id, :integer) |&gt;
+    primary_key(:post_id, :tag_id) |&gt;
+    foreign_key(:post_id, :posts, :id) |&gt;
+    foreign_key(:tag_id, :tags, :id)
+
+execute_dml(driver, create_posts_tags)
+
+# Create indexes for performance
+create_index(:idx_posts_user_id) |&gt; on(:posts, :user_id) |&gt; execute_dml(driver)
+create_index(:idx_comments_post_id) |&gt; on(:comments, :post_id) |&gt; execute_dml(driver)
+create_index(:idx_posts_created_at) |&gt; on(:posts, :created_at) |&gt; execute_dml(driver)</code></pre><h2 id="4.-Insert-Data"><a class="docs-heading-anchor" href="#4.-Insert-Data">4. Insert Data</a><a id="4.-Insert-Data-1"></a><a class="docs-heading-anchor-permalink" href="#4.-Insert-Data" title="Permalink"></a></h2><h3 id="Create-a-User"><a class="docs-heading-anchor" href="#Create-a-User">Create a User</a><a id="Create-a-User-1"></a><a class="docs-heading-anchor-permalink" href="#Create-a-User" title="Permalink"></a></h3><pre><code class="language-julia hljs">function create_user(driver, email::String, username::String)::User
+    q = insert_into(:users, [:id, :email, :username, :created_at]) |&gt;
+        values([
+            literal(uuid4()),
+            literal(email),
+            literal(username),
+            literal(now())
+        ]) |&gt;
+        returning(
+            col(:users, :id),
+            col(:users, :email),
+            col(:users, :username),
+            col(:users, :created_at)
+        )
+
+    fetch_one(driver, q, User)
+end
+
+# Create a user
+alice = create_user(driver, &quot;alice@example.com&quot;, &quot;alice&quot;)
+println(&quot;Created user: $(alice.username) ($(alice.id))&quot;)</code></pre><h3 id="Create-a-Post"><a class="docs-heading-anchor" href="#Create-a-Post">Create a Post</a><a id="Create-a-Post-1"></a><a class="docs-heading-anchor-permalink" href="#Create-a-Post" title="Permalink"></a></h3><pre><code class="language-julia hljs">function create_post(driver, user_id::UUID, title::String, content::String)::Post
+    q = insert_into(:posts, [:id, :user_id, :title, :content, :published, :created_at, :updated_at]) |&gt;
+        values([
+            literal(uuid4()),
+            literal(user_id),
+            literal(title),
+            literal(content),
+            literal(false),
+            literal(now()),
+            literal(nothing)
+        ]) |&gt;
+        returning(
+            col(:posts, :id),
+            col(:posts, :user_id),
+            col(:posts, :title),
+            col(:posts, :content),
+            col(:posts, :published),
+            col(:posts, :created_at),
+            col(:posts, :updated_at)
+        )
+
+    fetch_one(driver, q, Post)
+end
+
+# Create a post
+post = create_post(driver, alice.id, &quot;My First Post&quot;, &quot;Hello, world!&quot;)
+println(&quot;Created post: $(post.title)&quot;)</code></pre><h3 id="Add-Comments"><a class="docs-heading-anchor" href="#Add-Comments">Add Comments</a><a id="Add-Comments-1"></a><a class="docs-heading-anchor-permalink" href="#Add-Comments" title="Permalink"></a></h3><pre><code class="language-julia hljs">function create_comment(driver, post_id::UUID, user_id::UUID, content::String)::Comment
+    q = insert_into(:comments, [:id, :post_id, :user_id, :content, :created_at]) |&gt;
+        values([
+            literal(uuid4()),
+            literal(post_id),
+            literal(user_id),
+            literal(content),
+            literal(now())
+        ]) |&gt;
+        returning(
+            col(:comments, :id),
+            col(:comments, :post_id),
+            col(:comments, :user_id),
+            col(:comments, :content),
+            col(:comments, :created_at)
+        )
+
+    fetch_one(driver, q, Comment)
+end
+
+# Add a comment
+comment = create_comment(driver, post.id, alice.id, &quot;First comment!&quot;)</code></pre><h2 id="5.-Query-Data"><a class="docs-heading-anchor" href="#5.-Query-Data">5. Query Data</a><a id="5.-Query-Data-1"></a><a class="docs-heading-anchor-permalink" href="#5.-Query-Data" title="Permalink"></a></h2><h3 id="Fetch-All-Published-Posts"><a class="docs-heading-anchor" href="#Fetch-All-Published-Posts">Fetch All Published Posts</a><a id="Fetch-All-Published-Posts-1"></a><a class="docs-heading-anchor-permalink" href="#Fetch-All-Published-Posts" title="Permalink"></a></h3><pre><code class="language-julia hljs">q = from(:posts) |&gt;
+    where(col(:posts, :published) == literal(true)) |&gt;
+    order_by(col(:posts, :created_at); desc=true) |&gt;
+    select(Post,
+           col(:posts, :id),
+           col(:posts, :user_id),
+           col(:posts, :title),
+           col(:posts, :content),
+           col(:posts, :published),
+           col(:posts, :created_at),
+           col(:posts, :updated_at))
+
+published_posts = fetch_all(driver, q)</code></pre><h3 id="Fetch-Posts-with-User-Information"><a class="docs-heading-anchor" href="#Fetch-Posts-with-User-Information">Fetch Posts with User Information</a><a id="Fetch-Posts-with-User-Information-1"></a><a class="docs-heading-anchor-permalink" href="#Fetch-Posts-with-User-Information" title="Permalink"></a></h3><pre><code class="language-julia hljs">struct PostWithAuthor
+    post_id::UUID
+    title::String
+    content::String
+    author_username::String
+    created_at::DateTime
+end
+
+q = from(:posts) |&gt;
+    join(:users, col(:users, :id) == col(:posts, :user_id); kind=:inner) |&gt;
+    where(col(:posts, :published) == literal(true)) |&gt;
+    order_by(col(:posts, :created_at); desc=true) |&gt;
+    select(PostWithAuthor,
+           col(:posts, :id),
+           col(:posts, :title),
+           col(:posts, :content),
+           col(:users, :username),
+           col(:posts, :created_at))
+
+posts_with_authors = fetch_all(driver, q)
+
+for post in posts_with_authors
+    println(&quot;$(post.title) by $(post.author_username)&quot;)
+end</code></pre><h3 id="Fetch-Post-with-Comments"><a class="docs-heading-anchor" href="#Fetch-Post-with-Comments">Fetch Post with Comments</a><a id="Fetch-Post-with-Comments-1"></a><a class="docs-heading-anchor-permalink" href="#Fetch-Post-with-Comments" title="Permalink"></a></h3><pre><code class="language-julia hljs">struct PostComment
+    comment_id::UUID
+    content::String
+    author_username::String
+    created_at::DateTime
+end
+
+function get_post_comments(driver, post_id::UUID)::Vector{PostComment}
+    q = from(:comments) |&gt;
+        join(:users, col(:users, :id) == col(:comments, :user_id); kind=:inner) |&gt;
+        where(col(:comments, :post_id) == literal(post_id)) |&gt;
+        order_by(col(:comments, :created_at); desc=false) |&gt;
+        select(PostComment,
+               col(:comments, :id),
+               col(:comments, :content),
+               col(:users, :username),
+               col(:comments, :created_at))
+
+    fetch_all(driver, q)
+end
+
+comments = get_post_comments(driver, post.id)</code></pre><h3 id="Parameterized-Search"><a class="docs-heading-anchor" href="#Parameterized-Search">Parameterized Search</a><a id="Parameterized-Search-1"></a><a class="docs-heading-anchor-permalink" href="#Parameterized-Search" title="Permalink"></a></h3><pre><code class="language-julia hljs">search_term = p_(:search, String)
+
+q = from(:posts) |&gt;
+    where(
+        (col(:posts, :title) |&gt; like(literal(&quot;%Julia%&quot;))) |
+        (col(:posts, :content) |&gt; like(literal(&quot;%database%&quot;)))
+    ) |&gt;
+    order_by(col(:posts, :created_at); desc=true) |&gt;
+    select(Post,
+           col(:posts, :id),
+           col(:posts, :user_id),
+           col(:posts, :title),
+           col(:posts, :content),
+           col(:posts, :published),
+           col(:posts, :created_at),
+           col(:posts, :updated_at))
+
+results = fetch_all(driver, q)</code></pre><h3 id="Aggregation:-Count-Posts-by-User"><a class="docs-heading-anchor" href="#Aggregation:-Count-Posts-by-User">Aggregation: Count Posts by User</a><a id="Aggregation:-Count-Posts-by-User-1"></a><a class="docs-heading-anchor-permalink" href="#Aggregation:-Count-Posts-by-User" title="Permalink"></a></h3><pre><code class="language-julia hljs">struct UserPostCount
+    username::String
+    post_count::Int64
+end
+
+q = from(:posts) |&gt;
+    join(:users, col(:users, :id) == col(:posts, :user_id); kind=:inner) |&gt;
+    group_by(col(:users, :username)) |&gt;
+    select(UserPostCount,
+           col(:users, :username),
+           count_star())
+
+counts = fetch_all(driver, q)
+
+for row in counts
+    println(&quot;$(row.username): $(row.post_count) posts&quot;)
+end</code></pre><h2 id="6.-Update-Data"><a class="docs-heading-anchor" href="#6.-Update-Data">6. Update Data</a><a id="6.-Update-Data-1"></a><a class="docs-heading-anchor-permalink" href="#6.-Update-Data" title="Permalink"></a></h2><h3 id="Publish-a-Post"><a class="docs-heading-anchor" href="#Publish-a-Post">Publish a Post</a><a id="Publish-a-Post-1"></a><a class="docs-heading-anchor-permalink" href="#Publish-a-Post" title="Permalink"></a></h3><pre><code class="language-julia hljs">function publish_post(driver, post_id::UUID)
+    q = update(:posts) |&gt;
+        set_(:published, literal(true)) |&gt;
+        set_(:updated_at, literal(now())) |&gt;
+        where(col(:posts, :id) == literal(post_id))
+
+    execute_dml(driver, q)
+end
+
+publish_post(driver, post.id)</code></pre><h3 id="Edit-Post-Content"><a class="docs-heading-anchor" href="#Edit-Post-Content">Edit Post Content</a><a id="Edit-Post-Content-1"></a><a class="docs-heading-anchor-permalink" href="#Edit-Post-Content" title="Permalink"></a></h3><pre><code class="language-julia hljs">function edit_post(driver, post_id::UUID, new_title::String, new_content::String)
+    q = update(:posts) |&gt;
+        set_(:title, literal(new_title)) |&gt;
+        set_(:content, literal(new_content)) |&gt;
+        set_(:updated_at, literal(now())) |&gt;
+        where(col(:posts, :id) == literal(post_id))
+
+    execute_dml(driver, q)
+end
+
+edit_post(driver, post.id, &quot;Updated Title&quot;, &quot;Updated content!&quot;)</code></pre><h2 id="7.-Transactions"><a class="docs-heading-anchor" href="#7.-Transactions">7. Transactions</a><a id="7.-Transactions-1"></a><a class="docs-heading-anchor-permalink" href="#7.-Transactions" title="Permalink"></a></h2><p>Use transactions to ensure data consistency:</p><pre><code class="language-julia hljs">function create_post_with_tags(driver, user_id::UUID, title::String, content::String, tag_names::Vector{String})
+    transaction(driver) do tx
+        # Create post
+        post_q = insert_into(:posts, [:id, :user_id, :title, :content, :published, :created_at, :updated_at]) |&gt;
+            values([
+                literal(uuid4()),
+                literal(user_id),
+                literal(title),
+                literal(content),
+                literal(false),
+                literal(now()),
+                literal(nothing)
+            ]) |&gt;
+            returning(col(:posts, :id))
+
+        post_id = fetch_one(tx, post_q)
+
+        # Create or find tags and link to post
+        for tag_name in tag_names
+            # Try to insert tag (using ON CONFLICT DO NOTHING for PostgreSQL)
+            tag_q = insert_into(:tags, [:name]) |&gt;
+                values([literal(tag_name)]) |&gt;
+                on_conflict([:name]) |&gt;
+                do_nothing() |&gt;
+                returning(col(:tags, :id))
+
+            # Get tag id
+            tag_id_q = from(:tags) |&gt;
+                where(col(:tags, :name) == literal(tag_name)) |&gt;
+                select(NamedTuple, col(:tags, :id))
+
+            tag_id = fetch_one(tx, tag_id_q)
+
+            # Link post and tag
+            link_q = insert_into(:posts_tags, [:post_id, :tag_id]) |&gt;
+                values([literal(post_id), literal(tag_id)])
+
+            execute_dml(tx, link_q)
+        end
+
+        post_id
+    end
+end
+
+# Create post with tags atomically
+post_id = create_post_with_tags(driver, alice.id, &quot;Julia Tutorial&quot;, &quot;Learn Julia!&quot;, [&quot;julia&quot;, &quot;tutorial&quot;, &quot;programming&quot;])</code></pre><h2 id="8.-Window-Functions"><a class="docs-heading-anchor" href="#8.-Window-Functions">8. Window Functions</a><a id="8.-Window-Functions-1"></a><a class="docs-heading-anchor-permalink" href="#8.-Window-Functions" title="Permalink"></a></h2><p>Rank posts by number of comments:</p><pre><code class="language-julia hljs">struct PostRank
+    title::String
+    comment_count::Int64
+    rank::Int64
+end
+
+q = from(:posts) |&gt;
+    join(:comments, col(:comments, :post_id) == col(:posts, :id); kind=:left) |&gt;
+    group_by(col(:posts, :id), col(:posts, :title)) |&gt;
+    select(NamedTuple,
+           col(:posts, :title),
+           count_star(),
+           row_number() |&gt; over(order_by(count_star(); desc=true)))
+
+rankings = fetch_all(driver, q)</code></pre><h2 id="9.-Advanced:-Subqueries"><a class="docs-heading-anchor" href="#9.-Advanced:-Subqueries">9. Advanced: Subqueries</a><a id="9.-Advanced:-Subqueries-1"></a><a class="docs-heading-anchor-permalink" href="#9.-Advanced:-Subqueries" title="Permalink"></a></h2><p>Find users who have commented on their own posts:</p><pre><code class="language-julia hljs"># Subquery: posts where user commented
+commented_own_posts = from(:comments) |&gt;
+    join(:posts, col(:posts, :id) == col(:comments, :post_id); kind=:inner) |&gt;
+    where(col(:comments, :user_id) == col(:posts, :user_id)) |&gt;
+    select(NamedTuple, col(:posts, :user_id))
+
+# Main query: users who commented on own posts
+q = from(:users) |&gt;
+    where(col(:users, :id) |&gt; in_(subquery(commented_own_posts))) |&gt;
+    select(User,
+           col(:users, :id),
+           col(:users, :email),
+           col(:users, :username),
+           col(:users, :created_at))
+
+users = fetch_all(driver, q)</code></pre><h2 id="10.-Cleanup"><a class="docs-heading-anchor" href="#10.-Cleanup">10. Cleanup</a><a id="10.-Cleanup-1"></a><a class="docs-heading-anchor-permalink" href="#10.-Cleanup" title="Permalink"></a></h2><pre><code class="language-julia hljs"># Drop all tables (in correct order due to foreign keys)
+execute_dml(driver, drop_table(:posts_tags))
+execute_dml(driver, drop_table(:comments))
+execute_dml(driver, drop_table(:posts))
+execute_dml(driver, drop_table(:tags))
+execute_dml(driver, drop_table(:users))</code></pre><h2 id="Summary"><a class="docs-heading-anchor" href="#Summary">Summary</a><a id="Summary-1"></a><a class="docs-heading-anchor-permalink" href="#Summary" title="Permalink"></a></h2><p>This tutorial covered:</p><ul><li>✅ Database schema creation with DDL</li><li>✅ Type-safe data models</li><li>✅ INSERT operations with RETURNING</li><li>✅ SELECT queries with joins and filtering</li><li>✅ UPDATE and DELETE operations</li><li>✅ Parameterized queries</li><li>✅ Aggregation and grouping</li><li>✅ Transactions for data consistency</li><li>✅ Window functions for analytics</li><li>✅ Subqueries for complex filtering</li></ul><h2 id="Next-Steps"><a class="docs-heading-anchor" href="#Next-Steps">Next Steps</a><a id="Next-Steps-1"></a><a class="docs-heading-anchor-permalink" href="#Next-Steps" title="Permalink"></a></h2><ul><li>Explore <a href="../api/">API Reference</a> for complete function documentation</li><li>Read <a href="../design/">Design Philosophy</a> to understand SQLSketch&#39;s architecture</li><li>Check out advanced PostgreSQL features (JSONB, Arrays, CTEs)</li><li>Build your own application with SQLSketch!</li></ul></article><nav class="docs-footer"><a class="docs-footer-prevpage" href="../getting-started/">« Getting Started</a><a class="docs-footer-nextpage" href="../api/">API Reference »</a><div class="flexbox-break"></div><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="auto">Automatic (OS)</option><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option><option value="catppuccin-latte">catppuccin-latte</option><option value="catppuccin-frappe">catppuccin-frappe</option><option value="catppuccin-macchiato">catppuccin-macchiato</option><option value="catppuccin-mocha">catppuccin-mocha</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> version 1.16.1 on <span class="colophon-date" title="Saturday 20 December 2025 06:36">Saturday 20 December 2025</span>. Using Julia version 1.12.3.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>

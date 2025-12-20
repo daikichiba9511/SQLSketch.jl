@@ -1,0 +1,515 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width, initial-scale=1.0"/><title>Design · SQLSketch.jl</title><meta name="title" content="Design · SQLSketch.jl"/><meta property="og:title" content="Design · SQLSketch.jl"/><meta property="twitter:title" content="Design · SQLSketch.jl"/><meta name="description" content="Documentation for SQLSketch.jl."/><meta property="og:description" content="Documentation for SQLSketch.jl."/><meta property="twitter:description" content="Documentation for SQLSketch.jl."/><meta property="og:url" content="https://daikichiba9511.github.io/SQLSketch.jl/design/"/><meta property="twitter:url" content="https://daikichiba9511.github.io/SQLSketch.jl/design/"/><link rel="canonical" href="https://daikichiba9511.github.io/SQLSketch.jl/design/"/><script data-outdated-warner src="../assets/warner.js"></script><link href="https://cdnjs.cloudflare.com/ajax/libs/lato-font/3.0.0/css/lato-font.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/juliamono/0.050/juliamono.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/fontawesome.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/solid.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/brands.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.8/katex.min.css" rel="stylesheet" type="text/css"/><script>documenterBaseURL=".."</script><script src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.6/require.min.js" data-main="../assets/documenter.js"></script><script src="../search_index.js"></script><script src="../siteinfo.js"></script><script src="../../versions.js"></script><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../assets/themes/catppuccin-mocha.css" data-theme-name="catppuccin-mocha"/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../assets/themes/catppuccin-macchiato.css" data-theme-name="catppuccin-macchiato"/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../assets/themes/catppuccin-frappe.css" data-theme-name="catppuccin-frappe"/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../assets/themes/catppuccin-latte.css" data-theme-name="catppuccin-latte"/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../assets/themes/documenter-dark.css" data-theme-name="documenter-dark" data-theme-primary-dark/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../assets/themes/documenter-light.css" data-theme-name="documenter-light" data-theme-primary/><script src="../assets/themeswap.js"></script></head><body><div id="documenter"><nav class="docs-sidebar"><div class="docs-package-name"><span class="docs-autofit"><a href="../">SQLSketch.jl</a></span></div><button class="docs-search-query input is-rounded is-small is-clickable my-2 mx-auto py-1 px-2" id="documenter-search-query">Search docs (Ctrl + /)</button><ul class="docs-menu"><li><a class="tocitem" href="../">Home</a></li><li><a class="tocitem" href="../getting-started/">Getting Started</a></li><li><a class="tocitem" href="../tutorial/">Tutorial</a></li><li><a class="tocitem" href="../api/">API Reference</a></li><li class="is-active"><a class="tocitem" href>Design</a><ul class="internal"><li><a class="tocitem" href="#1.-Purpose"><span>1. Purpose</span></a></li><li><a class="tocitem" href="#2.-Design-Goals"><span>2. Design Goals</span></a></li><li><a class="tocitem" href="#3.-Non-Goals"><span>3. Non-Goals</span></a></li><li><a class="tocitem" href="#4.-High-Level-Architecture"><span>4. High-Level Architecture</span></a></li><li><a class="tocitem" href="#5.-Core-vs-Easy-Layer"><span>5. Core vs Easy Layer</span></a></li><li><a class="tocitem" href="#6.-Query-Model"><span>6. Query Model</span></a></li><li><a class="tocitem" href="#14.-DDL-and-Migration-Design"><span>14. DDL and Migration Design</span></a></li><li><a class="tocitem" href="#15.-Observability"><span>15. Observability</span></a></li><li><a class="tocitem" href="#16.-Testing-Strategy"><span>16. Testing Strategy</span></a></li><li><a class="tocitem" href="#17.-Project-Positioning"><span>17. Project Positioning</span></a></li><li><a class="tocitem" href="#18.-Summary"><span>18. Summary</span></a></li></ul></li></ul><div class="docs-version-selector field has-addons"><div class="control"><span class="docs-label button is-static is-size-7">Version</span></div><div class="docs-selector control is-expanded"><div class="select is-fullwidth is-size-7"><select id="documenter-version-selector"></select></div></div></div></nav><div class="docs-main"><header class="docs-navbar"><a class="docs-sidebar-button docs-navbar-link fa-solid fa-bars is-hidden-desktop" id="documenter-sidebar-button" href="#"></a><nav class="breadcrumb"><ul class="is-hidden-mobile"><li class="is-active"><a href>Design</a></li></ul><ul class="is-hidden-tablet"><li class="is-active"><a href>Design</a></li></ul></nav><div class="docs-right"><a class="docs-navbar-link" href="https://github.com/daikichiba9511/SQLSketch.jl/blob/main/docs/src/design.md#" title="Edit source on GitHub"><span class="docs-icon fa-solid"></span></a><a class="docs-settings-button docs-navbar-link fa-solid fa-gear" id="documenter-settings-button" href="#" title="Settings"></a><a class="docs-article-toggle-button fa-solid fa-chevron-up" id="documenter-article-toggle-button" href="javascript:;" title="Collapse all docstrings"></a></div></header><article class="content" id="documenter-page"><h1 id="SQLSketch.jl-–-Design-Document"><a class="docs-heading-anchor" href="#SQLSketch.jl-–-Design-Document">SQLSketch.jl – Design Document</a><a id="SQLSketch.jl-–-Design-Document-1"></a><a class="docs-heading-anchor-permalink" href="#SQLSketch.jl-–-Design-Document" title="Permalink"></a></h1><h2 id="1.-Purpose"><a class="docs-heading-anchor" href="#1.-Purpose">1. Purpose</a><a id="1.-Purpose-1"></a><a class="docs-heading-anchor-permalink" href="#1.-Purpose" title="Permalink"></a></h2><p>SQLSketch.jl is an <strong>experimental (“toy”) project</strong> exploring the design of a typed, composable SQL query core in Julia.</p><p>This project intentionally avoids competing with fully featured ORM frameworks. Instead, it focuses on:</p><ul><li>exploring design trade-offs,</li><li>clarifying abstraction boundaries,</li><li>and validating architectural ideas in a small but realistic setting.</li></ul><p>The code is serious; the positioning is not.</p><hr/><h2 id="2.-Design-Goals"><a class="docs-heading-anchor" href="#2.-Design-Goals">2. Design Goals</a><a id="2.-Design-Goals-1"></a><a class="docs-heading-anchor-permalink" href="#2.-Design-Goals" title="Permalink"></a></h2><ul><li>SQL is always visible and inspectable</li><li>Query APIs follow SQL&#39;s <em>logical evaluation order</em></li><li>Output SQL follows SQL&#39;s <em>syntactic order</em></li><li>Strong typing at query boundaries</li><li>Minimal hidden magic</li><li>Clear separation between core primitives and convenience layers</li><li><strong>PostgreSQL-first development</strong> with SQLite / MySQL compatibility</li></ul><hr/><h2 id="3.-Non-Goals"><a class="docs-heading-anchor" href="#3.-Non-Goals">3. Non-Goals</a><a id="3.-Non-Goals-1"></a><a class="docs-heading-anchor-permalink" href="#3.-Non-Goals" title="Permalink"></a></h2><ul><li>Replacing mature ORMs</li><li>Hiding SQL completely</li><li>Automatic schema diff or online migrations</li><li>Full ActiveRecord-style relations</li><li>Becoming a “standard” Julia DB abstraction</li></ul><hr/><h2 id="4.-High-Level-Architecture"><a class="docs-heading-anchor" href="#4.-High-Level-Architecture">4. High-Level Architecture</a><a id="4.-High-Level-Architecture-1"></a><a class="docs-heading-anchor-permalink" href="#4.-High-Level-Architecture" title="Permalink"></a></h2><pre><code class="language-mermaid hljs">flowchart TB
+  A[Application] --&gt; E[Easy Layer (optional)]
+  E --&gt; C[Core Layer (SQLSketch.Core)]
+
+  subgraph Easy Layer (optional)
+    E1[Repo / CRUD sugar]
+    E2[Relations]
+    E3[Validation integration]
+    E4[Schema macros]
+  end
+  E --&gt; E1
+  E --&gt; E2
+  E --&gt; E3
+  E --&gt; E4
+
+  subgraph Core Layer (SQLSketch.Core)
+    Q[Query AST]
+    S[SQL Compile]
+    X[Execute]
+    M[Map]
+    Q --&gt; S --&gt; X --&gt; M
+
+    EX[Expr AST] --&gt; Q
+    D[Dialect] --&gt; S
+    R[Driver] --&gt; X
+    K[CodecRegistry] --&gt; M
+  end
+  C --&gt; Q
+Copy code</code></pre><h2 id="5.-Core-vs-Easy-Layer"><a class="docs-heading-anchor" href="#5.-Core-vs-Easy-Layer">5. Core vs Easy Layer</a><a id="5.-Core-vs-Easy-Layer-1"></a><a class="docs-heading-anchor-permalink" href="#5.-Core-vs-Easy-Layer" title="Permalink"></a></h2><p>SQLSketch.jl is intentionally designed as a <strong>two-layer system</strong>:</p><ul><li>a small, stable <strong>Core layer</strong></li><li>an optional, disposable <strong>Easy layer</strong></li></ul><p>This separation is fundamental to the project’s goals.</p><hr/><h3 id="5.1-Core-Layer"><a class="docs-heading-anchor" href="#5.1-Core-Layer">5.1 Core Layer</a><a id="5.1-Core-Layer-1"></a><a class="docs-heading-anchor-permalink" href="#5.1-Core-Layer" title="Permalink"></a></h3><p>The Core layer defines the <strong>essential primitives</strong> required to build, compile, and execute SQL queries in a principled and inspectable way.</p><p>The Core layer is designed to be:</p><ul><li>minimal</li><li>explicit</li><li>stable over time</li><li>independent of application-specific patterns</li></ul><h4 id="Core-Responsibilities"><a class="docs-heading-anchor" href="#Core-Responsibilities">Core Responsibilities</a><a id="Core-Responsibilities-1"></a><a class="docs-heading-anchor-permalink" href="#Core-Responsibilities" title="Permalink"></a></h4><p>The Core layer is responsible for:</p><ul><li>Query and Expression AST</li><li>SQL compilation</li><li>Dialect abstraction (PostgreSQL / MySQL / SQLite)</li><li>Driver abstraction (connection, execution, transactions)</li><li>Parameter binding</li><li>Row decoding and mapping</li><li>Transaction management</li><li>Error normalization</li><li>Observability hooks (logging / tracing)</li><li>Migration application (runner)</li></ul><p>The Core layer <strong>does not</strong> attempt to provide a full ORM experience.</p><hr/><h3 id="5.2-Easy-Layer"><a class="docs-heading-anchor" href="#5.2-Easy-Layer">5.2 Easy Layer</a><a id="5.2-Easy-Layer-1"></a><a class="docs-heading-anchor-permalink" href="#5.2-Easy-Layer" title="Permalink"></a></h3><p>The Easy layer provides <strong>convenience abstractions</strong> built on top of the Core.</p><p>It exists to improve ergonomics, not to redefine semantics.</p><p>The Easy layer is explicitly considered <strong>optional and replaceable</strong>.</p><h4 id="Easy-Layer-Responsibilities"><a class="docs-heading-anchor" href="#Easy-Layer-Responsibilities">Easy Layer Responsibilities</a><a id="Easy-Layer-Responsibilities-1"></a><a class="docs-heading-anchor-permalink" href="#Easy-Layer-Responsibilities" title="Permalink"></a></h4><p>Typical responsibilities of the Easy layer include:</p><ul><li>Repository patterns</li><li>CRUD helpers</li><li>Relation handling and preloading</li><li>Schema definition macros</li><li>DDL generation and diffing</li><li>Validation-related sugar</li></ul><p>All Easy-layer features must be expressible <strong>purely in terms of Core APIs</strong>.</p><hr/><h3 id="5.3-Design-Rationale"><a class="docs-heading-anchor" href="#5.3-Design-Rationale">5.3 Design Rationale</a><a id="5.3-Design-Rationale-1"></a><a class="docs-heading-anchor-permalink" href="#5.3-Design-Rationale" title="Permalink"></a></h3><p>This separation allows SQLSketch.jl to:</p><ul><li>avoid over-committing to a single ORM style</li><li>remain useful for both applications and data workflows</li><li>keep the Core small enough to reason about</li><li>experiment with higher-level abstractions without breaking the foundation</li></ul><p>In other words:</p><blockquote><p><strong>Core defines “what is possible”; Easy defines “what is convenient”.</strong></p></blockquote><hr/><h3 id="5.4-Stability-Contract"><a class="docs-heading-anchor" href="#5.4-Stability-Contract">5.4 Stability Contract</a><a id="5.4-Stability-Contract-1"></a><a class="docs-heading-anchor-permalink" href="#5.4-Stability-Contract" title="Permalink"></a></h3><p>The Core layer is expected to be:</p><ul><li>backward-compatible within reason</li><li>conservative in API changes</li><li>explicit about breaking changes</li></ul><p>The Easy layer is free to evolve, change, or even be rewritten entirely.</p><p>This contract allows SQLSketch.jl to serve as a long-lived design exploration without locking users into premature abstractions.</p><h2 id="6.-Query-Model"><a class="docs-heading-anchor" href="#6.-Query-Model">6. Query Model</a><a id="6.-Query-Model-1"></a><a class="docs-heading-anchor-permalink" href="#6.-Query-Model" title="Permalink"></a></h2><p>At the heart of SQLSketch.jl is a <strong>typed query model</strong> built around explicit structure and predictable transformations.</p><p>Rather than hiding SQL behind opaque abstractions, the query model mirrors SQL semantics while remaining composable and inspectable.</p><hr/><h3 id="6.1-Logical-Pipeline-API"><a class="docs-heading-anchor" href="#6.1-Logical-Pipeline-API">6.1 Logical Pipeline API</a><a id="6.1-Logical-Pipeline-API-1"></a><a class="docs-heading-anchor-permalink" href="#6.1-Logical-Pipeline-API" title="Permalink"></a></h3><p>Query construction follows <strong>SQL’s logical evaluation order</strong>, not its syntactic order.</p><p>The logical order is:</p><pre><code class="nohighlight hljs">
+FROM → JOIN → WHERE → GROUP BY → HAVING → SELECT → ORDER BY → LIMIT
+
+````
+
+In SQLSketch.jl, queries are constructed as a pipeline reflecting this order.
+
+#### Example
+</code></pre><p>julia q =   from(users) |&gt;   where(<em>.active == true) |&gt;   select(UserDTO, _.id, _.email) |&gt;   order</em>by(<em>.created</em>at, desc=true) |&gt;   limit(10)</p><pre><code class="nohighlight hljs">
+
+Internally, the query is represented as an AST.
+When compiled, it is emitted as syntactically correct SQL:
+</code></pre><p>sql SELECT id, email FROM users WHERE active = true ORDER BY created_at DESC LIMIT 10</p><pre><code class="nohighlight hljs">
+---
+
+### 6.2 Shape-Preserving vs Shape-Changing Operations
+
+A key design rule in SQLSketch.jl is that **most query operations preserve
+the output shape**.
+
+#### Shape-Preserving Operations
+
+The following operations do **not** change the query’s output type:
+
+* `from`
+* `join`
+* `where`
+* `group_by`
+* `having`
+* `order_by`
+* `limit`
+* `offset`
+* `distinct`
+
+These operations refine *which rows* are returned, not *what a row looks like*.
+
+---
+
+### 6.3 The Role of `select`
+
+The `select` operation is the **only operation allowed to change
+the output type** of a query.
+
+This rule provides:
+
+* predictable type flow
+* easier reasoning about query transformations
+* a clear boundary for data shaping
+
+#### Examples
+
+Selecting into a struct:
+</code></pre><p>julia select(q, UserDTO, _.id, _.email)</p><pre><code class="nohighlight hljs">
+Selecting into a `NamedTuple`:
+</code></pre><p>julia select(q, _.id, _.email)</p><pre><code class="nohighlight hljs">
+---
+
+### 6.4 Output Type (`OutT`)
+
+Each query is parameterized by an output type:
+</code></pre><p>Select{OutT}</p><pre><code class="nohighlight hljs">
+The output type determines:
+
+* how rows are decoded
+* how validation is applied (if any)
+* what the user receives from `fetch_all`, `fetch_one`, or `fetch_maybe`
+
+The Core layer treats `OutT` as an opaque type and relies on
+constructors and codecs to enforce invariants.
+
+---
+
+### 6.5 Joins and Composite Results
+
+JOIN operations combine multiple row sources.
+
+By default, join results are represented as `NamedTuple` values,
+preserving all columns explicitly.
+
+Example:
+</code></pre><p>julia from(users) |&gt; join(orders, on = <em>.users.id == _.orders.user</em>id)</p><pre><code class="nohighlight hljs">
+This produces rows conceptually equivalent to:
+</code></pre><p>julia (   users = UserRow(...),   orders = OrderRow(...) )</p><pre><code class="nohighlight hljs">
+Mapping into a domain-specific type requires an explicit `select`.
+
+---
+
+### 6.6 Rationale
+
+This query model intentionally avoids:
+
+* implicit projections
+* automatic relation materialization
+* silent type changes
+
+Instead, it favors **explicitness and local reasoning**.
+
+By constraining when and how the output type changes, SQLSketch.jl
+makes complex queries easier to understand, refactor, and debug.
+
+## 7. SQL Transparency
+
+A core principle of SQLSketch.jl is that **SQL is never hidden**.
+
+The library treats SQL as a first-class artifact that users are encouraged
+to inspect, reason about, and debug.
+
+---
+
+### 7.1 Inspectable SQL
+
+Every query can be inspected before execution.
+
+SQLSketch.jl provides APIs such as:
+
+- `sql(query)` – return the generated SQL string
+- `compile(query)` – return SQL together with parameter ordering
+- `explain(query)` – generate an EXPLAIN statement (if supported)
+
+This design ensures that users are never forced to guess
+what SQL is actually being executed.
+
+---
+
+### 7.2 Observability-Oriented Design
+
+SQL transparency is also reflected in observability features.
+
+The Core layer supports query hooks that receive:
+
+- raw SQL
+- parameter metadata
+- execution timing
+- row counts (when available)
+- execution errors
+
+This enables straightforward integration with logging,
+tracing, and metrics systems without patching internals.
+
+---
+
+## 8. Expression Model
+
+SQLSketch.jl represents SQL conditions and expressions explicitly
+using an **Expression AST**.
+
+Expressions are not strings.
+They are structured values that can be inspected, transformed,
+and compiled in a dialect-aware manner.
+
+---
+
+### 8.1 Expression AST
+
+Examples of expression nodes include:
+
+- column references
+- literal values
+- bound parameters
+- binary operators (`=`, `&lt;`, `AND`, `OR`, etc.)
+- unary operators (`NOT`, `IS NULL`, etc.)
+- subquery expressions (`IN`, `EXISTS`)
+
+Expressions form trees that are embedded into query AST nodes
+such as `WHERE`, `ON`, or `HAVING`.
+
+---
+
+### 8.2 Explicit Expressions
+
+The Core API always allows expressions to be specified explicitly.
+
+Example:
+</code></pre><p>julia where(q, col(:users, :email) == param(String, :email))</p><pre><code class="nohighlight hljs">
+This form is unambiguous and works uniformly across all query shapes,
+including joins, subqueries, and correlated queries.
+
+---
+
+## 9. Placeholder Design
+
+To improve ergonomics, SQLSketch.jl optionally supports
+placeholder-based expression construction.
+
+However, placeholders are **never required** by the Core layer.
+
+---
+
+### 9.1 Optional Placeholder (`_`)
+
+A placeholder such as `_` may be used as syntactic sugar:
+
+```julia
+where(_.email == param(String, :email))
+```
+
+Internally, placeholder expressions are expanded into explicit
+expression nodes.
+
+---
+
+### 9.2 Why Placeholders Are Optional
+
+Placeholders are not mandatory for several reasons:
+
+* they can become ambiguous in multi-join queries
+* they add indirection during debugging
+* they complicate core API contracts
+
+For these reasons:
+
+* the Core layer always accepts explicit expressions
+* placeholder-based syntax is treated as optional sugar
+* both styles can coexist in the same codebase
+
+---
+
+### 9.3 Design Rationale
+
+By separating **expression semantics** from **expression syntax**,
+SQLSketch.jl achieves the following:
+
+* the Core remains small and explicit
+* ergonomics can evolve independently
+* advanced queries remain readable and debuggable
+
+This approach balances usability with long-term maintainability.
+
+## 10. Dialect and Driver Abstraction
+
+SQLSketch.jl explicitly separates **what SQL is generated** from
+**how SQL is executed**.
+
+This separation is achieved through two orthogonal abstractions:
+
+- **Dialect**: SQL generation and database semantics
+- **Driver**: connection management and execution
+
+---
+
+### 10.1 Dialect
+
+A Dialect represents a database’s SQL syntax and semantic differences.
+
+Each supported database provides its own Dialect implementation
+(e.g. SQLite, PostgreSQL, MySQL).
+
+#### Dialect Responsibilities
+
+A Dialect is responsible for:
+
+- generating SQL strings from query ASTs
+- quoting identifiers (tables, columns, aliases)
+- defining placeholder syntax (`?`, `$1`, etc.)
+- compiling DDL statements
+- reporting supported features via capabilities
+
+Dialect implementations are **pure**:
+they do not manage connections or execute SQL.
+
+---
+
+### 10.2 Driver
+
+A Driver represents the execution layer for a specific database backend.
+
+Drivers handle all interactions with the underlying database client
+(e.g. DBInterface, libpq, mysqlclient).
+
+#### Driver Responsibilities
+
+A Driver is responsible for:
+
+- opening and closing connections
+- preparing statements
+- executing SQL statements
+- binding parameters
+- managing transactions
+- handling cancellation and timeouts (if supported)
+
+Drivers do **not** interpret query semantics or perform type conversion.
+
+---
+
+### 10.3 Why Separate Dialect and Driver
+
+Separating Dialect and Driver provides several benefits:
+
+- SQL generation can be tested without a database
+- multiple drivers can share a dialect
+- dialect logic remains independent of client libraries
+- feature differences are made explicit
+
+This design avoids conflating SQL semantics with execution mechanics.
+
+---
+
+## 11. Capability System
+
+Database systems differ in supported features and behavior.
+SQLSketch.jl makes these differences explicit using a **capability system**.
+
+---
+
+### 11.1 Capabilities
+
+Capabilities describe optional database features, such as:
+
+- Common Table Expressions (CTE)
+- `RETURNING` clauses
+- `UPSERT` / `ON CONFLICT`
+- window functions
+- bulk copy operations
+- statement cancellation
+- savepoints
+
+Each Dialect reports which capabilities it supports.
+
+---
+
+### 11.2 Capability-Based Behavior
+
+Capabilities influence behavior in two primary ways:
+
+1. **Early failure**  
+   If a query requires an unsupported capability,
+   compilation fails with a clear error.
+
+2. **Graceful degradation**  
+   When possible, a Dialect may emit an alternative SQL formulation
+   that avoids the unsupported feature.
+
+This ensures that feature differences are visible and intentional.
+
+---
+
+### 11.3 Database-Specific Extensions
+
+Some features are inherently database-specific.
+
+Rather than forcing these into the Core API, SQLSketch.jl treats them
+as **explicit extensions** guarded by capability checks.
+
+Example:
+</code></pre><p>julia if supports(dialect, CAP<em>COPY</em>FROM)     copy_from(db, :table, source) else     error(&quot;COPY FROM is not supported by this database&quot;) end</p><pre><code class="nohighlight hljs">
+This approach keeps the Core API minimal while still allowing
+advanced database-specific functionality.
+
+---
+
+### 11.4 Rationale
+
+By combining Dialect abstraction with an explicit capability system,
+SQLSketch.jl achieves:
+
+* predictable cross-database behavior
+* clear visibility into feature differences
+* a stable foundation for experimentation
+* a clean boundary between portable and non-portable code
+
+This design avoids both lowest-common-denominator APIs
+and accidental reliance on database-specific behavior.
+
+## 12. Type Conversion and CodecRegistry
+
+SQLSketch.jl centralizes all database-to-Julia type conversion
+in a dedicated component called **CodecRegistry**.
+
+This design explicitly separates:
+
+- SQL semantics (Dialect)
+- execution mechanics (Driver)
+- **data representation and invariants (CodecRegistry)**
+
+---
+
+### 12.1 Motivation
+
+Databases and Julia have fundamentally different type systems.
+
+Examples include:
+
+- NULL handling
+- UUID representation
+- Date / DateTime precision
+- JSON storage formats
+- SQLite’s dynamic typing
+
+If handled implicitly, these differences quickly lead to
+inconsistent behavior and subtle bugs.
+
+SQLSketch.jl addresses this by making type conversion **explicit and centralized**.
+
+---
+
+### 12.2 CodecRegistry
+
+The CodecRegistry defines how values are:
+
+- encoded before being sent to the database
+- decoded when read from the database
+
+Each Julia type that participates in queries or result mapping
+is associated with a codec.
+
+Responsibilities of CodecRegistry include:
+
+- encoding Julia values into database-compatible representations
+- decoding database values into Julia types
+- enforcing a consistent NULL policy
+- normalizing backend-specific quirks
+
+---
+
+### 12.3 NULL Policy
+
+NULL handling is a global policy decision.
+
+SQLSketch.jl supports configurable NULL policies, such as:
+
+- `Missing`-based representation (recommended)
+- `Nothing`-based representation
+
+The chosen policy is applied consistently across:
+
+- query parameters
+- result decoding
+- struct construction
+
+This avoids mixing NULL semantics within a single application.
+
+---
+
+### 12.4 Database-Specific Type Handling
+
+#### PostgreSQL (Primary Target)
+
+PostgreSQL is the primary development target with rich native type support:
+
+- Native UUID type
+- JSONB for structured data
+- Precise timestamp handling with timezone support
+- Arrays and composite types
+- Full ACID compliance with strict type checking
+
+#### SQLite (Development and Testing)
+
+SQLite is supported as a lightweight backend for local development and testing.
+
+Because SQLite is dynamically typed, the CodecRegistry plays
+a critical role in enforcing invariants to maintain PostgreSQL compatibility.
+
+Examples include:
+
+- representing UUIDs as TEXT (PostgreSQL uses native UUID)
+- normalizing DateTime values (PostgreSQL has precise TIMESTAMP WITH TIME ZONE)
+- enforcing boolean semantics (PostgreSQL has native BOOLEAN)
+- validating decoded values before struct construction
+
+This ensures that SQLite-based testing remains meaningful
+and compatible with PostgreSQL production deployments.
+
+---
+
+## 13. Transaction Model
+
+Transaction handling is a **Core responsibility** in SQLSketch.jl.
+
+Transactions are designed to be:
+
+- explicit
+- composable
+- predictable
+- safe by default
+
+---
+
+### 13.1 Transaction Semantics
+
+Transactions follow a simple and strict rule:
+
+- if the transaction block completes normally → **commit**
+- if an exception escapes the block → **rollback**
+
+Example:
+</code></pre><p>julia transaction(db) do tx     insert(tx, ...)     update(tx, ...) end ````</p><p>If any operation inside the block fails, all changes are rolled back.</p><hr/><h3 id="13.2-Transaction-Handles"><a class="docs-heading-anchor" href="#13.2-Transaction-Handles">13.2 Transaction Handles</a><a id="13.2-Transaction-Handles-1"></a><a class="docs-heading-anchor-permalink" href="#13.2-Transaction-Handles" title="Permalink"></a></h3><p>Transaction handles are designed to be <strong>connection-compatible</strong>.</p><p>This means that within a transaction block:</p><ul><li>the same query execution APIs can be used</li><li>code does not need to distinguish between a connection and a transaction</li></ul><p>This simplifies application code and avoids branching logic.</p><hr/><h3 id="13.3-Isolation-and-Advanced-Features"><a class="docs-heading-anchor" href="#13.3-Isolation-and-Advanced-Features">13.3 Isolation and Advanced Features</a><a id="13.3-Isolation-and-Advanced-Features-1"></a><a class="docs-heading-anchor-permalink" href="#13.3-Isolation-and-Advanced-Features" title="Permalink"></a></h3><p>Transaction options such as:</p><ul><li>isolation level</li><li>read-only mode</li><li>savepoints</li></ul><p>are expressed explicitly and guarded by capabilities.</p><p>Unsupported options result in early, descriptive errors.</p><hr/><h3 id="13.4-Rationale"><a class="docs-heading-anchor" href="#13.4-Rationale">13.4 Rationale</a><a id="13.4-Rationale-1"></a><a class="docs-heading-anchor-permalink" href="#13.4-Rationale" title="Permalink"></a></h3><p>By keeping transaction semantics simple and explicit, SQLSketch.jl avoids:</p><ul><li>implicit nested transaction behavior</li><li>hidden auto-commit rules</li><li>backend-specific surprises</li></ul><p>The transaction model favors clarity and correctness over maximum flexibility, which aligns with the project’s experimental and educational goals.</p><h2 id="14.-DDL-and-Migration-Design"><a class="docs-heading-anchor" href="#14.-DDL-and-Migration-Design">14. DDL and Migration Design</a><a id="14.-DDL-and-Migration-Design-1"></a><a class="docs-heading-anchor-permalink" href="#14.-DDL-and-Migration-Design" title="Permalink"></a></h2><p>SQLSketch.jl treats schema management as a necessary but carefully scoped responsibility.</p><p>The goal is to support <strong>reliable schema evolution</strong> without turning the Core layer into a full schema-management framework.</p><hr/><h3 id="14.1-Scope-of-Responsibility"><a class="docs-heading-anchor" href="#14.1-Scope-of-Responsibility">14.1 Scope of Responsibility</a><a id="14.1-Scope-of-Responsibility-1"></a><a class="docs-heading-anchor-permalink" href="#14.1-Scope-of-Responsibility" title="Permalink"></a></h3><p>The Core layer is responsible for:</p><ul><li>applying migrations</li><li>tracking which migrations have been applied</li><li>compiling DDL statements in a dialect-aware way</li></ul><p>The Core layer explicitly does <strong>not</strong>:</p><ul><li>infer schema differences</li><li>auto-generate migrations</li><li>manage online or zero-downtime migrations</li></ul><p>These higher-level concerns are intentionally left to the Easy layer or external tooling.</p><hr/><h3 id="14.2-Migration-Runner"><a class="docs-heading-anchor" href="#14.2-Migration-Runner">14.2 Migration Runner</a><a id="14.2-Migration-Runner-1"></a><a class="docs-heading-anchor-permalink" href="#14.2-Migration-Runner" title="Permalink"></a></h3><p>SQLSketch.jl includes a minimal <strong>migration runner</strong>.</p><p>The runner’s responsibilities include:</p><ul><li>discovering migration files</li><li>applying migrations in a deterministic order</li><li>recording applied versions</li><li>preventing accidental re-application</li></ul><p>A dedicated metadata table (e.g. <code>schema_migrations</code>) is used to track applied migrations.</p><hr/><h3 id="14.3-Migration-Format"><a class="docs-heading-anchor" href="#14.3-Migration-Format">14.3 Migration Format</a><a id="14.3-Migration-Format-1"></a><a class="docs-heading-anchor-permalink" href="#14.3-Migration-Format" title="Permalink"></a></h3><p>Migrations may be expressed in one of the following forms:</p><ul><li>raw SQL files</li><li>structured DDL operations compiled by the Dialect</li></ul><p>The Core layer treats migrations as <strong>opaque units of change</strong>.</p><p>This allows users to:</p><ul><li>write database-specific SQL when needed</li><li>keep full control over schema evolution</li><li>avoid leaky abstractions in DDL generation</li></ul><hr/><h3 id="14.4-Dialect-Aware-DDL-Compilation"><a class="docs-heading-anchor" href="#14.4-Dialect-Aware-DDL-Compilation">14.4 Dialect-Aware DDL Compilation</a><a id="14.4-Dialect-Aware-DDL-Compilation-1"></a><a class="docs-heading-anchor-permalink" href="#14.4-Dialect-Aware-DDL-Compilation" title="Permalink"></a></h3><p>DDL statements are compiled through the Dialect abstraction.</p><p>This allows:</p><ul><li>correct identifier quoting</li><li>appropriate data type mapping</li><li>explicit handling of unsupported features</li></ul><p>If a DDL operation cannot be represented for a given Dialect, the system fails early with a descriptive error.</p><hr/><h3 id="14.5-Cross-Database-Migration-Support"><a class="docs-heading-anchor" href="#14.5-Cross-Database-Migration-Support">14.5 Cross-Database Migration Support</a><a id="14.5-Cross-Database-Migration-Support-1"></a><a class="docs-heading-anchor-permalink" href="#14.5-Cross-Database-Migration-Support" title="Permalink"></a></h3><h4 id="PostgreSQL-(Primary-Target)"><a class="docs-heading-anchor" href="#PostgreSQL-(Primary-Target)">PostgreSQL (Primary Target)</a><a id="PostgreSQL-(Primary-Target)-1"></a><a class="docs-heading-anchor-permalink" href="#PostgreSQL-(Primary-Target)" title="Permalink"></a></h4><p>Migrations are primarily designed for PostgreSQL with full support for:</p><ul><li>Comprehensive constraint enforcement (CHECK, UNIQUE, FOREIGN KEY)</li><li>Rich data types (UUID, JSONB, arrays, timestamps with timezone)</li><li>Advanced features (partial indexes, exclusion constraints)</li></ul><h4 id="SQLite-(Development-and-Testing)"><a class="docs-heading-anchor" href="#SQLite-(Development-and-Testing)">SQLite (Development and Testing)</a><a id="SQLite-(Development-and-Testing)-1"></a><a class="docs-heading-anchor-permalink" href="#SQLite-(Development-and-Testing)" title="Permalink"></a></h4><p>SQLite is supported for local development and rapid iteration.</p><p>When applying the same migration set to SQLite, note that:</p><ul><li>SQLite may accept a broader range of schemas (more permissive)</li><li>Some constraints behave differently (e.g., FOREIGN KEY enforcement)</li><li>Runtime normalization is enforced via CodecRegistry to maintain PostgreSQL compatibility</li></ul><p>This approach enables:</p><ul><li>Fast local testing without PostgreSQL infrastructure</li><li>Early detection of schema issues before PostgreSQL deployment</li><li>Consistent migration files across development and production databases</li></ul><hr/><h3 id="14.6-Rationale"><a class="docs-heading-anchor" href="#14.6-Rationale">14.6 Rationale</a><a id="14.6-Rationale-1"></a><a class="docs-heading-anchor-permalink" href="#14.6-Rationale" title="Permalink"></a></h3><p>By limiting the Core’s responsibility to migration application, SQLSketch.jl avoids:</p><ul><li>overly complex schema DSLs</li><li>brittle diff-based migration generation</li><li>tight coupling between schema and query APIs</li></ul><p>This design keeps schema management explicit, inspectable, and aligned with the project’s exploratory nature.</p><h2 id="15.-Observability"><a class="docs-heading-anchor" href="#15.-Observability">15. Observability</a><a id="15.-Observability-1"></a><a class="docs-heading-anchor-permalink" href="#15.-Observability" title="Permalink"></a></h2><p>SQLSketch.jl is designed to make database interactions <strong>observable by default</strong>.</p><p>Rather than hiding execution details behind abstractions, the Core layer exposes hooks and inspection points that allow users to understand what is happening at runtime.</p><hr/><h3 id="15.1-Query-Hooks"><a class="docs-heading-anchor" href="#15.1-Query-Hooks">15.1 Query Hooks</a><a id="15.1-Query-Hooks-1"></a><a class="docs-heading-anchor-permalink" href="#15.1-Query-Hooks" title="Permalink"></a></h3><p>The Core layer supports query-level hooks that receive structured events, including:</p><ul><li>the generated SQL string</li><li>parameter metadata (keys and order)</li><li>execution timing</li><li>row counts (when available)</li><li>execution errors</li></ul><p>These hooks enable integration with:</p><ul><li>logging systems</li><li>tracing frameworks</li><li>metrics collection</li><li>ad-hoc debugging tools</li></ul><p>Observability is treated as a first-class concern, not an afterthought.</p><hr/><h3 id="15.2-Explain-and-Debugging-Support"><a class="docs-heading-anchor" href="#15.2-Explain-and-Debugging-Support">15.2 Explain and Debugging Support</a><a id="15.2-Explain-and-Debugging-Support-1"></a><a class="docs-heading-anchor-permalink" href="#15.2-Explain-and-Debugging-Support" title="Permalink"></a></h3><p>SQLSketch.jl provides explicit support for query inspection via:</p><ul><li><code>sql(query)</code> for raw SQL inspection</li><li><code>compile(query)</code> for SQL and parameter ordering</li><li><code>explain(query)</code> for database execution plans (when supported)</li></ul><p>This allows performance issues to be investigated without instrumenting internal code paths.</p><hr/><h2 id="16.-Testing-Strategy"><a class="docs-heading-anchor" href="#16.-Testing-Strategy">16. Testing Strategy</a><a id="16.-Testing-Strategy-1"></a><a class="docs-heading-anchor-permalink" href="#16.-Testing-Strategy" title="Permalink"></a></h2><p>Testing is structured to reflect the layered architecture and multi-database goals of SQLSketch.jl.</p><hr/><h3 id="16.1-Unit-Tests"><a class="docs-heading-anchor" href="#16.1-Unit-Tests">16.1 Unit Tests</a><a id="16.1-Unit-Tests-1"></a><a class="docs-heading-anchor-permalink" href="#16.1-Unit-Tests" title="Permalink"></a></h3><p>Unit tests focus on <strong>pure logic</strong> and do not require a database.</p><p>Typical unit test targets include:</p><ul><li>Expression and Query AST construction</li><li>SQL compilation for each Dialect</li><li>Capability reporting</li><li>CodecRegistry encode/decode behavior</li></ul><p>These tests are fast and form the bulk of the test suite.</p><hr/><h3 id="16.2-Integration-Tests-(SQLite)"><a class="docs-heading-anchor" href="#16.2-Integration-Tests-(SQLite)">16.2 Integration Tests (SQLite)</a><a id="16.2-Integration-Tests-(SQLite)-1"></a><a class="docs-heading-anchor-permalink" href="#16.2-Integration-Tests-(SQLite)" title="Permalink"></a></h3><p>Integration tests use <strong>SQLite in-memory databases</strong>.</p><p>They validate:</p><ul><li>end-to-end query execution</li><li>parameter binding</li><li>row decoding and mapping</li><li>transaction commit and rollback</li><li>migration application</li></ul><p>SQLite enables fast, deterministic tests suitable for CI environments.</p><hr/><h3 id="16.3-Compatibility-Tests-(PostgreSQL-/-MySQL)"><a class="docs-heading-anchor" href="#16.3-Compatibility-Tests-(PostgreSQL-/-MySQL)">16.3 Compatibility Tests (PostgreSQL / MySQL)</a><a id="16.3-Compatibility-Tests-(PostgreSQL-/-MySQL)-1"></a><a class="docs-heading-anchor-permalink" href="#16.3-Compatibility-Tests-(PostgreSQL-/-MySQL)" title="Permalink"></a></h3><p>A small number of compatibility tests are run against PostgreSQL and MySQL.</p><p>These tests focus on:</p><ul><li>dialect-specific SQL generation</li><li>feature-gated capabilities (e.g. RETURNING, UPSERT)</li><li>type behavior differences</li><li>transaction semantics</li></ul><p>Compatibility tests are intentionally limited in scope to avoid slowing down development.</p><hr/><h2 id="17.-Project-Positioning"><a class="docs-heading-anchor" href="#17.-Project-Positioning">17. Project Positioning</a><a id="17.-Project-Positioning-1"></a><a class="docs-heading-anchor-permalink" href="#17.-Project-Positioning" title="Permalink"></a></h2><p>SQLSketch.jl is intentionally positioned as:</p><ul><li>exploratory</li><li>educational</li><li>experimental</li><li>replaceable</li></ul><p>It is not intended to be a drop-in replacement for mature ORMs or database abstraction layers.</p><hr/><h3 id="17.1-Design-Exploration"><a class="docs-heading-anchor" href="#17.1-Design-Exploration">17.1 Design Exploration</a><a id="17.1-Design-Exploration-1"></a><a class="docs-heading-anchor-permalink" href="#17.1-Design-Exploration" title="Permalink"></a></h3><p>The primary goal of SQLSketch.jl is to explore:</p><ul><li>how far a small, principled SQL core can go</li><li>which abstractions are useful or harmful</li><li>how to balance type safety with SQL transparency</li><li>how Julia’s strengths apply to query construction</li></ul><hr/><h3 id="17.2-Evolution-and-Exit-Strategy"><a class="docs-heading-anchor" href="#17.2-Evolution-and-Exit-Strategy">17.2 Evolution and Exit Strategy</a><a id="17.2-Evolution-and-Exit-Strategy-1"></a><a class="docs-heading-anchor-permalink" href="#17.2-Evolution-and-Exit-Strategy" title="Permalink"></a></h3><p>If ideas explored in SQLSketch.jl prove valuable, they may be:</p><ul><li>extracted into separate libraries</li><li>renamed and formalized</li><li>upstreamed into more production-oriented projects</li></ul><p>Conversely, if certain ideas do not work well, they can be discarded without regret.</p><p>This flexibility is a deliberate design choice.</p><hr/><h2 id="18.-Summary"><a class="docs-heading-anchor" href="#18.-Summary">18. Summary</a><a id="18.-Summary-1"></a><a class="docs-heading-anchor-permalink" href="#18.-Summary" title="Permalink"></a></h2><p>SQLSketch.jl explores how to build a <strong>typed, composable SQL core</strong> without becoming a full ORM.</p><p>It prioritizes:</p><ul><li>clarity over completeness</li><li>explicitness over convenience</li><li>design exploration over polish</li></ul><p>By keeping the Core small and principled, SQLSketch.jl provides a safe environment for experimentation while remaining grounded in real-world database usage.</p></article><nav class="docs-footer"><a class="docs-footer-prevpage" href="../api/">« API Reference</a><div class="flexbox-break"></div><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="auto">Automatic (OS)</option><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option><option value="catppuccin-latte">catppuccin-latte</option><option value="catppuccin-frappe">catppuccin-frappe</option><option value="catppuccin-macchiato">catppuccin-macchiato</option><option value="catppuccin-mocha">catppuccin-mocha</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> version 1.16.1 on <span class="colophon-date" title="Saturday 20 December 2025 06:36">Saturday 20 December 2025</span>. Using Julia version 1.12.3.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
