@@ -86,7 +86,7 @@ SQLSketch is designed as a two-layer system:
 
 ## Current Implementation Status
 
-**Completed Phases:** 8/10 | **Total Tests:** 1041 passing ✅
+**Completed Phases:** 8.5/10 | **Total Tests:** 1195 passing ✅
 
 - ✅ **Phase 1: Expression AST** (268 tests)
   - Column references, literals, parameters
@@ -158,6 +158,15 @@ SQLSketch is designed as a two-layer system:
   - **Migration status and validation** (`migration_status`, `validate_migration_checksums`)
   - **Migration generation** (`generate_migration`) - create timestamped migration files
   - UP/DOWN migration section support
+
+- ✅ **Phase 8.5: Window Functions** (79 tests)
+  - **Window function AST** (`WindowFrame`, `Over`, `WindowFunc`)
+  - **Ranking functions** (`row_number`, `rank`, `dense_rank`, `ntile`)
+  - **Value functions** (`lag`, `lead`, `first_value`, `last_value`, `nth_value`)
+  - **Aggregate window functions** (`win_sum`, `win_avg`, `win_min`, `win_max`, `win_count`)
+  - **Frame specification** (ROWS/RANGE/GROUPS BETWEEN)
+  - **OVER clause builder** (PARTITION BY, ORDER BY, frame)
+  - **Full SQLite dialect support** - complete SQL generation
 
 - ⏳ **Phase 9-10:** See [`docs/roadmap.md`](docs/roadmap.md) and [`docs/TODO.md`](docs/TODO.md)
 
@@ -433,6 +442,67 @@ end
 # - Transaction-wrapped (automatic rollback on failure)
 # - Idempotent (safe to run multiple times)
 
+# ========================================
+# Window Functions - Ranking, Running Totals, Moving Averages
+# ========================================
+
+# Import window function constructors
+import SQLSketch.Core: row_number, rank, dense_rank, ntile, lag, lead
+import SQLSketch.Core: win_sum, win_avg, win_min, win_max, win_count
+import SQLSketch.Core: over, window_frame, first_value, last_value, nth_value
+
+# Employee ranking within each department
+ranking_q = from(:employees) |>
+    select(NamedTuple,
+           col(:employees, :name),
+           col(:employees, :department),
+           col(:employees, :salary),
+           row_number(over(partition_by = [col(:employees, :department)],
+                          order_by = [(col(:employees, :salary), true)])))
+# Generated SQL:
+# SELECT `employees`.`name`, `employees`.`department`, `employees`.`salary`,
+#   ROW_NUMBER() OVER (PARTITION BY `employees`.`department` ORDER BY `employees`.`salary` DESC)
+# FROM `employees`
+
+# Running total with frame specification
+running_total_q = from(:sales) |>
+    select(NamedTuple,
+           col(:sales, :date),
+           col(:sales, :amount),
+           win_sum(col(:sales, :amount),
+                  over(order_by = [(col(:sales, :date), false)],
+                       frame = window_frame(:ROWS, :UNBOUNDED_PRECEDING, :CURRENT_ROW))))
+# Generated SQL:
+# SELECT `sales`.`date`, `sales`.`amount`,
+#   SUM(`sales`.`amount`) OVER (ORDER BY `sales`.`date` ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW)
+# FROM `sales`
+
+# 7-day moving average
+moving_avg_q = from(:sales) |>
+    select(NamedTuple,
+           col(:sales, :date),
+           col(:sales, :amount),
+           win_avg(col(:sales, :amount),
+                  over(order_by = [(col(:sales, :date), false)],
+                       frame = window_frame(:ROWS, -6, :CURRENT_ROW))))
+# Generated SQL:
+# SELECT `sales`.`date`, `sales`.`amount`,
+#   AVG(`sales`.`amount`) OVER (ORDER BY `sales`.`date` ROWS BETWEEN 6 PRECEDING AND CURRENT ROW)
+# FROM `sales`
+
+# Compare to previous row (LAG function)
+lag_q = from(:sales) |>
+    select(NamedTuple,
+           col(:sales, :date),
+           col(:sales, :amount),
+           lag(col(:sales, :amount), over(order_by = [(col(:sales, :date), false)])))
+# Generated SQL:
+# SELECT `sales`.`date`, `sales`.`amount`,
+#   LAG(`sales`.`amount`, 1) OVER (ORDER BY `sales`.`date`)
+# FROM `sales`
+
+# See examples/window_functions.jl for more examples
+
 close(db)
 ```
 
@@ -498,16 +568,17 @@ julia --project
 ### Current Test Status
 
 ```
-Total: 1041 tests passing ✅
+Total: 1195 tests passing ✅
 
 Phase 1 (Expression AST):         268 tests (CAST, Subquery, CASE, BETWEEN, IN, LIKE)
-Phase 2 (Query AST):              202 tests (DML, CTE, RETURNING)
-Phase 3 (Dialect Abstraction):    215 tests (DML + CTE compilation, all expressions)
+Phase 2 (Query AST):              232 tests (DML, CTE, RETURNING)
+Phase 3 (Dialect Abstraction):    260 tests (DML + CTE compilation, all expressions)
 Phase 4 (Driver Abstraction):      41 tests
 Phase 5 (CodecRegistry):          115 tests
 Phase 6 (End-to-End Integration):  95 tests (DML execution, CTE)
 Phase 7 (Transactions):            26 tests (transaction, savepoint, rollback)
 Phase 8 (Migrations):              79 tests (discovery, application, checksum validation)
+Phase 8.5 (Window Functions):      79 tests (ranking, value, aggregate window functions)
 ```
 
 ---

@@ -403,6 +403,66 @@ apply_migrations(db, "migrations/")
 
 ---
 
+## Phase 8.5: Window Functions ✅ COMPLETED
+
+**Goal**: Add comprehensive window function support.
+
+### Tasks ✅
+
+1. Define window function AST types:
+   - `WindowFrame` – frame specification (ROWS/RANGE/GROUPS BETWEEN ...) ✅
+   - `Over` – OVER clause with PARTITION BY, ORDER BY, and frame ✅
+   - `WindowFunc` – window function expression ✅
+
+2. Implement window function constructors:
+   - **Ranking functions**: `row_number()`, `rank()`, `dense_rank()`, `ntile()` ✅
+   - **Value functions**: `lag()`, `lead()`, `first_value()`, `last_value()`, `nth_value()` ✅
+   - **Aggregate window functions**: `win_sum()`, `win_avg()`, `win_min()`, `win_max()`, `win_count()` ✅
+
+3. Implement frame specification:
+   - `window_frame()` – create frame specs with ROWS/RANGE/GROUPS modes ✅
+   - Support for PRECEDING, FOLLOWING, CURRENT ROW, UNBOUNDED bounds ✅
+   - Both single and range bounds ✅
+
+4. Implement OVER clause builder:
+   - `over()` – create OVER clauses with PARTITION BY, ORDER BY, and frames ✅
+
+5. Add SQL compilation for window functions in SQLite dialect ✅
+
+6. Write comprehensive tests ✅
+
+### Deliverables ✅
+
+- `src/Core/expr.jl` (window function types added) ✅
+- `src/Dialects/sqlite.jl` (window function compilation) ✅
+- `test/core/window_test.jl` ✅ (79 tests)
+- All tests passing ✅
+
+### Success Criteria ✅
+
+```julia
+# Ranking within partitions
+from(:employees) |>
+    select(NamedTuple,
+           col(:employees, :name),
+           col(:employees, :department),
+           row_number(over(partition_by=[col(:employees, :department)],
+                          order_by=[(col(:employees, :salary), true)])))
+
+# Running totals with frames
+from(:sales) |>
+    select(NamedTuple,
+           col(:sales, :date),
+           win_sum(col(:sales, :amount),
+                  over(order_by=[(col(:sales, :date), false)],
+                       frame=window_frame(:ROWS, :UNBOUNDED_PRECEDING, :CURRENT_ROW))))
+```
+
+**Test Count**: 79 passing tests
+**Total Tests**: 1195 passing ✅
+
+---
+
 ## Phase 9: PostgreSQL Dialect (Week 15-16)
 
 **Goal**: Validate multi-database abstraction.
@@ -456,13 +516,18 @@ apply_migrations(db, "migrations/")
 ## Optional Future Work (Post-v0.1)
 
 - MySQL Dialect
+- Set operations (UNION, INTERSECT, EXCEPT)
+- Recursive CTEs (WITH RECURSIVE)
+- UPSERT (INSERT ... ON CONFLICT for PostgreSQL)
+- DDL operations (CREATE TABLE, ALTER TABLE, etc.)
 - Easy Layer (Repository pattern, CRUD helpers)
 - Relation preloading
 - Schema definition macros
-- DDL generation
 - Query optimization hints
 - Connection pooling
 - Prepared statement caching
+- Batch insert/update operations
+- Streaming results for large datasets
 
 ---
 

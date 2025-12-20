@@ -960,5 +960,452 @@ Base.hash(a::Cast, h::UInt)::UInt = hash((a.expr, a.target_type), h)
 Base.hash(a::Subquery, h::UInt)::UInt = hash(a.query, h)
 Base.hash(a::CaseExpr, h::UInt)::UInt = hash((a.whens, a.else_expr), h)
 
-# Future: Additional expression types
-# (All major expression types now implemented)
+# Window Functions
+
+"""
+    WindowFrame
+
+Represents the frame specification for a window function.
+
+Window frames define the subset of rows relative to the current row
+within a partition that the window function should consider.
+
+# Fields
+
+  - `mode::Symbol` – frame mode (`:ROWS`, `:RANGE`, or `:GROUPS`)
+  - `start_bound::Union{Symbol, Int}` – start boundary
+  - `end_bound::Union{Symbol, Int, Nothing}` – end boundary (Nothing for single bound)
+
+# Frame Boundaries
+
+  - `:UNBOUNDED_PRECEDING` – from the start of the partition
+  - `:UNBOUNDED_FOLLOWING` – to the end of the partition
+  - `:CURRENT_ROW` – the current row
+  - Integer N – N rows/range before (negative) or after (positive) current row
+
+# Examples
+
+```julia
+# ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW
+window_frame(:ROWS, :UNBOUNDED_PRECEDING, :CURRENT_ROW)
+
+# ROWS BETWEEN 1 PRECEDING AND 1 FOLLOWING
+window_frame(:ROWS, -1, 1)
+
+# RANGE UNBOUNDED PRECEDING (same as RANGE BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW)
+window_frame(:RANGE, :UNBOUNDED_PRECEDING, nothing)
+```
+"""
+struct WindowFrame
+    mode::Symbol  # :ROWS, :RANGE, :GROUPS
+    start_bound::Union{Symbol, Int}  # :UNBOUNDED_PRECEDING, :CURRENT_ROW, :UNBOUNDED_FOLLOWING, or offset
+    end_bound::Union{Symbol, Int, Nothing}  # same as start, or nothing for single bound
+end
+
+"""
+    window_frame(mode::Symbol, start_bound, end_bound=nothing) -> WindowFrame
+
+Creates a window frame specification.
+
+# Example
+
+```julia
+# Running total from start of partition to current row
+window_frame(:ROWS, :UNBOUNDED_PRECEDING, :CURRENT_ROW)
+
+# Moving average of 3 rows (1 before, current, 1 after)
+window_frame(:ROWS, -1, 1)
+```
+"""
+window_frame(mode::Symbol, start_bound::Union{Symbol, Int},
+end_bound::Union{Symbol, Int, Nothing} = nothing)::WindowFrame = WindowFrame(mode,
+                                                                             start_bound,
+                                                                             end_bound)
+
+"""
+    Over(partition_by::Vector{SQLExpr}, order_by::Vector{Tuple{SQLExpr, Bool}}, frame::Union{WindowFrame, Nothing})
+
+Represents an OVER clause for window functions.
+
+The OVER clause defines the window (partition and ordering) over which
+the window function operates.
+
+# Fields
+
+  - `partition_by::Vector{SQLExpr}` – columns to partition by (empty for no partitioning)
+  - `order_by::Vector{Tuple{SQLExpr, Bool}}` – ordering specifications (expr, desc)
+  - `frame::Union{WindowFrame, Nothing}` – frame specification (Nothing for default)
+
+# Example
+
+```julia
+# PARTITION BY department ORDER BY salary DESC
+# ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW
+Over([col(:employees, :department)],
+     [(col(:employees, :salary), true)],
+     window_frame(:ROWS, :UNBOUNDED_PRECEDING, :CURRENT_ROW))
+
+# ORDER BY date (no partition, no explicit frame)
+Over(SQLExpr[],
+     [(col(:sales, :date), false)],
+     nothing)
+```
+"""
+struct Over
+    partition_by::Vector{SQLExpr}
+    order_by::Vector{Tuple{SQLExpr, Bool}}  # (expr, desc)
+    frame::Union{WindowFrame, Nothing}
+end
+
+"""
+    WindowFunc(name::Symbol, args::Vector{SQLExpr}, over::Over)
+
+Represents a window function call with an OVER clause.
+
+Window functions perform calculations across a set of table rows
+that are related to the current row.
+
+# Fields
+
+  - `name::Symbol` – function name (`:ROW_NUMBER`, `:RANK`, `:SUM`, etc.)
+  - `args::Vector{SQLExpr}` – function arguments (empty for ROW_NUMBER, RANK, etc.)
+  - `over::Over` – OVER clause specification
+
+# Common Window Functions
+
+**Ranking functions** (no arguments):
+
+  - `ROW_NUMBER()` – unique sequential number within partition
+  - `RANK()` – rank with gaps for ties
+  - `DENSE_RANK()` – rank without gaps
+  - `NTILE(n)` – divides rows into n buckets
+
+**Value functions** (require ordering):
+
+  - `LAG(expr, offset, default)` – value from previous row
+  - `LEAD(expr, offset, default)` – value from next row
+  - `FIRST_VALUE(expr)` – first value in window
+  - `LAST_VALUE(expr)` – last value in window
+  - `NTH_VALUE(expr, n)` – nth value in window
+
+**Aggregate functions** (can be used as window functions):
+
+  - `SUM(expr)` – running/moving sum
+  - `AVG(expr)` – running/moving average
+  - `MIN(expr)` – running/moving minimum
+  - `MAX(expr)` – running/moving maximum
+  - `COUNT(expr)` – running/moving count
+
+# Example
+
+```julia
+# ROW_NUMBER() OVER (PARTITION BY department ORDER BY salary DESC)
+WindowFunc(:ROW_NUMBER, SQLExpr[],
+           Over([col(:emp, :department)],
+                [(col(:emp, :salary), true)],
+                nothing))
+
+# SUM(salary) OVER (ORDER BY date ROWS BETWEEN 2 PRECEDING AND CURRENT ROW)
+WindowFunc(:SUM, [col(:emp, :salary)],
+           Over(SQLExpr[],
+                [(col(:emp, :date), false)],
+                window_frame(:ROWS, -2, :CURRENT_ROW)))
+```
+"""
+struct WindowFunc <: SQLExpr
+    name::Symbol
+    args::Vector{SQLExpr}
+    over::Over
+end
+
+# Window function constructors
+
+"""
+    over(partition_by=SQLExpr[], order_by=Tuple{SQLExpr, Bool}[], frame=nothing) -> Over
+
+Creates an OVER clause for window functions.
+
+# Arguments
+
+  - `partition_by` – columns to partition by
+  - `order_by` – ordering specifications as (expr, desc) tuples
+  - `frame` – optional WindowFrame specification
+
+# Example
+
+```julia
+# PARTITION BY department ORDER BY salary DESC
+over(; partition_by = [col(:emp, :dept)],
+     order_by = [(col(:emp, :salary), true)])
+
+# ORDER BY date only
+over(; order_by = [(col(:sales, :date), false)])
+
+# With frame
+over(; order_by = [(col(:sales, :date), false)],
+     frame = window_frame(:ROWS, -2, :CURRENT_ROW))
+```
+"""
+function over(; partition_by::Vector = SQLExpr[],
+              order_by::Vector = Tuple{SQLExpr, Bool}[],
+              frame::Union{WindowFrame, Nothing} = nothing)::Over
+    # Convert to proper types
+    partition_by_converted = convert(Vector{SQLExpr}, partition_by)
+    order_by_converted = convert(Vector{Tuple{SQLExpr, Bool}}, order_by)
+    return Over(partition_by_converted, order_by_converted, frame)
+end
+
+"""
+    row_number(over_clause::Over) -> WindowFunc
+
+Assigns a unique sequential integer to rows within a partition.
+
+# Example
+
+```julia
+# Row number within each department, ordered by salary
+row_number(over(; partition_by = [col(:emp, :department)],
+                order_by = [(col(:emp, :salary), true)]))
+# → ROW_NUMBER() OVER (PARTITION BY department ORDER BY salary DESC)
+```
+"""
+row_number(over_clause::Over)::WindowFunc = WindowFunc(:ROW_NUMBER, SQLExpr[], over_clause)
+
+"""
+    rank(over_clause::Over) -> WindowFunc
+
+Assigns a rank to rows within a partition, with gaps for ties.
+
+# Example
+
+```julia
+# Rank employees by salary (ties get same rank, next rank has gap)
+rank(over(; order_by = [(col(:emp, :salary), true)]))
+# → RANK() OVER (ORDER BY salary DESC)
+```
+"""
+rank(over_clause::Over)::WindowFunc = WindowFunc(:RANK, SQLExpr[], over_clause)
+
+"""
+    dense_rank(over_clause::Over) -> WindowFunc
+
+Assigns a rank to rows within a partition, without gaps for ties.
+
+# Example
+
+```julia
+# Dense rank (ties get same rank, next rank is consecutive)
+dense_rank(over(; order_by = [(col(:emp, :salary), true)]))
+# → DENSE_RANK() OVER (ORDER BY salary DESC)
+```
+"""
+dense_rank(over_clause::Over)::WindowFunc = WindowFunc(:DENSE_RANK, SQLExpr[], over_clause)
+
+"""
+    ntile(n::Int, over_clause::Over) -> WindowFunc
+
+Divides rows into n buckets and assigns bucket number to each row.
+
+# Example
+
+```julia
+# Divide employees into 4 quartiles by salary
+ntile(4, over(; order_by = [(col(:emp, :salary), true)]))
+# → NTILE(4) OVER (ORDER BY salary DESC)
+```
+"""
+ntile(n::Int, over_clause::Over)::WindowFunc = WindowFunc(:NTILE, [literal(n)], over_clause)
+
+"""
+    lag(expr::SQLExpr, over_clause::Over, offset::Int=1, default::Union{SQLExpr, Nothing}=nothing) -> WindowFunc
+
+Returns value from a row that is offset rows before the current row.
+
+# Example
+
+```julia
+# Get previous day's price
+lag(col(:prices, :price), over(; order_by = [(col(:prices, :date), false)]))
+# → LAG(price) OVER (ORDER BY date)
+
+# Get price from 3 days ago, default to 0
+lag(col(:prices, :price), over(; order_by = [(col(:prices, :date), false)]), 3, literal(0))
+# → LAG(price, 3, 0) OVER (ORDER BY date)
+```
+"""
+function lag(expr::SQLExpr, over_clause::Over, offset::Int = 1,
+             default::Union{SQLExpr, Nothing} = nothing)::WindowFunc
+    args = [expr, literal(offset)]
+    if default !== nothing
+        push!(args, default)
+    end
+    return WindowFunc(:LAG, args, over_clause)
+end
+
+"""
+    lead(expr::SQLExpr, over_clause::Over, offset::Int=1, default::Union{SQLExpr, Nothing}=nothing) -> WindowFunc
+
+Returns value from a row that is offset rows after the current row.
+
+# Example
+
+```julia
+# Get next day's price
+lead(col(:prices, :price), over(; order_by = [(col(:prices, :date), false)]))
+# → LEAD(price) OVER (ORDER BY date)
+```
+"""
+function lead(expr::SQLExpr, over_clause::Over, offset::Int = 1,
+              default::Union{SQLExpr, Nothing} = nothing)::WindowFunc
+    args = [expr, literal(offset)]
+    if default !== nothing
+        push!(args, default)
+    end
+    return WindowFunc(:LEAD, args, over_clause)
+end
+
+"""
+    first_value(expr::SQLExpr, over_clause::Over) -> WindowFunc
+
+Returns the first value in the window frame.
+
+# Example
+
+```julia
+# First salary in each department
+first_value(col(:emp, :salary),
+            over(; partition_by = [col(:emp, :dept)],
+                 order_by = [(col(:emp, :hire_date), false)]))
+# → FIRST_VALUE(salary) OVER (PARTITION BY dept ORDER BY hire_date)
+```
+"""
+first_value(expr::SQLExpr, over_clause::Over)::WindowFunc = WindowFunc(:FIRST_VALUE, [expr],
+                                                                       over_clause)
+
+"""
+    last_value(expr::SQLExpr, over_clause::Over) -> WindowFunc
+
+Returns the last value in the window frame.
+
+# Example
+
+```julia
+# Last salary in partition (need to specify frame to include all following rows)
+last_value(col(:emp, :salary),
+           over(; partition_by = [col(:emp, :dept)],
+                order_by = [(col(:emp, :hire_date), false)],
+                frame = window_frame(:ROWS, :UNBOUNDED_PRECEDING, :UNBOUNDED_FOLLOWING)))
+# → LAST_VALUE(salary) OVER (PARTITION BY dept ORDER BY hire_date
+#                             ROWS BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING)
+```
+"""
+last_value(expr::SQLExpr, over_clause::Over)::WindowFunc = WindowFunc(:LAST_VALUE, [expr],
+                                                                      over_clause)
+
+"""
+    nth_value(expr::SQLExpr, n::Int, over_clause::Over) -> WindowFunc
+
+Returns the nth value in the window frame.
+
+# Example
+
+```julia
+# Second highest salary in each department
+nth_value(col(:emp, :salary), 2,
+          over(; partition_by = [col(:emp, :dept)],
+               order_by = [(col(:emp, :salary), true)]))
+# → NTH_VALUE(salary, 2) OVER (PARTITION BY dept ORDER BY salary DESC)
+```
+"""
+nth_value(expr::SQLExpr, n::Int, over_clause::Over)::WindowFunc = WindowFunc(:NTH_VALUE,
+                                                                             [expr,
+                                                                              literal(n)],
+                                                                             over_clause)
+
+# Aggregate functions used as window functions
+
+"""
+    win_sum(expr::SQLExpr, over_clause::Over) -> WindowFunc
+
+Running/moving sum over a window.
+
+# Example
+
+```julia
+# Running total of sales
+win_sum(col(:sales, :amount),
+        over(; order_by = [(col(:sales, :date), false)],
+             frame = window_frame(:ROWS, :UNBOUNDED_PRECEDING, :CURRENT_ROW)))
+# → SUM(amount) OVER (ORDER BY date ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW)
+
+# 7-day moving sum
+win_sum(col(:sales, :amount),
+        over(; order_by = [(col(:sales, :date), false)],
+             frame = window_frame(:ROWS, -6, :CURRENT_ROW)))
+# → SUM(amount) OVER (ORDER BY date ROWS BETWEEN 6 PRECEDING AND CURRENT ROW)
+```
+"""
+win_sum(expr::SQLExpr, over_clause::Over)::WindowFunc = WindowFunc(:SUM, [expr],
+                                                                   over_clause)
+
+"""
+    win_avg(expr::SQLExpr, over_clause::Over) -> WindowFunc
+
+Running/moving average over a window.
+
+# Example
+
+```julia
+# 30-day moving average
+win_avg(col(:prices, :close),
+        over(; order_by = [(col(:prices, :date), false)],
+             frame = window_frame(:ROWS, -29, :CURRENT_ROW)))
+# → AVG(close) OVER (ORDER BY date ROWS BETWEEN 29 PRECEDING AND CURRENT ROW)
+```
+"""
+win_avg(expr::SQLExpr, over_clause::Over)::WindowFunc = WindowFunc(:AVG, [expr],
+                                                                   over_clause)
+
+"""
+    win_min(expr::SQLExpr, over_clause::Over) -> WindowFunc
+
+Running/moving minimum over a window.
+"""
+win_min(expr::SQLExpr, over_clause::Over)::WindowFunc = WindowFunc(:MIN, [expr],
+                                                                   over_clause)
+
+"""
+    win_max(expr::SQLExpr, over_clause::Over) -> WindowFunc
+
+Running/moving maximum over a window.
+"""
+win_max(expr::SQLExpr, over_clause::Over)::WindowFunc = WindowFunc(:MAX, [expr],
+                                                                   over_clause)
+
+"""
+    win_count(expr::SQLExpr, over_clause::Over) -> WindowFunc
+
+Running/moving count over a window.
+"""
+win_count(expr::SQLExpr, over_clause::Over)::WindowFunc = WindowFunc(:COUNT, [expr],
+                                                                     over_clause)
+
+# Equality and hashing for window function types
+
+Base.isequal(a::WindowFrame, b::WindowFrame)::Bool = a.mode == b.mode &&
+                                                     a.start_bound == b.start_bound &&
+                                                     a.end_bound == b.end_bound
+
+Base.isequal(a::Over, b::Over)::Bool = isequal(a.partition_by, b.partition_by) &&
+                                       isequal(a.order_by, b.order_by) &&
+                                       isequal(a.frame, b.frame)
+
+Base.isequal(a::WindowFunc, b::WindowFunc)::Bool = a.name == b.name &&
+                                                   isequal(a.args, b.args) &&
+                                                   isequal(a.over, b.over)
+
+Base.hash(a::WindowFrame, h::UInt)::UInt = hash((a.mode, a.start_bound, a.end_bound), h)
+
+Base.hash(a::Over, h::UInt)::UInt = hash((a.partition_by, a.order_by, a.frame), h)
+
+Base.hash(a::WindowFunc, h::UInt)::UInt = hash((a.name, a.args, a.over), h)

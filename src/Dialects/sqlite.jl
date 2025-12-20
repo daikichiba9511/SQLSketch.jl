@@ -31,7 +31,7 @@ using .Core: Query, From, Where, Select, Join, OrderBy, Limit, Offset, Distinct,
              Having, InsertInto, InsertValues, Update, UpdateSet, UpdateWhere,
              DeleteFrom, DeleteWhere, Returning, CTE, With
 using .Core: SQLExpr, ColRef, Literal, Param, BinaryOp, UnaryOp, FuncCall, PlaceholderField,
-             BetweenOp, InOp, Cast, Subquery, CaseExpr
+             BetweenOp, InOp, Cast, Subquery, CaseExpr, WindowFunc, Over, WindowFrame
 import .Core: compile, compile_expr, quote_identifier, placeholder, supports
 
 """
@@ -220,6 +220,19 @@ function resolve_placeholders(expr::CaseExpr, table::Symbol)::CaseExpr
     return CaseExpr(resolved_whens, resolved_else)
 end
 
+function resolve_placeholders(expr::WindowFunc, table::Symbol)::WindowFunc
+    # Resolve placeholders in function arguments
+    resolved_args = [resolve_placeholders(arg, table) for arg in expr.args]
+
+    # Resolve placeholders in OVER clause
+    resolved_partition_by = [resolve_placeholders(p, table) for p in expr.over.partition_by]
+    resolved_order_by = [(resolve_placeholders(e, table), desc)
+                         for (e, desc) in expr.over.order_by]
+    resolved_over = Over(resolved_partition_by, resolved_order_by, expr.over.frame)
+
+    return WindowFunc(expr.name, resolved_args, resolved_over)
+end
+
 """
     contains_placeholder(expr::SQLExpr) -> Bool
 
@@ -282,6 +295,25 @@ function contains_placeholder(expr::CaseExpr)::Bool
 
     # Check ELSE clause if present
     if expr.else_expr !== nothing && contains_placeholder(expr.else_expr)
+        return true
+    end
+
+    return false
+end
+
+function contains_placeholder(expr::WindowFunc)::Bool
+    # Check function arguments
+    if any(contains_placeholder(arg) for arg in expr.args)
+        return true
+    end
+
+    # Check PARTITION BY
+    if any(contains_placeholder(p) for p in expr.over.partition_by)
+        return true
+    end
+
+    # Check ORDER BY
+    if any(contains_placeholder(e) for (e, _) in expr.over.order_by)
         return true
     end
 
@@ -566,6 +598,101 @@ function compile_expr(dialect::SQLiteDialect, expr::CaseExpr,
     push!(parts, "END")
 
     return Base.join(parts, " ")
+end
+
+"""
+    compile_window_frame(dialect::SQLiteDialect, frame::WindowFrame) -> String
+
+Compile a window frame specification into SQL.
+"""
+function compile_window_frame(dialect::SQLiteDialect, frame::WindowFrame)::String
+    # Frame mode
+    mode_str = string(frame.mode)  # ROWS, RANGE, or GROUPS
+
+    # Start bound
+    start_str = if frame.start_bound isa Symbol
+        replace(string(frame.start_bound), "_" => " ")  # UNBOUNDED_PRECEDING -> UNBOUNDED PRECEDING
+    elseif frame.start_bound < 0
+        "$(abs(frame.start_bound)) PRECEDING"
+    elseif frame.start_bound > 0
+        "$(frame.start_bound) FOLLOWING"
+    else
+        "CURRENT ROW"
+    end
+
+    # End bound
+    if frame.end_bound === nothing
+        # Single bound: "ROWS <start>"
+        return "$mode_str $start_str"
+    else
+        end_str = if frame.end_bound isa Symbol
+            replace(string(frame.end_bound), "_" => " ")
+        elseif frame.end_bound < 0
+            "$(abs(frame.end_bound)) PRECEDING"
+        elseif frame.end_bound > 0
+            "$(frame.end_bound) FOLLOWING"
+        else
+            "CURRENT ROW"
+        end
+
+        # Two bounds: "ROWS BETWEEN <start> AND <end>"
+        return "$mode_str BETWEEN $start_str AND $end_str"
+    end
+end
+
+"""
+    compile_expr(dialect::SQLiteDialect, expr::WindowFunc, params::Vector{Symbol}) -> String
+
+Compile a window function expression into SQL.
+"""
+function compile_expr(dialect::SQLiteDialect, expr::WindowFunc,
+                      params::Vector{Symbol})::String
+    # Compile function name and arguments
+    func_name = string(expr.name)
+
+    if isempty(expr.args)
+        func_call = "$(func_name)()"
+    else
+        args_sql = [compile_expr(dialect, arg, params) for arg in expr.args]
+        args_str = Base.join(args_sql, ", ")
+        func_call = "$(func_name)($args_str)"
+    end
+
+    # Compile OVER clause
+    over_parts = String[]
+
+    # PARTITION BY
+    if !isempty(expr.over.partition_by)
+        partition_sql = [compile_expr(dialect, p, params) for p in expr.over.partition_by]
+        partition_str = Base.join(partition_sql, ", ")
+        push!(over_parts, "PARTITION BY $partition_str")
+    end
+
+    # ORDER BY
+    if !isempty(expr.over.order_by)
+        order_sql = [begin
+                         e_sql = compile_expr(dialect, e, params)
+                         desc ? "$e_sql DESC" : "$e_sql"
+                     end
+                     for (e, desc) in expr.over.order_by]
+        order_str = Base.join(order_sql, ", ")
+        push!(over_parts, "ORDER BY $order_str")
+    end
+
+    # Frame specification
+    if expr.over.frame !== nothing
+        frame_str = compile_window_frame(dialect, expr.over.frame)
+        push!(over_parts, frame_str)
+    end
+
+    # Combine OVER clause
+    if isempty(over_parts)
+        over_clause = "OVER ()"
+    else
+        over_clause = "OVER ($(Base.join(over_parts, " ")))"
+    end
+
+    return "$func_call $over_clause"
 end
 
 #

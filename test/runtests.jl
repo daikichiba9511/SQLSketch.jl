@@ -15,6 +15,10 @@ using Test
         include("core/query_test.jl")
     end
 
+    @testset "Window Functions (Core.window)" begin
+        include("core/window_test.jl")
+    end
+
     @testset "SQLite Dialect (Dialects.sqlite)" begin
         include("dialects/sqlite_test.jl")
     end

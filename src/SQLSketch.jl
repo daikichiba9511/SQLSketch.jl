@@ -32,6 +32,7 @@ module Core
 include("Core/expr.jl")
 export SQLExpr, ColRef, Literal, Param, BinaryOp, UnaryOp, FuncCall, BetweenOp, InOp
 export Cast, Subquery, CaseExpr
+export WindowFrame, Over, WindowFunc
 export PlaceholderField, Placeholder, p_
 export col, literal, param, func
 export is_null, is_not_null
@@ -40,6 +41,10 @@ export between, not_between
 export in_list, not_in_list
 export cast, subquery, exists, not_exists, in_subquery, not_in_subquery
 export case_expr
+export window_frame, over
+export row_number, rank, dense_rank, ntile
+export lag, lead, first_value, last_value, nth_value
+export win_sum, win_avg, win_min, win_max, win_count
 
 # Query AST (Phase 2 + DML + CTE)
 include("Core/query.jl")
@@ -108,6 +113,7 @@ end
 using .Core
 export SQLExpr, ColRef, Literal, Param, BinaryOp, UnaryOp, FuncCall, BetweenOp, InOp
 export Cast, Subquery, CaseExpr
+export WindowFrame, Over, WindowFunc
 export PlaceholderField, Placeholder, p_
 export col, literal, param, func
 export is_null, is_not_null
@@ -116,6 +122,10 @@ export between, not_between
 export in_list, not_in_list
 export cast, subquery, exists, not_exists, in_subquery, not_in_subquery
 export case_expr
+export window_frame, over
+export row_number, rank, dense_rank, ntile
+export lag, lead, first_value, last_value, nth_value
+export win_sum, win_avg, win_min, win_max, win_count
 export Query, From, Where, Select, OrderBy, Limit, Offset, Distinct, GroupBy, Having, Join
 export InsertInto, InsertValues, Update, UpdateSet, UpdateWhere, DeleteFrom, DeleteWhere
 export Returning
