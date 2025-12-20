@@ -84,7 +84,7 @@ SQLSketch は2層システムとして設計されています：
 
 ## 現在の実装状況
 
-**完了フェーズ:** 11/12 | **総テスト数:** 1712 passing ✅
+**完了フェーズ:** 12/12 | **総テスト数:** 1712 passing ✅
 
 - ✅ **Phase 1: Expression AST** (268 tests)
   - カラム参照、リテラル、パラメータ
@@ -218,7 +218,15 @@ SQLSketch は2層システムとして設計されています：
   - **Capability サポート** - CTE, RETURNING, UPSERT, WINDOW, LATERAL, BULK_COPY, SAVEPOINT, ADVISORY_LOCK
   - **統合テスト** - 包括的な PostgreSQL 互換性テスト
 
-- ⏳ **Phase 12: Documentation** - [`docs/roadmap.md`](docs/roadmap.md) と [`docs/TODO.md`](docs/TODO.md) を参照
+- ✅ **Phase 12: Documentation** (完了)
+
+  - **入門ガイド** (`docs/src/getting-started.md`)
+  - **API リファレンス** (`docs/src/api.md`)
+  - **包括的なチュートリアル** (`docs/src/tutorial.md`)
+  - **設計思想** (`docs/src/design.md`)
+  - **インデックスページ** (`docs/src/index.md`)
+  - **サンプル集** - クエリ合成、トランザクション、マイグレーション、マルチデータベース対応
+  - **移行ガイド** - 生 SQL や他のクエリビルダーからの移行
 
 ---
 

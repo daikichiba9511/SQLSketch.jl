@@ -89,7 +89,7 @@ SQLSketch is designed as a two-layer system:
 
 ## Current Implementation Status
 
-**Completed Phases:** 11/12 | **Total Tests:** 1712 passing ✅
+**Completed Phases:** 12/12 | **Total Tests:** 1712 passing ✅
 
 - ✅ **Phase 1: Expression AST** (268 tests)
 
@@ -235,7 +235,15 @@ SQLSketch is designed as a two-layer system:
   - **Capability support** - CTE, RETURNING, UPSERT, WINDOW, LATERAL, BULK_COPY, SAVEPOINT, ADVISORY_LOCK
   - **Integration tests** - comprehensive PostgreSQL compatibility tests
 
-- ⏳ **Phase 12: Documentation** - See [`docs/roadmap.md`](docs/roadmap.md) and [`docs/TODO.md`](docs/TODO.md)
+- ✅ **Phase 12: Documentation** (Completed)
+
+  - **Getting Started Guide** (`docs/src/getting-started.md`)
+  - **API Reference** (`docs/src/api.md`)
+  - **Comprehensive Tutorial** (`docs/src/tutorial.md`)
+  - **Design Rationale** (`docs/src/design.md`)
+  - **Index Page** (`docs/src/index.md`)
+  - **Examples** - Query composition, transactions, migrations, multi-database support
+  - **Migration Guides** - From raw SQL and other query builders
 
 ---
 
