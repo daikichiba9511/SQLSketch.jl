@@ -459,7 +459,7 @@ from(:sales) |>
 ```
 
 **Test Count**: 79 passing tests
-**Total Tests**: 1195 passing ✅
+**Total Tests**: 1274 passing ✅
 
 ---
 
