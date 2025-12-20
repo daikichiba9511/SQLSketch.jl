@@ -45,9 +45,11 @@ export case_expr
 include("Core/query.jl")
 export Query, From, Where, Select, OrderBy, Limit, Offset, Distinct, GroupBy, Having, Join
 export InsertInto, InsertValues, Update, UpdateSet, UpdateWhere, DeleteFrom, DeleteWhere
+export Returning
 export CTE, With
 export from, where, select, order_by, limit, offset, distinct, group_by, having, join
 export insert_into, values, update, set, delete_from
+export returning
 export cte, with
 # Aliases to avoid Base conflicts
 export innerjoin, leftjoin, rightjoin, fulljoin, insert_values
@@ -118,9 +120,11 @@ export cast, subquery, exists, not_exists, in_subquery, not_in_subquery
 export case_expr
 export Query, From, Where, Select, OrderBy, Limit, Offset, Distinct, GroupBy, Having, Join
 export InsertInto, InsertValues, Update, UpdateSet, UpdateWhere, DeleteFrom, DeleteWhere
+export Returning
 export CTE, With
 export from, where, select, order_by, limit, offset, distinct, group_by, having, join
 export insert_into, values, update, set, delete_from
+export returning
 export cte, with
 # Aliases to avoid Base conflicts
 export innerjoin, leftjoin, rightjoin, fulljoin, insert_values

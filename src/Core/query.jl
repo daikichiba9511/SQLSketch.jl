@@ -991,6 +991,20 @@ function where(source::DeleteFrom{T}, condition::SQLExpr)::DeleteWhere{T} where 
     return DeleteWhere{T}(source, condition)
 end
 
+# Structural Equality for DML
+Base.isequal(a::InsertInto{T}, b::InsertInto{T}) where {T} = a.table == b.table &&
+                                                              a.columns == b.columns
+Base.isequal(a::InsertValues{T}, b::InsertValues{T}) where {T} = isequal(a.source, b.source) &&
+                                                                  isequal(a.rows, b.rows)
+Base.isequal(a::Update{T}, b::Update{T}) where {T} = a.table == b.table
+Base.isequal(a::UpdateSet{T}, b::UpdateSet{T}) where {T} = isequal(a.source, b.source) &&
+                                                            isequal(a.assignments, b.assignments)
+Base.isequal(a::UpdateWhere{T}, b::UpdateWhere{T}) where {T} = isequal(a.source, b.source) &&
+                                                                isequal(a.condition, b.condition)
+Base.isequal(a::DeleteFrom{T}, b::DeleteFrom{T}) where {T} = a.table == b.table
+Base.isequal(a::DeleteWhere{T}, b::DeleteWhere{T}) where {T} = isequal(a.source, b.source) &&
+                                                                isequal(a.condition, b.condition)
+
 # Hash functions for DML
 Base.hash(a::InsertInto{T}, h::UInt) where {T} = hash((a.table, a.columns), h)
 Base.hash(a::InsertValues{T}, h::UInt) where {T} = hash((a.source, a.rows), h)
@@ -999,6 +1013,126 @@ Base.hash(a::UpdateSet{T}, h::UInt) where {T} = hash((a.source, a.assignments), 
 Base.hash(a::UpdateWhere{T}, h::UInt) where {T} = hash((a.source, a.condition), h)
 Base.hash(a::DeleteFrom{T}, h::UInt) where {T} = hash(a.table, h)
 Base.hash(a::DeleteWhere{T}, h::UInt) where {T} = hash((a.source, a.condition), h)
+
+#
+# RETURNING Clause
+#
+
+"""
+    Returning{OutT}
+
+RETURNING clause for DML operations (INSERT, UPDATE, DELETE).
+
+Transforms a DML query into a shape-changing query that returns typed results.
+This allows you to retrieve values from rows affected by INSERT, UPDATE, or DELETE operations.
+
+This is a **shape-changing operation** that changes the output type to `OutT`.
+
+# Type Parameter
+
+  - `OutT`: The output type for returned rows (e.g., NamedTuple, custom struct)
+
+# Fields
+
+  - `source::Query` – the source DML query (InsertValues, UpdateSet/UpdateWhere, DeleteFrom/DeleteWhere)
+  - `fields::Vector{SQLExpr}` – expressions for fields to return
+
+# Database Support
+
+  - SQLite 3.35+ (2021)
+  - PostgreSQL (all versions)
+  - MySQL 8.0+ (INSERT only)
+
+# Example
+
+```julia
+# INSERT with RETURNING
+q = insert_into(:users, [:email, :name]) |>
+    values([[literal("test@example.com"), literal("Test User")]]) |>
+    returning(NamedTuple, p_.id, p_.email)
+
+result = fetch_one(db, dialect, registry, q)
+# → (id = 1, email = "test@example.com")
+
+# UPDATE with RETURNING
+q = update(:users) |>
+    set(:status => literal("premium")) |>
+    where(p_.id == param(Int, :id)) |>
+    returning(NamedTuple, p_.id, p_.status, p_.updated_at)
+
+updated = fetch_all(db, dialect, registry, q, (id = 5,))
+
+# DELETE with RETURNING
+q = delete_from(:users) |>
+    where(p_.status == literal("inactive")) |>
+    returning(NamedTuple, p_.id, p_.email)
+
+deleted = fetch_all(db, dialect, registry, q)
+```
+"""
+struct Returning{OutT} <: Query{OutT}
+    source::Query
+    fields::Vector{SQLExpr}
+end
+
+"""
+    returning(q::Query, OutT::Type, fields...)::Returning{OutT}
+
+Add a RETURNING clause to a DML operation.
+
+This is a shape-changing operation that transforms a DML query into a query
+that returns typed results from the affected rows.
+
+# Arguments
+
+  - `q`: DML query (InsertValues, UpdateSet, UpdateWhere, DeleteFrom, or DeleteWhere)
+  - `OutT`: Output type (typically NamedTuple or a struct type)
+  - `fields...`: Expressions for fields to return
+
+# Returns
+
+A `Returning{OutT}` query node
+
+# Example
+
+```julia
+# Basic RETURNING with placeholder syntax
+q = insert_into(:users, [:email]) |>
+    values([[literal("test@example.com")]]) |>
+    returning(NamedTuple, p_.id, p_.email)
+
+# RETURNING with explicit column references
+q = update(:users) |>
+    set(:status => literal("active")) |>
+    where(col(:users, :id) == param(Int, :id)) |>
+    returning(NamedTuple, col(:users, :id), col(:users, :status))
+```
+"""
+function returning(q::Query, OutT::Type, fields...)::Returning{OutT}
+    return Returning{OutT}(q, collect(SQLExpr, fields))
+end
+
+"""
+    returning(OutT::Type, fields...)
+
+Curried version of `returning` for pipeline composition.
+
+# Example
+
+```julia
+q = insert_into(:users, [:email]) |>
+    values([[literal("test@example.com")]]) |>
+    returning(NamedTuple, p_.id, p_.email)
+```
+"""
+returning(OutT::Type, fields...) = q -> returning(q, OutT, fields...)
+
+# Structural Equality for RETURNING
+Base.isequal(a::Returning{OutT}, b::Returning{OutT}) where {OutT} = isequal(a.source, b.source) &&
+                                                                     isequal(a.fields, b.fields)
+
+# Hash function for RETURNING
+Base.hash(a::Returning{OutT}, h::UInt) where {OutT} = hash((a.source, a.fields), h)
 
 #
 # CTE (Common Table Expressions) Query Types

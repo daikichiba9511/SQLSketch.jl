@@ -14,9 +14,9 @@ using SQLSketch.Core
 using SQLSketch.Drivers
 using Test
 
-println("=" ^ 70)
+println("="^70)
 println("Query Result Comparison Test")
-println("=" ^ 70)
+println("="^70)
 println()
 
 # Setup database
@@ -145,7 +145,7 @@ println()
 test_results = Dict(:passed => 0, :failed => 0)
 
 for (i, test_case) in enumerate(test_cases)
-    println("─" ^ 70)
+    println("─"^70)
     println("Test $i: $(test_case.name)")
     println("Description: $(test_case.description)")
     println()
@@ -213,9 +213,9 @@ end
 SQLSketch.Core.close(db)
 
 # Summary
-println("=" ^ 70)
+println("="^70)
 println("TEST SUMMARY")
-println("=" ^ 70)
+println("="^70)
 println("Total tests:  $(length(test_cases))")
 println("Passed:       $(test_results[:passed]) ✅")
 println("Failed:       $(test_results[:failed]) $(test_results[:failed] > 0 ? "❌" : "")")

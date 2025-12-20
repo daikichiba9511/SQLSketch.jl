@@ -29,7 +29,7 @@ using .Core: Dialect, Capability, CAP_CTE, CAP_RETURNING, CAP_UPSERT, CAP_WINDOW
              CAP_LATERAL, CAP_BULK_COPY, CAP_SAVEPOINT, CAP_ADVISORY_LOCK
 using .Core: Query, From, Where, Select, Join, OrderBy, Limit, Offset, Distinct, GroupBy,
              Having, InsertInto, InsertValues, Update, UpdateSet, UpdateWhere,
-             DeleteFrom, DeleteWhere, CTE, With
+             DeleteFrom, DeleteWhere, Returning, CTE, With
 using .Core: SQLExpr, ColRef, Literal, Param, BinaryOp, UnaryOp, FuncCall, PlaceholderField,
              BetweenOp, InOp, Cast, Subquery, CaseExpr
 import .Core: compile, compile_expr, quote_identifier, placeholder, supports
@@ -333,6 +333,35 @@ end
 function get_primary_table(query::Join)::Nothing
     # JOINs have multiple tables - placeholders are ambiguous
     return nothing
+end
+
+# DML query types
+function get_primary_table(query::InsertInto)::Symbol
+    return query.table
+end
+
+function get_primary_table(query::InsertValues)::Symbol
+    return get_primary_table(query.source)
+end
+
+function get_primary_table(query::Update)::Symbol
+    return query.table
+end
+
+function get_primary_table(query::UpdateSet)::Symbol
+    return get_primary_table(query.source)
+end
+
+function get_primary_table(query::UpdateWhere)::Symbol
+    return get_primary_table(query.source)
+end
+
+function get_primary_table(query::DeleteFrom)::Symbol
+    return query.table
+end
+
+function get_primary_table(query::DeleteWhere)::Symbol
+    return get_primary_table(query.source)
 end
 
 #
@@ -880,8 +909,12 @@ function compile(dialect::SQLiteDialect,
     # Compile the UPDATE...SET part
     source_sql, params = compile(dialect, query.source)
 
+    # Resolve placeholders in WHERE condition
+    table = get_primary_table(query.source)
+    resolved_condition = resolve_placeholders(query.condition, table)
+
     # Compile the WHERE condition
-    condition_sql = compile_expr(dialect, query.condition, params)
+    condition_sql = compile_expr(dialect, resolved_condition, params)
 
     sql = "$source_sql WHERE $condition_sql"
     return (sql, params)
@@ -929,10 +962,71 @@ function compile(dialect::SQLiteDialect,
     # Compile the DELETE FROM part
     source_sql, params = compile(dialect, query.source)
 
+    # Resolve placeholders in WHERE condition
+    table = get_primary_table(query.source)
+    resolved_condition = resolve_placeholders(query.condition, table)
+
     # Compile the WHERE condition
-    condition_sql = compile_expr(dialect, query.condition, params)
+    condition_sql = compile_expr(dialect, resolved_condition, params)
 
     sql = "$source_sql WHERE $condition_sql"
+    return (sql, params)
+end
+
+#
+# RETURNING Clause Compilation
+#
+
+"""
+    compile(dialect::SQLiteDialect, query::Returning{OutT}) -> (String, Vector{Symbol})
+
+Compile a RETURNING clause for DML operations.
+
+The RETURNING clause allows INSERT, UPDATE, and DELETE operations to return
+values from the affected rows, similar to a SELECT query.
+
+# SQLite Support
+
+Requires SQLite 3.35+ (released March 2021)
+
+# Example
+
+```julia
+q = insert_into(:users, [:email]) |>
+    values([[literal("test@example.com")]]) |>
+    returning(NamedTuple, p_.id, p_.email)
+
+sql, params = compile(dialect, q)
+# → ("INSERT INTO `users` (`email`) VALUES ('test@example.com') RETURNING `users`.`id`, `users`.`email`", [])
+```
+"""
+function compile(dialect::SQLiteDialect,
+                 query::Returning{OutT})::Tuple{String, Vector{Symbol}} where {OutT}
+    # Compile the source DML query (INSERT, UPDATE, or DELETE)
+    source_sql, params = compile(dialect, query.source)
+
+    # Determine the primary table for placeholder resolution
+    table = get_primary_table(query.source)
+
+    # Resolve placeholders in RETURNING fields
+    resolved_fields = if table === nothing
+        # Multi-table query - check for placeholders
+        if any(contains_placeholder(f) for f in query.fields)
+            error("Cannot use placeholder syntax (p_) in RETURNING clause for multi-table queries. " *
+                  "Use explicit col(table, column) instead.")
+        end
+        query.fields
+    else
+        [resolve_placeholders(f, table) for f in query.fields]
+    end
+
+    # Compile each RETURNING field
+    fields_sql = [compile_expr(dialect, field, params) for field in resolved_fields]
+    fields_str = Base.join(fields_sql, ", ")
+
+    # Append RETURNING clause to the DML statement
+    sql = "$source_sql RETURNING $fields_str"
+
     return (sql, params)
 end
 

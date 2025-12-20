@@ -2,13 +2,13 @@ using Test
 using SQLSketch.Core: Dialect, Capability, CAP_CTE, CAP_RETURNING, CAP_UPSERT, CAP_WINDOW,
                       CAP_LATERAL
 using SQLSketch.Core: Query, From, Where, Select, Join, OrderBy, Limit, Offset, Distinct,
-                      GroupBy, Having, CTE, With
+                      GroupBy, Having, CTE, With, Returning
 using SQLSketch.Core: InsertInto, InsertValues, Update, UpdateSet, UpdateWhere,
                       DeleteFrom, DeleteWhere
 using SQLSketch.Core: from, where, select, join, order_by, limit, offset, distinct,
-                      group_by, having, cte, with
+                      group_by, having, cte, with, returning
 using SQLSketch.Core: insert_into, values, update, set, delete_from
-using SQLSketch.Core: SQLExpr, col, literal, param, func, is_null, is_not_null
+using SQLSketch.Core: SQLExpr, col, literal, param, func, is_null, is_not_null, p_
 using SQLSketch.Core: like, not_like, ilike, not_ilike, between, not_between
 using SQLSketch.Core: in_list, not_in_list
 using SQLSketch.Core: compile, compile_expr, quote_identifier, placeholder, supports
@@ -988,6 +988,159 @@ end
             @test occursin("SELECT `orders`.`user_id`, SUM(`orders`.`total`) FROM `orders`",
                            sql)
             @test occursin("WHERE (`user_totals`.`total_spent` > 1000)", sql)
+        end
+    end
+
+    @testset "RETURNING Clause Compilation" begin
+        @testset "INSERT...RETURNING with literals" begin
+            q = insert_into(:users, [:email, :name]) |>
+                values([[literal("test@example.com"), literal("Test User")]]) |>
+                returning(NamedTuple, col(:users, :id), col(:users, :email))
+
+            sql, params = compile(dialect, q)
+
+            @test occursin("INSERT INTO `users` (`email`, `name`)", sql)
+            @test occursin("VALUES ('test@example.com', 'Test User')", sql)
+            @test occursin("RETURNING `users`.`id`, `users`.`email`", sql)
+            @test isempty(params)
+        end
+
+        @testset "INSERT...RETURNING with parameters" begin
+            q = insert_into(:users, [:email, :name]) |>
+                values([[param(String, :email), param(String, :name)]]) |>
+                returning(NamedTuple, col(:users, :id), col(:users, :email), col(:users, :name))
+
+            sql, params = compile(dialect, q)
+
+            @test occursin("INSERT INTO `users` (`email`, `name`)", sql)
+            @test occursin("VALUES (?, ?)", sql)
+            @test occursin("RETURNING `users`.`id`, `users`.`email`, `users`.`name`", sql)
+            @test params == [:email, :name]
+        end
+
+        @testset "INSERT...RETURNING with placeholder syntax" begin
+            q = insert_into(:users, [:email]) |>
+                values([[param(String, :email)]]) |>
+                returning(NamedTuple, p_.id, p_.email, p_.created_at)
+
+            sql, params = compile(dialect, q)
+
+            @test occursin("INSERT INTO `users` (`email`)", sql)
+            @test occursin("VALUES (?)", sql)
+            # Placeholders should be resolved to explicit col(:users, ...)
+            @test occursin("RETURNING `users`.`id`, `users`.`email`, `users`.`created_at`", sql)
+            @test params == [:email]
+        end
+
+        @testset "UPDATE...RETURNING with WHERE" begin
+            q = update(:users) |>
+                set(:status => literal("premium"), :updated_at => literal("2025-01-01")) |>
+                where(col(:users, :id) == param(Int, :id)) |>
+                returning(NamedTuple, col(:users, :id), col(:users, :status),
+                          col(:users, :updated_at))
+
+            sql, params = compile(dialect, q)
+
+            @test occursin("UPDATE `users`", sql)
+            @test occursin("SET `status` = 'premium', `updated_at` = '2025-01-01'", sql)
+            @test occursin("WHERE (`users`.`id` = ?)", sql)
+            @test occursin("RETURNING `users`.`id`, `users`.`status`, `users`.`updated_at`",
+                           sql)
+            @test params == [:id]
+        end
+
+        @testset "UPDATE...RETURNING without WHERE" begin
+            q = update(:users) |>
+                set(:status => literal("active")) |>
+                returning(NamedTuple, col(:users, :id), col(:users, :status))
+
+            sql, params = compile(dialect, q)
+
+            @test occursin("UPDATE `users`", sql)
+            @test occursin("SET `status` = 'active'", sql)
+            @test occursin("RETURNING `users`.`id`, `users`.`status`", sql)
+            @test !occursin("WHERE", sql)
+            @test isempty(params)
+        end
+
+        @testset "UPDATE...RETURNING with placeholder syntax" begin
+            q = update(:users) |>
+                set(:status => param(String, :status)) |>
+                where(p_.id == param(Int, :id)) |>
+                returning(NamedTuple, p_.id, p_.status, p_.email)
+
+            sql, params = compile(dialect, q)
+
+            @test occursin("UPDATE `users`", sql)
+            @test occursin("SET `status` = ?", sql)
+            @test occursin("WHERE (`users`.`id` = ?)", sql)
+            @test occursin("RETURNING `users`.`id`, `users`.`status`, `users`.`email`", sql)
+            @test params == [:status, :id]
+        end
+
+        @testset "DELETE...RETURNING with WHERE" begin
+            q = delete_from(:users) |>
+                where(col(:users, :status) == literal("inactive")) |>
+                returning(NamedTuple, col(:users, :id), col(:users, :email))
+
+            sql, params = compile(dialect, q)
+
+            @test occursin("DELETE FROM `users`", sql)
+            @test occursin("WHERE (`users`.`status` = 'inactive')", sql)
+            @test occursin("RETURNING `users`.`id`, `users`.`email`", sql)
+            @test isempty(params)
+        end
+
+        @testset "DELETE...RETURNING without WHERE" begin
+            q = delete_from(:users) |>
+                returning(NamedTuple, col(:users, :id))
+
+            sql, params = compile(dialect, q)
+
+            @test occursin("DELETE FROM `users`", sql)
+            @test occursin("RETURNING `users`.`id`", sql)
+            @test !occursin("WHERE", sql)
+            @test isempty(params)
+        end
+
+        @testset "DELETE...RETURNING with placeholder and parameters" begin
+            q = delete_from(:users) |>
+                where(p_.created_at < param(String, :cutoff_date)) |>
+                returning(NamedTuple, p_.id, p_.email, p_.created_at)
+
+            sql, params = compile(dialect, q)
+
+            @test occursin("DELETE FROM `users`", sql)
+            @test occursin("WHERE (`users`.`created_at` < ?)", sql)
+            @test occursin("RETURNING `users`.`id`, `users`.`email`, `users`.`created_at`", sql)
+            @test params == [:cutoff_date]
+        end
+
+        @testset "RETURNING with single field" begin
+            q = insert_into(:users, [:email]) |>
+                values([[literal("test@example.com")]]) |>
+                returning(NamedTuple, col(:users, :id))
+
+            sql, params = compile(dialect, q)
+
+            @test occursin("RETURNING `users`.`id`", sql)
+            @test isempty(params)
+        end
+
+        @testset "RETURNING with multiple rows INSERT" begin
+            q = insert_into(:users, [:email]) |>
+                values([[literal("user1@example.com")],
+                        [literal("user2@example.com")],
+                        [literal("user3@example.com")]]) |>
+                returning(NamedTuple, col(:users, :id), col(:users, :email))
+
+            sql, params = compile(dialect, q)
+
+            @test occursin("INSERT INTO `users` (`email`)", sql)
+            @test occursin("VALUES ('user1@example.com'), ('user2@example.com'), ('user3@example.com')",
+                           sql)
+            @test occursin("RETURNING `users`.`id`, `users`.`email`", sql)
+            @test isempty(params)
         end
     end
 end
