@@ -230,12 +230,25 @@ using SQLSketch
 using SQLSketch.Core
 using SQLSketch.Drivers
 
-# Import execution and DDL functions
-import SQLSketch.Core: fetch_all, fetch_one, fetch_maybe, execute_dml, execute_ddl, sql
+# Import core query building functions
+import SQLSketch.Core: from, where, select, order_by, limit, offset, distinct, group_by, having
+import SQLSketch.Core: innerjoin, leftjoin, rightjoin, fulljoin  # Aliases to avoid Base.join conflict
+import SQLSketch.Core: col, literal, param, func, p_
+import SQLSketch.Core: between, like, case_expr
+import SQLSketch.Core: subquery, in_subquery
+
+# Import DML functions
+import SQLSketch.Core: insert_into, insert_values  # insert_values is alias for values (Base.values conflict)
+import SQLSketch.Core: update, set, delete_from
+
+# Import DDL functions
 import SQLSketch.Core: create_table, add_column, add_foreign_key
 
-# Note: Use innerjoin/leftjoin/rightjoin/fulljoin aliases to avoid Base.join conflict
-# Use insert_values alias to avoid Base.values conflict
+# Import execution functions
+import SQLSketch.Core: fetch_all, fetch_one, fetch_maybe, execute_dml, execute_ddl, sql
+
+# Import transaction functions
+import SQLSketch.Core: transaction, savepoint
 
 # Connect to database
 driver = SQLiteDriver()
@@ -569,30 +582,44 @@ src/
     driver.jl        # Driver abstraction ✅
     codec.jl         # Type conversion ✅
     execute.jl       # Query execution ✅
-    transaction.jl   # Transaction management ⏳
-    migrations.jl    # Migration runner ⏳
+    transaction.jl   # Transaction management ✅
+    migrations.jl    # Migration runner ✅
+    ddl.jl           # DDL support ✅
   Dialects/          # Dialect implementations
     sqlite.jl        # SQLite SQL generation ✅
+    postgresql.jl    # PostgreSQL SQL generation ✅
+    shared_helpers.jl # Shared helper functions ✅
   Drivers/           # Driver implementations
     sqlite.jl        # SQLite execution ✅
+    postgresql.jl    # PostgreSQL execution ✅
+  Codecs/            # Database-specific codecs
+    postgresql.jl    # PostgreSQL-specific codecs (UUID, JSONB, Array) ✅
 
-test/                # Test suite (662+ tests)
+test/                # Test suite (1712 tests)
   core/
     expr_test.jl     # Expression tests ✅ (268)
-    query_test.jl    # Query tests ✅ (85)
-    codec_test.jl    # Codec tests ✅ (112)
+    query_test.jl    # Query tests ✅ (232)
+    window_test.jl   # Window function tests ✅ (79)
+    set_operations_test.jl  # Set operations tests ✅ (102)
+    upsert_test.jl   # UPSERT tests ✅ (86)
+    codec_test.jl    # Codec tests ✅ (115)
+    transaction_test.jl  # Transaction tests ✅ (26)
+    migrations_test.jl   # Migration tests ✅ (79)
+    ddl_test.jl      # DDL tests ✅ (156)
   dialects/
-    sqlite_test.jl   # SQLite dialect tests ✅ (102)
+    sqlite_test.jl   # SQLite dialect tests ✅ (331)
+    postgresql_test.jl  # PostgreSQL dialect tests ✅ (102)
   drivers/
     sqlite_test.jl   # SQLite driver tests ✅ (41)
   integration/
-    end_to_end_test.jl  # Integration tests ✅ (54)
+    end_to_end_test.jl  # Integration tests ✅ (95)
+    postgresql_integration_test.jl  # PostgreSQL integration tests ✅
 
 docs/                # Documentation
   design.md          # Design document
   roadmap.md         # Implementation roadmap
   TODO.md            # Task breakdown
-  CLAUDE.md          # Implementation guidelines
+  CLAUDE.md          # Implementation guidelines for Claude
 ```
 
 ---
@@ -618,17 +645,21 @@ julia --project
 ### Current Test Status
 
 ```
-Total: 1195 tests passing ✅
+Total: 1712 tests passing ✅
 
 Phase 1 (Expression AST):         268 tests (CAST, Subquery, CASE, BETWEEN, IN, LIKE)
 Phase 2 (Query AST):              232 tests (DML, CTE, RETURNING)
-Phase 3 (Dialect Abstraction):    260 tests (DML + CTE compilation, all expressions)
-Phase 4 (Driver Abstraction):      41 tests
-Phase 5 (CodecRegistry):          115 tests
-Phase 6 (End-to-End Integration):  95 tests (DML execution, CTE)
+Phase 3 (SQLite Dialect):         331 tests (DML + CTE + DDL compilation, all expressions)
+Phase 4 (Driver Abstraction):      41 tests (SQLite driver)
+Phase 5 (CodecRegistry):          115 tests (type conversion, NULL handling)
+Phase 6 (End-to-End Integration):  95 tests (DML execution, CTE, full pipeline)
 Phase 7 (Transactions):            26 tests (transaction, savepoint, rollback)
 Phase 8 (Migrations):              79 tests (discovery, application, checksum validation)
 Phase 8.5 (Window Functions):      79 tests (ranking, value, aggregate window functions)
+Phase 8.6 (Set Operations):       102 tests (UNION, INTERSECT, EXCEPT)
+Phase 8.7 (UPSERT):                86 tests (ON CONFLICT DO NOTHING/UPDATE)
+Phase 10 (DDL Support):           227 tests (CREATE/ALTER/DROP TABLE, CREATE/DROP INDEX)
+Phase 11 (PostgreSQL Dialect):    102 tests (PostgreSQL SQL generation, driver, codecs)
 ```
 
 ---
@@ -703,15 +734,25 @@ It is a **typed SQL query builder**, by design.
 
 ### Current Dependencies
 
+**Database Drivers:**
 - **SQLite.jl** - SQLite database driver ✅
+- **LibPQ.jl** - PostgreSQL database driver ✅
 - **DBInterface.jl** - Database interface abstraction ✅
+
+**Type Support:**
 - **Dates** (stdlib) - Date/DateTime type support ✅
 - **UUIDs** (stdlib) - UUID type support ✅
+- **JSON3** - JSON/JSONB serialization (PostgreSQL) ✅
+- **SHA** (stdlib) - Migration checksum validation ✅
+
+**Development Tools:**
+- **JET** - Static analysis and type checking ✅
+- **JuliaFormatter** - Code formatting ✅
 
 ### Future Dependencies
 
-- LibPQ.jl (Phase 9 - PostgreSQL support)
-- MySQL.jl (Future - MySQL support)
+- MySQL.jl (MySQL support)
+- MariaDB.jl (MariaDB support)
 
 ---
 
@@ -720,13 +761,15 @@ It is a **typed SQL query builder**, by design.
 See [`docs/roadmap.md`](docs/roadmap.md) for the complete implementation plan.
 
 **Progress:**
-- ✅ Phase 1-3 (Expressions, Queries, Dialect): 6 weeks - **COMPLETED**
+- ✅ Phase 1-3 (Expressions, Queries, SQLite Dialect): 6 weeks - **COMPLETED**
 - ✅ Phase 4-6 (Driver, Codec, Integration): 6 weeks - **COMPLETED**
 - ✅ Phase 7-8 (Transactions, Migrations): 2 weeks - **COMPLETED**
-- ⏳ Phase 9 (PostgreSQL): 2 weeks - **NEXT**
-- ⏳ Phase 10 (Documentation): 2+ weeks
+- ✅ Phase 8.5-8.7 (Window Functions, Set Operations, UPSERT): 1 week - **COMPLETED**
+- ✅ Phase 10 (DDL Support): 1 week - **COMPLETED**
+- ✅ Phase 11 (PostgreSQL Dialect): 2 weeks - **COMPLETED**
+- ⏳ Phase 12 (Documentation): 2+ weeks - **NEXT**
 
-**Estimated Total:** ~18 weeks for Core layer (80% complete)
+**Current Status:** 11/12 phases complete (91.7%)
 
 ---
 

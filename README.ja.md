@@ -229,9 +229,25 @@ using SQLSketch
 using SQLSketch.Core
 using SQLSketch.Drivers
 
-# 実行関数と DDL 関数をインポート
-import SQLSketch.Core: fetch_all, fetch_one, fetch_maybe, execute_dml, execute_ddl, sql
+# コアクエリ構築関数をインポート
+import SQLSketch.Core: from, where, select, order_by, limit, offset, distinct, group_by, having
+import SQLSketch.Core: innerjoin, leftjoin, rightjoin, fulljoin  # Base.joinとの衝突を避けるエイリアス
+import SQLSketch.Core: col, literal, param, func, p_
+import SQLSketch.Core: between, like, case_expr
+import SQLSketch.Core: subquery, in_subquery
+
+# DML 関数をインポート
+import SQLSketch.Core: insert_into, insert_values  # insert_valuesはvaluesのエイリアス（Base.valuesとの衝突回避）
+import SQLSketch.Core: update, set, delete_from
+
+# DDL 関数をインポート
 import SQLSketch.Core: create_table, add_column, add_foreign_key
+
+# 実行関数をインポート
+import SQLSketch.Core: fetch_all, fetch_one, fetch_maybe, execute_dml, execute_ddl, sql
+
+# トランザクション関数をインポート
+import SQLSketch.Core: transaction, savepoint
 
 # データベースに接続
 driver = SQLiteDriver()
@@ -320,7 +336,7 @@ q3 = from(:users) |>
 
 # テーブルを結合する場合、明示的な col() により各カラムがどのテーブルに属するか明確になります
 q4 = from(:users) |>
-    join(:orders, col(:orders, :user_id) == col(:users, :id)) |>
+    innerjoin(:orders, col(:orders, :user_id) == col(:users, :id)) |>
     where(col(:users, :status) == literal("active")) |>
     select(NamedTuple,
            col(:users, :id),
@@ -493,30 +509,42 @@ src/
     execute.jl       # クエリ実行 ✅
     transaction.jl   # トランザクション管理 ✅
     migrations.jl    # マイグレーションランナー ✅
+    ddl.jl           # DDL サポート ✅
   Dialects/          # Dialect 実装
     sqlite.jl        # SQLite SQL 生成 ✅
+    postgresql.jl    # PostgreSQL SQL 生成 ✅
+    shared_helpers.jl # 共有ヘルパー関数 ✅
   Drivers/           # Driver 実装
     sqlite.jl        # SQLite 実行 ✅
+    postgresql.jl    # PostgreSQL 実行 ✅
+  Codecs/            # データベース固有コーデック
+    postgresql.jl    # PostgreSQL 固有コーデック (UUID, JSONB, Array) ✅
 
-test/                # テストスイート (1041 tests)
+test/                # テストスイート (1712 tests)
   core/
     expr_test.jl         # 式のテスト ✅ (268)
-    query_test.jl        # クエリのテスト ✅ (202)
+    query_test.jl        # クエリのテスト ✅ (232)
+    window_test.jl       # Window 関数のテスト ✅ (79)
+    set_operations_test.jl  # Set 操作のテスト ✅ (102)
+    upsert_test.jl       # UPSERT のテスト ✅ (86)
     codec_test.jl        # Codec のテスト ✅ (115)
     transaction_test.jl  # トランザクションのテスト ✅ (26)
     migrations_test.jl   # マイグレーションのテスト ✅ (79)
+    ddl_test.jl          # DDL のテスト ✅ (156)
   dialects/
-    sqlite_test.jl       # SQLite dialect のテスト ✅ (215)
+    sqlite_test.jl       # SQLite dialect のテスト ✅ (331)
+    postgresql_test.jl   # PostgreSQL dialect のテスト ✅ (102)
   drivers/
     sqlite_test.jl       # SQLite driver のテスト ✅ (41)
   integration/
     end_to_end_test.jl   # 統合テスト ✅ (95)
+    postgresql_integration_test.jl  # PostgreSQL 統合テスト ✅
 
 docs/                # ドキュメント
   design.md          # 設計ドキュメント
   roadmap.md         # 実装ロードマップ
   TODO.md            # タスク詳細
-  CLAUDE.md          # 実装ガイドライン
+  CLAUDE.md          # Claude 向け実装ガイドライン
 ```
 
 ---
@@ -542,16 +570,21 @@ julia --project
 ### 現在のテスト状況
 
 ```
-Total: 1041 tests passing ✅
+Total: 1712 tests passing ✅
 
 Phase 1 (Expression AST):         268 tests (CAST、Subquery、CASE、BETWEEN、IN、LIKE)
-Phase 2 (Query AST):              202 tests (DML、CTE、RETURNING)
-Phase 3 (Dialect Abstraction):    215 tests (DML + CTE コンパイル、すべての式型)
-Phase 4 (Driver Abstraction):      41 tests
-Phase 5 (CodecRegistry):          115 tests
-Phase 6 (End-to-End Integration):  95 tests (DML 実行、CTE)
+Phase 2 (Query AST):              232 tests (DML、CTE、RETURNING)
+Phase 3 (SQLite Dialect):         331 tests (DML + CTE + DDL コンパイル、すべての式型)
+Phase 4 (Driver Abstraction):      41 tests (SQLite driver)
+Phase 5 (CodecRegistry):          115 tests (型変換、NULL ハンドリング)
+Phase 6 (End-to-End Integration):  95 tests (DML 実行、CTE、完全なパイプライン)
 Phase 7 (Transactions):            26 tests (transaction、savepoint、ロールバック)
 Phase 8 (Migrations):              79 tests (検出、適用、チェックサム検証)
+Phase 8.5 (Window Functions):      79 tests (ランキング、値、集約ウィンドウ関数)
+Phase 8.6 (Set Operations):       102 tests (UNION、INTERSECT、EXCEPT)
+Phase 8.7 (UPSERT):                86 tests (ON CONFLICT DO NOTHING/UPDATE)
+Phase 10 (DDL Support):           227 tests (CREATE/ALTER/DROP TABLE、CREATE/DROP INDEX)
+Phase 11 (PostgreSQL Dialect):    102 tests (PostgreSQL SQL 生成、driver、codecs)
 ```
 
 ---
@@ -626,15 +659,25 @@ users::Vector{User} = fetch_all(db, dialect, registry, q)
 
 ### 現在の依存関係
 
+**データベースドライバ:**
 - **SQLite.jl** - SQLite データベースドライバ ✅
+- **LibPQ.jl** - PostgreSQL データベースドライバ ✅
 - **DBInterface.jl** - データベースインターフェース抽象化 ✅
+
+**型サポート:**
 - **Dates**（stdlib）- Date/DateTime 型サポート ✅
 - **UUIDs**（stdlib）- UUID 型サポート ✅
+- **JSON3** - JSON/JSONB シリアライゼーション（PostgreSQL）✅
+- **SHA**（stdlib）- マイグレーションチェックサム検証 ✅
+
+**開発ツール:**
+- **JET** - 静的解析と型チェック ✅
+- **JuliaFormatter** - コードフォーマット ✅
 
 ### 将来の依存関係
 
-- LibPQ.jl（Phase 9 - PostgreSQL サポート）
-- MySQL.jl（将来 - MySQL サポート）
+- MySQL.jl（MySQL サポート）
+- MariaDB.jl（MariaDB サポート）
 
 ---
 
@@ -643,13 +686,15 @@ users::Vector{User} = fetch_all(db, dialect, registry, q)
 完全な実装計画については [`docs/roadmap.md`](docs/roadmap.md) を参照してください。
 
 **進捗状況:**
-- ✅ Phase 1-3（式、クエリ、Dialect）: 6 週間 - **完了**
+- ✅ Phase 1-3（式、クエリ、SQLite Dialect）: 6 週間 - **完了**
 - ✅ Phase 4-6（Driver、Codec、統合）: 6 週間 - **完了**
 - ✅ Phase 7-8（トランザクション、マイグレーション）: 2 週間 - **完了**
-- ⏳ Phase 9（PostgreSQL）: 2 週間 - **次**
-- ⏳ Phase 10（ドキュメント）: 2+ 週間
+- ✅ Phase 8.5-8.7（Window Functions、Set Operations、UPSERT）: 1 週間 - **完了**
+- ✅ Phase 10（DDL サポート）: 1 週間 - **完了**
+- ✅ Phase 11（PostgreSQL Dialect）: 2 週間 - **完了**
+- ⏳ Phase 12（ドキュメント）: 2+ 週間 - **次**
 
-**推定合計:** Core layer で約 18 週間（80% 完了）
+**現在のステータス:** 11/12 フェーズ完了（91.7%）
 
 ---
 
