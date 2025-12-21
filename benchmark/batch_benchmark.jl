@@ -213,7 +213,8 @@ function benchmark_postgresql(conninfo::String)
         copy_time = @belapsed begin
             try
                 transaction($conn) do tx
-                    insert_batch(tx, $dialect, $registry, :bench_users, [:id, :email, :active],
+                    insert_batch(tx, $dialect, $registry, :bench_users,
+                                 [:id, :email, :active],
                                  $rows)
                     error("rollback")  # Force rollback
                 end

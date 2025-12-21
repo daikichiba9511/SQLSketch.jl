@@ -6,7 +6,35 @@ This directory contains benchmarks for SQLSketch.jl with PostgreSQL.
 
 ### 1. Install PostgreSQL
 
-**Option A: Docker (Recommended)**
+**Option A: Docker Compose (Recommended for Testing)**
+
+Use the provided docker-compose configuration in `test/integration/`:
+
+```bash
+# Start PostgreSQL container
+cd test/integration
+docker compose up -d postgres
+
+# Check container status
+docker ps | grep postgres
+
+# Stop container when done
+docker compose down
+```
+
+This uses:
+- Port: 5433 (to avoid conflicts with local PostgreSQL on 5432)
+- Database: sqlsketch_test
+- User: test_user
+- Password: test_password
+
+Set environment variable for benchmarks:
+
+```bash
+export SQLSKETCH_PG_CONN="host=localhost port=5433 dbname=sqlsketch_test user=test_user password=test_password"
+```
+
+**Option B: Docker Manual**
 
 ```bash
 # Start PostgreSQL container
@@ -23,7 +51,7 @@ docker stop sqlsketch-pg
 docker rm sqlsketch-pg
 ```
 
-**Option B: Local Installation**
+**Option C: Local Installation**
 
 Install PostgreSQL 12+ and create a database:
 
@@ -35,9 +63,13 @@ CREATE DATABASE sqlsketch_bench;
 
 **⚠️ Security Note:** Default credentials are for local development/testing only.
 
-Set environment variable to customize (optional):
+Set environment variable to customize:
 
 ```bash
+# For docker-compose setup (test/integration)
+export SQLSKETCH_PG_CONN="host=localhost port=5433 dbname=sqlsketch_test user=test_user password=test_password"
+
+# For manual docker or local PostgreSQL
 export SQLSKETCH_PG_CONN="host=localhost port=5432 dbname=sqlsketch_bench user=postgres password=postgres"
 ```
 
@@ -48,7 +80,7 @@ host=localhost port=5432 dbname=sqlsketch_bench user=postgres password=postgres
 
 This default is safe because:
 - ✅ Localhost only (no external access)
-- ✅ Test database only (`sqlsketch_bench`)
+- ✅ Test database only (`sqlsketch_bench` or `sqlsketch_test`)
 - ✅ No production data
 - ✅ Easily customizable via environment variable
 
@@ -90,13 +122,54 @@ julia --project=. bench/postgresql/types.jl
 Compares identical queries on both databases.
 
 ```bash
-julia --project=. bench/postgresql/comparison.jl
+SQLSKETCH_PG_CONN="host=localhost port=5433 dbname=sqlsketch_test user=test_user password=test_password" \
+  julia --project=. bench/postgresql/comparison.jl
 ```
 
 **Measures:**
 - Relative performance (which is faster?)
 - Allocation differences
 - Network overhead vs in-memory (SQLite)
+
+### 4. Connection Pooling (`connection_pooling.jl`)
+
+Tests connection pool performance vs direct connections.
+
+```bash
+SQLSKETCH_PG_CONN="host=localhost port=5433 dbname=sqlsketch_test user=test_user password=test_password" \
+  julia --project=. bench/postgresql/connection_pooling.jl
+```
+
+**Measures:**
+- Connection overhead (new connection vs pooled)
+- Query execution time with/without pooling
+- Memory and allocation savings
+- Short query performance (connection overhead dominant)
+
+**Expected Results:**
+- 10-15x speedup for pooled connections
+- 90%+ connection overhead reduction
+- 99%+ memory reduction
+
+### 5. Full Optimization Stack (`full_optimization_benchmark.jl`)
+
+Tests combined effect of all optimizations (DecodePlan + Prepared Statement Caching).
+
+```bash
+SQLSKETCH_PG_CONN="host=localhost port=5433 dbname=sqlsketch_test user=test_user password=test_password" \
+  julia --project=. bench/postgresql/full_optimization_benchmark.jl
+```
+
+**Measures:**
+- Cache miss vs cache hit performance
+- Prepared statement cache efficiency
+- Overall overhead vs raw LibPQ
+- Cache warmup behavior
+
+**Expected Results:**
+- 10-15% speedup with prepared statement cache (cache hit)
+- 50%+ speedup after cache warmup
+- <50% overhead vs raw LibPQ (target achieved: ~25%)
 
 ## Expected Results
 
@@ -158,12 +231,69 @@ Future improvement: First-class JSONB and Array expression support.
 - Results are affected by PostgreSQL server configuration
 - For accurate comparison, use PostgreSQL on localhost (not remote server)
 
+## Quick Start: Run All Benchmarks
+
+To run all PostgreSQL benchmarks at once:
+
+```bash
+# 1. Start PostgreSQL with docker-compose
+cd test/integration
+docker compose up -d postgres
+
+# Wait for PostgreSQL to be ready
+sleep 5
+
+# 2. Set connection string
+export SQLSKETCH_PG_CONN="host=localhost port=5433 dbname=sqlsketch_test user=test_user password=test_password"
+
+# 3. Run benchmarks
+cd ../..
+julia --project=. bench/postgresql/basic.jl
+julia --project=. bench/postgresql/comparison.jl
+julia --project=. bench/postgresql/connection_pooling.jl
+julia --project=. bench/postgresql/full_optimization_benchmark.jl
+
+# 4. Cleanup
+cd test/integration
+docker compose down
+```
+
+## Benchmark Results Summary
+
+Based on recent benchmark runs:
+
+### Batch Operations (10,000 rows)
+- **PostgreSQL COPY**: 2944x faster than loop INSERT
+- **SQLite Batch**: 279x faster than loop INSERT
+
+### Connection Pooling
+- **Speedup**: 12.57x (92.04% reduction)
+- **Memory**: 99.55% reduction
+- **Short queries**: 9.66x faster
+
+### Full Optimization Stack
+- **Prepared statement cache**: 12% speedup (cache hit)
+- **Cache warmup**: 53% speedup (first vs subsequent)
+- **Overhead vs raw LibPQ**: 25.38% (target: <50%)
+
+### SQLite vs PostgreSQL
+- **PostgreSQL wins**: 88.81% faster on average
+- **Best PostgreSQL win**: 181% faster (filter_and_project)
+- **SQLite wins**: 28% faster (small ORDER BY + LIMIT)
+
+## Implemented Benchmarks
+
+✅ **Basic Performance** - Query construction, compilation, execution
+✅ **Connection Pooling** - Multi-connection overhead
+✅ **Full Optimization Stack** - Prepared statement caching + DecodePlan
+✅ **SQLite Comparison** - Side-by-side performance
+✅ **Batch Operations** - COPY vs INSERT (see `benchmark/batch_benchmark.jl`)
+
 ## Future Benchmarks
 
 Planned additions:
 
-- **Prepared statement caching** - Compare with/without caching
-- **Connection pooling** - Multi-connection overhead
-- **Batch operations** - COPY vs INSERT performance
 - **Transaction overhead** - BEGIN/COMMIT costs
 - **Concurrent queries** - Multi-client performance
+- **Streaming results** - Iterator-based row fetching
+- **Query plan caching** - AST-based cache
