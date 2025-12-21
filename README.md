@@ -59,7 +59,7 @@ SQLSketch is designed as a two-layer system:
 
 ```
 ┌─────────────────────────────────┐
-│      Extras Layer (future)       │  ← Optional convenience
+│      Extras Layer (future)      │  ← Optional convenience
 │  Repository, CRUD, Relations    │
 └─────────────────────────────────┘
                ↓
