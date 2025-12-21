@@ -282,7 +282,7 @@ println("Find users and their active projects (including users with no active pr
 
 q7 = from(:users) |>
      left_join(:projects,
-              col(:projects, :user_id) == col(:users, :id)) |>
+               col(:projects, :user_id) == col(:users, :id)) |>
      where((col(:projects, :status) == literal("active")) | col(:projects, :status) |>
            is_null) |>
      select(NamedTuple,
