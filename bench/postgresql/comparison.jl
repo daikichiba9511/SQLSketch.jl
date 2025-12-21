@@ -33,39 +33,34 @@ println()
 registry = SQLSketch.CodecRegistry()
 
 # Common queries (excluding PostgreSQL-specific)
-common_queries = Dict(
-    :simple_select => () -> begin
-        from(:users) |>
-        where(col(:users, :active) == literal(true)) |>
-        select(NamedTuple, col(:users, :id), col(:users, :email))
-    end,
-
-    :join_query => () -> begin
-        from(:users) |>
-        innerjoin(:posts, col(:users, :id) == col(:posts, :user_id)) |>
-        where(col(:posts, :published) == literal(true)) |>
-        select(NamedTuple,
-               col(:users, :name),
-               col(:posts, :title),
-               col(:posts, :created_at))
-    end,
-
-    :filter_and_project => () -> begin
-        from(:posts) |>
-        where(col(:posts, :published) == literal(true)) |>
-        select(NamedTuple,
-               col(:posts, :user_id),
-               col(:posts, :title))
-    end,
-
-    :order_and_limit => () -> begin
-        from(:posts) |>
-        where(col(:posts, :published) == literal(true)) |>
-        order_by(col(:posts, :created_at); desc=true) |>
-        limit(10) |>
-        select(NamedTuple, col(:posts, :id), col(:posts, :title))
-    end,
-)
+common_queries = Dict(:simple_select => () -> begin
+                          from(:users) |>
+                          where(col(:users, :active) == literal(true)) |>
+                          select(NamedTuple, col(:users, :id), col(:users, :email))
+                      end,
+                      :join_query => () -> begin
+                          from(:users) |>
+                          innerjoin(:posts, col(:users, :id) == col(:posts, :user_id)) |>
+                          where(col(:posts, :published) == literal(true)) |>
+                          select(NamedTuple,
+                                 col(:users, :name),
+                                 col(:posts, :title),
+                                 col(:posts, :created_at))
+                      end,
+                      :filter_and_project => () -> begin
+                          from(:posts) |>
+                          where(col(:posts, :published) == literal(true)) |>
+                          select(NamedTuple,
+                                 col(:posts, :user_id),
+                                 col(:posts, :title))
+                      end,
+                      :order_and_limit => () -> begin
+                          from(:posts) |>
+                          where(col(:posts, :published) == literal(true)) |>
+                          order_by(col(:posts, :created_at); desc = true) |>
+                          limit(10) |>
+                          select(NamedTuple, col(:posts, :id), col(:posts, :title))
+                      end)
 
 query_asts = Dict(name => builder() for (name, builder) in common_queries)
 
@@ -81,16 +76,18 @@ suite["postgresql"] = BenchmarkGroup()
 # SQLite benchmarks
 println("Benchmarking SQLite...")
 for (name, q) in query_asts
-    suite["sqlite"][string(name)] = @benchmarkable fetch_all($sqlite_conn, $sqlite_dialect, $registry, $q)
+    suite["sqlite"][string(name)] = @benchmarkable fetch_all($sqlite_conn, $sqlite_dialect,
+                                                             $registry, $q)
 end
 
 # PostgreSQL benchmarks
 println("Benchmarking PostgreSQL...")
 for (name, q) in query_asts
-    suite["postgresql"][string(name)] = @benchmarkable fetch_all($pg_conn, $pg_dialect, $registry, $q)
+    suite["postgresql"][string(name)] = @benchmarkable fetch_all($pg_conn, $pg_dialect,
+                                                                 $registry, $q)
 end
 
-results = run(suite; verbose=true)
+results = run(suite; verbose = true)
 
 println()
 println("=" ^ 80)
@@ -111,15 +108,14 @@ for name in keys(query_asts)
         speedup = (sqlite_time / pg_time - 1) * 100
         alloc_diff = (sqlite_allocs / pg_allocs - 1) * 100
 
-        push!(comparison_data, (
-            name=name_str,
-            sqlite_time=sqlite_time,
-            pg_time=pg_time,
-            speedup=speedup,
-            sqlite_allocs=sqlite_allocs,
-            pg_allocs=pg_allocs,
-            alloc_diff=alloc_diff
-        ))
+        push!(comparison_data,
+              (name = name_str,
+               sqlite_time = sqlite_time,
+               pg_time = pg_time,
+               speedup = speedup,
+               sqlite_allocs = sqlite_allocs,
+               pg_allocs = pg_allocs,
+               alloc_diff = alloc_diff))
 
         println("$name_str:")
         println("  SQLite:      $(BenchmarkTools.prettytime(sqlite_time)) ($(sqlite_allocs) allocs)")

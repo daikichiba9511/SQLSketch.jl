@@ -88,9 +88,12 @@ for name in keys(raw_sql_queries)
 
         # Add to global suite (if running from run_all.jl)
         if @isdefined(SUITE)
-            push!(SUITE, "Comparison (SQLSketch) - $name_str", results["sqlsketch"][name_str])
-            push!(SUITE, "Comparison (Raw SQL Cached) - $name_str", results["raw_sql"][name_str])
-            push!(SUITE, "Comparison (Raw SQL No Cache) - $name_str", results["raw_sql_nocache"][name_str])
+            push!(SUITE, "Comparison (SQLSketch) - $name_str",
+                  results["sqlsketch"][name_str])
+            push!(SUITE, "Comparison (Raw SQL Cached) - $name_str",
+                  results["raw_sql"][name_str])
+            push!(SUITE, "Comparison (Raw SQL No Cache) - $name_str",
+                  results["raw_sql_nocache"][name_str])
         end
     end
 end

@@ -156,6 +156,22 @@ decode(::IntArrayCodec, value::Vector{<:Integer})::Vector{Int} = Int[Int(v) for 
 decode(::IntArrayCodec, ::Missing) = missing
 
 """
+PostgreSQL Int32 codec.
+
+PostgreSQL INTEGER type returns Int32, which we convert to Int for consistency.
+
+PostgreSQL: INTEGER
+"""
+struct PostgreSQLInt32Codec <: Codec end
+
+encode(::PostgreSQLInt32Codec, value::Int)::Int32 = Int32(value)
+encode(::PostgreSQLInt32Codec, value::Int32)::Int32 = value
+encode(::PostgreSQLInt32Codec, ::Missing) = missing
+decode(::PostgreSQLInt32Codec, value::Int32)::Int = Int(value)
+decode(::PostgreSQLInt32Codec, value::Int)::Int = value
+decode(::PostgreSQLInt32Codec, ::Missing) = missing
+
+"""
 PostgreSQL Boolean codec (native BOOLEAN type).
 
 Unlike SQLite which uses INTEGER (0/1), PostgreSQL has a native BOOLEAN type.
@@ -261,6 +277,7 @@ function PostgreSQLCodecRegistry()::CodecRegistry
     register!(registry, Bool, PostgreSQLBoolCodec())
     register!(registry, Date, PostgreSQLDateCodec())
     register!(registry, DateTime, PostgreSQLDateTimeCodec())
+    register!(registry, Int32, PostgreSQLInt32Codec())
 
     # Register PostgreSQL-specific types
     register!(registry, Dict{String, Any}, JSONBCodec())
@@ -277,4 +294,4 @@ end
 export PostgreSQLCodecRegistry
 export PostgreSQLUUIDCodec, JSONBCodec, ArrayCodec
 export TextArrayCodec, IntArrayCodec
-export PostgreSQLBoolCodec, PostgreSQLDateCodec, PostgreSQLDateTimeCodec
+export PostgreSQLInt32Codec, PostgreSQLBoolCodec, PostgreSQLDateCodec, PostgreSQLDateTimeCodec

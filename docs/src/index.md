@@ -188,6 +188,7 @@ Then explore:
 
 - **[Tutorial](tutorial.md)** - Learn by building a complete application
 - **[API Reference](api.md)** - Complete function and type documentation
+- **[Performance Guide](performance.md)** - Optimize query performance with columnar API
 - **[Design](design.md)** - Understand the architecture and design decisions
 
 ## Features

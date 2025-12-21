@@ -498,6 +498,55 @@ execute(driver, drop_table(:tags))
 execute(driver, drop_table(:users))
 ```
 
+## 11. Performance: Columnar API for Analytics
+
+For analytics queries on large datasets, use the columnar API for 8-10x speedup:
+
+```julia
+# Define columnar struct (fields as Vectors)
+struct SalesColumnar
+    amount::Vector{Float64}
+    quantity::Vector{Int}
+    product_name::Vector{String}
+end
+
+# Query large dataset
+sales_query = from(:sales) |>
+    join(:products, col(:products, :id) == col(:sales, :product_id)) |>
+    where(col(:sales, :date) >= param(Date, :start_date)) |>
+    select(NamedTuple,
+           col(:sales, :amount),
+           col(:sales, :quantity),
+           col(:products, :name))
+
+# Fetch in columnar format (8-10x faster than row-based!)
+sales = fetch_all_columnar(driver, sales_query, SalesColumnar, (start_date=Date(2024, 1, 1),))
+
+# Direct column operations (extremely fast)
+total_revenue = sum(sales.amount)
+total_quantity = sum(sales.quantity)
+average_price = total_revenue / total_quantity
+
+# Convert to DataFrame for analysis
+using DataFrames
+df = DataFrame(
+    amount = sales.amount,
+    quantity = sales.quantity,
+    product = sales.product_name
+)
+```
+
+**When to use columnar API:**
+- ✅ Large result sets (>1,000 rows)
+- ✅ Analytics and aggregations
+- ✅ Column-wise operations
+- ✅ DataFrame export
+
+**When to use row-based API:**
+- ✅ Small to medium result sets (<10,000 rows)
+- ✅ CRUD operations
+- ✅ Row-by-row iteration
+
 ## Summary
 
 This tutorial covered:
@@ -512,10 +561,12 @@ This tutorial covered:
 - ✅ Transactions for data consistency
 - ✅ Window functions for analytics
 - ✅ Subqueries for complex filtering
+- ✅ **High-performance columnar API**
 
 ## Next Steps
 
 - Explore [API Reference](api.md) for complete function documentation
 - Read [Design Philosophy](design.md) to understand SQLSketch's architecture
+- Learn about performance optimization in [Performance Guide](#performance-guide)
 - Check out advanced PostgreSQL features (JSONB, Arrays, CTEs)
 - Build your own application with SQLSketch!

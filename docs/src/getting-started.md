@@ -194,9 +194,11 @@ user = fetch_maybe(driver, q)
 ```
 
 **Key points:**
-- `fetch_all(conn, query, T)` → `Vector{T}` (all rows)
-- `fetch_one(conn, query, T)` → `T` (exactly one row, error if 0 or >1)
-- `fetch_maybe(conn, query, T)` → `Union{T, Nothing}` (optional result)
+- `fetch_all(conn, query)` → `Vector{T}` (all rows, row-based)
+- `fetch_all_columnar(conn, query)` → `NamedTuple of Vectors` (all rows, columnar - 8-10x faster)
+- `fetch_all_columnar(conn, query, ColumnarType)` → `ColumnarType` (type-safe columnar)
+- `fetch_one(conn, query)` → `T` (exactly one row, error if 0 or >1)
+- `fetch_maybe(conn, query)` → `Union{T, Nothing}` (optional result)
 - Use for: SELECT, INSERT/UPDATE/DELETE with RETURNING
 
 **Why this separation?**

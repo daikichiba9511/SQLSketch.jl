@@ -36,7 +36,7 @@ for (name, builder) in queries
     suite_construction[string(name)] = @benchmarkable $builder()
 end
 
-results_construction = run(suite_construction; verbose=true)
+results_construction = run(suite_construction; verbose = true)
 
 println()
 println("Summary:")
@@ -60,7 +60,7 @@ for (name, q) in query_asts
     suite_compilation[string(name)] = @benchmarkable sql($dialect, $q)
 end
 
-results_compilation = run(suite_compilation; verbose=true)
+results_compilation = run(suite_compilation; verbose = true)
 
 println()
 println("Summary:")
@@ -88,7 +88,7 @@ for (name, q) in query_asts
     suite_execution[string(name)] = @benchmarkable fetch_all($conn, $dialect, $registry, $q)
 end
 
-results_execution = run(suite_execution; verbose=true)
+results_execution = run(suite_execution; verbose = true)
 
 println()
 println("Summary:")

@@ -33,8 +33,8 @@ println()
 
 # SQLSketch version
 q_sqlsketch = from(:users) |>
-    where(col(:users, :active) == literal(true)) |>
-    select(NamedTuple, col(:users, :id), col(:users, :email))
+              where(col(:users, :active) == literal(true)) |>
+              select(NamedTuple, col(:users, :id), col(:users, :email))
 
 # Raw SQL version
 raw_sql = "SELECT \"id\", \"email\" FROM \"users\" WHERE \"active\" = true"
@@ -58,8 +58,10 @@ println("  Memory:      $(BenchmarkTools.prettymemory(median(result_raw).memory)
 println("  Allocations: $(median(result_raw).allocs)")
 println()
 
-overhead_time = (median(result_sqlsketch).time - median(result_raw).time) / median(result_raw).time * 100
-overhead_memory = (median(result_sqlsketch).memory - median(result_raw).memory) / median(result_raw).memory * 100
+overhead_time = (median(result_sqlsketch).time - median(result_raw).time) /
+                median(result_raw).time * 100
+overhead_memory = (median(result_sqlsketch).memory - median(result_raw).memory) /
+                  median(result_raw).memory * 100
 overhead_allocs = median(result_sqlsketch).allocs - median(result_raw).allocs
 
 println("Overhead:")
@@ -75,12 +77,12 @@ println()
 
 # SQLSketch version
 q_join_sqlsketch = from(:users) |>
-    innerjoin(:posts, col(:users, :id) == col(:posts, :user_id)) |>
-    where(col(:posts, :published) == literal(true)) |>
-    select(NamedTuple,
-           col(:users, :name),
-           col(:posts, :title),
-           col(:posts, :created_at))
+                   innerjoin(:posts, col(:users, :id) == col(:posts, :user_id)) |>
+                   where(col(:posts, :published) == literal(true)) |>
+                   select(NamedTuple,
+                          col(:users, :name),
+                          col(:posts, :title),
+                          col(:posts, :created_at))
 
 # Raw SQL version
 raw_sql_join = """
@@ -109,8 +111,11 @@ println("  Memory:      $(BenchmarkTools.prettymemory(median(result_join_raw).me
 println("  Allocations: $(median(result_join_raw).allocs)")
 println()
 
-overhead_join_time = (median(result_join_sqlsketch).time - median(result_join_raw).time) / median(result_join_raw).time * 100
-overhead_join_memory = (median(result_join_sqlsketch).memory - median(result_join_raw).memory) / median(result_join_raw).memory * 100
+overhead_join_time = (median(result_join_sqlsketch).time - median(result_join_raw).time) /
+                     median(result_join_raw).time * 100
+overhead_join_memory = (median(result_join_sqlsketch).memory -
+                        median(result_join_raw).memory) / median(result_join_raw).memory *
+                       100
 overhead_join_allocs = median(result_join_sqlsketch).allocs - median(result_join_raw).allocs
 
 println("Overhead:")
@@ -126,10 +131,10 @@ println()
 
 # SQLSketch version
 q_limit_sqlsketch = from(:posts) |>
-    where(col(:posts, :published) == literal(true)) |>
-    order_by(col(:posts, :created_at); desc=true) |>
-    limit(10) |>
-    select(NamedTuple, col(:posts, :id), col(:posts, :title))
+                    where(col(:posts, :published) == literal(true)) |>
+                    order_by(col(:posts, :created_at); desc = true) |>
+                    limit(10) |>
+                    select(NamedTuple, col(:posts, :id), col(:posts, :title))
 
 # Raw SQL version
 raw_sql_limit = """
@@ -141,7 +146,8 @@ LIMIT 10
 """
 
 println("SQLSketch version:")
-result_limit_sqlsketch = @benchmark fetch_all($conn, $dialect, $registry, $q_limit_sqlsketch)
+result_limit_sqlsketch = @benchmark fetch_all($conn, $dialect, $registry,
+                                              $q_limit_sqlsketch)
 println("  Median time: $(BenchmarkTools.prettytime(median(result_limit_sqlsketch).time))")
 println("  Memory:      $(BenchmarkTools.prettymemory(median(result_limit_sqlsketch).memory))")
 println("  Allocations: $(median(result_limit_sqlsketch).allocs)")
@@ -159,9 +165,13 @@ println("  Memory:      $(BenchmarkTools.prettymemory(median(result_limit_raw).m
 println("  Allocations: $(median(result_limit_raw).allocs)")
 println()
 
-overhead_limit_time = (median(result_limit_sqlsketch).time - median(result_limit_raw).time) / median(result_limit_raw).time * 100
-overhead_limit_memory = (median(result_limit_sqlsketch).memory - median(result_limit_raw).memory) / median(result_limit_raw).memory * 100
-overhead_limit_allocs = median(result_limit_sqlsketch).allocs - median(result_limit_raw).allocs
+overhead_limit_time = (median(result_limit_sqlsketch).time - median(result_limit_raw).time) /
+                      median(result_limit_raw).time * 100
+overhead_limit_memory = (median(result_limit_sqlsketch).memory -
+                         median(result_limit_raw).memory) /
+                        median(result_limit_raw).memory * 100
+overhead_limit_allocs = median(result_limit_sqlsketch).allocs -
+                        median(result_limit_raw).allocs
 
 println("Overhead:")
 println("  Time:        $(round(overhead_limit_time, digits=2))%")

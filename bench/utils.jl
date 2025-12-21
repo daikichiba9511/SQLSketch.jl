@@ -23,15 +23,13 @@ struct BenchmarkResult
 end
 
 function BenchmarkResult(name::String, trial::BenchmarkTools.Trial)::BenchmarkResult
-    return BenchmarkResult(
-        name,
-        median(trial).time,
-        mean(trial).time,
-        minimum(trial).time,
-        maximum(trial).time,
-        trial.allocs,
-        trial.memory,
-    )
+    return BenchmarkResult(name,
+                           median(trial).time,
+                           mean(trial).time,
+                           minimum(trial).time,
+                           maximum(trial).time,
+                           trial.allocs,
+                           trial.memory)
 end
 
 """
@@ -47,7 +45,8 @@ end
 
 BenchmarkSuite(name::String) = BenchmarkSuite(name, BenchmarkResult[], now())
 
-function Base.push!(suite::BenchmarkSuite, name::String, trial::BenchmarkTools.Trial)::Nothing
+function Base.push!(suite::BenchmarkSuite, name::String,
+                    trial::BenchmarkTools.Trial)::Nothing
     push!(suite.results, BenchmarkResult(name, trial))
     return nothing
 end
@@ -92,21 +91,15 @@ end
 Save benchmark results to JSON file.
 """
 function save_json(suite::BenchmarkSuite, path::String)::Nothing
-    data = Dict(
-        "name" => suite.name,
-        "timestamp" => Dates.format(suite.timestamp, "yyyy-mm-dd HH:MM:SS"),
-        "results" => [
-            Dict(
-                "name" => r.name,
-                "median_ns" => r.median_ns,
-                "mean_ns" => r.mean_ns,
-                "min_ns" => r.min_ns,
-                "max_ns" => r.max_ns,
-                "allocs" => r.allocs,
-                "memory_bytes" => r.memory_bytes,
-            ) for r in suite.results
-        ],
-    )
+    data = Dict("name" => suite.name,
+                "timestamp" => Dates.format(suite.timestamp, "yyyy-mm-dd HH:MM:SS"),
+                "results" => [Dict("name" => r.name,
+                                   "median_ns" => r.median_ns,
+                                   "mean_ns" => r.mean_ns,
+                                   "min_ns" => r.min_ns,
+                                   "max_ns" => r.max_ns,
+                                   "allocs" => r.allocs,
+                                   "memory_bytes" => r.memory_bytes) for r in suite.results])
 
     mkpath(dirname(path))
     open(path, "w") do io
@@ -127,7 +120,8 @@ function save_markdown(suite::BenchmarkSuite, path::String)::Nothing
     open(path, "w") do io
         println(io, "# $(suite.name)")
         println(io)
-        println(io, "**Generated:** $(Dates.format(suite.timestamp, "yyyy-mm-dd HH:MM:SS"))")
+        println(io,
+                "**Generated:** $(Dates.format(suite.timestamp, "yyyy-mm-dd HH:MM:SS"))")
         println(io)
         println(io, "## Results")
         println(io)
@@ -135,10 +129,8 @@ function save_markdown(suite::BenchmarkSuite, path::String)::Nothing
         println(io, "|-----------|--------|------|-----|-----|--------|--------|")
 
         for r in suite.results
-            println(
-                io,
-                "| $(r.name) | $(format_time(r.median_ns)) | $(format_time(r.mean_ns)) | $(format_time(r.min_ns)) | $(format_time(r.max_ns)) | $(r.allocs) | $(format_memory(r.memory_bytes)) |",
-            )
+            println(io,
+                    "| $(r.name) | $(format_time(r.median_ns)) | $(format_time(r.mean_ns)) | $(format_time(r.min_ns)) | $(format_time(r.max_ns)) | $(r.allocs) | $(format_memory(r.memory_bytes)) |")
         end
 
         println(io)
@@ -154,9 +146,10 @@ end
     save_results(suite::BenchmarkSuite) -> Nothing
 
 Save benchmark results to multiple formats:
-- `bench/results/latest.json` - Latest results (overwritten)
-- `bench/results/latest.md` - Human-readable report (overwritten)
-- `bench/results/YYYYMMDD_HHMMSS.json` - Timestamped history
+
+  - `bench/results/latest.json` - Latest results (overwritten)
+  - `bench/results/latest.md` - Human-readable report (overwritten)
+  - `bench/results/YYYYMMDD_HHMMSS.json` - Timestamped history
 """
 function save_results(suite::BenchmarkSuite)::Nothing
     results_dir = joinpath(@__DIR__, "results")
