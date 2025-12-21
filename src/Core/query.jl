@@ -528,104 +528,75 @@ end
 # Curried version for pipeline composition
 having(condition::SQLExpr) = q -> having(q, condition)
 
-"""
-    join(q::Query{T}, table::Symbol, on::SQLExpr; kind::Symbol=:inner)::Join{T}
-
-Adds a JOIN clause.
-
-This is a **shape-preserving** operation (for now).
-
-Can be used in two ways:
-
-  - Explicit: `join(query, table, on, kind=:inner)`
-  - Pipeline: `query |> join(table, on, kind=:inner)`
-
-The curried form `join(table, on; kind=:inner)` returns a function suitable for pipeline composition.
-
-# Arguments
-
-  - `kind`: Join type (`:inner`, `:left`, `:right`, `:full`)
-
-# Example
-
-```julia
-q = from(:users) |>
-    join(:orders, col(:users, :id) == col(:orders, :user_id))
-```
-"""
-function join(q::Query{T}, table::Symbol, on::SQLExpr; kind::Symbol = :inner) where {T}
-    @assert kind in (:inner, :left, :right, :full) "Invalid join kind: $kind"
-    return Join{T}(q, table, on, kind)
-end
-
-# Curried version for pipeline composition
-join(table::Symbol, on::SQLExpr; kind::Symbol = :inner) = q -> join(q, table, on;
-                                                                    kind = kind)
 
 #
-# Join Aliases (to avoid Base.join conflict, DataFrames.jl compatible)
+# Join Functions (renamed to avoid Base.join conflict)
 #
 
 """
-    innerjoin(q::Query{T}, table::Symbol, on::SQLExpr) -> Join{T}
+    inner_join(q::Query{T}, table::Symbol, on::SQLExpr) -> Join{T}
 
-Alias for `join(q, table, on, kind=:inner)`.
+Creates an INNER JOIN clause.
 Avoids naming conflict with Base.join.
 
 # Example
 
 ```julia
-q = from(:users) |> innerjoin(:orders, col(:users, :id) == col(:orders, :user_id))
+q = from(:users) |> inner_join(:orders, col(:users, :id) == col(:orders, :user_id))
 ```
 """
-innerjoin(q::Query{T}, table::Symbol, on::SQLExpr) where {T} = join(q, table, on;
-                                                                    kind = :inner)
-innerjoin(table::Symbol, on::SQLExpr) = q -> innerjoin(q, table, on)
+function inner_join(q::Query{T}, table::Symbol, on::SQLExpr)::Join{T} where {T}
+    return Join{T}(q, table, on, :inner)
+end
+inner_join(table::Symbol, on::SQLExpr) = q -> inner_join(q, table, on)
 
 """
-    leftjoin(q::Query{T}, table::Symbol, on::SQLExpr) -> Join{T}
+    left_join(q::Query{T}, table::Symbol, on::SQLExpr) -> Join{T}
 
-Alias for `join(q, table, on, kind=:left)`.
+Creates a LEFT JOIN clause.
 
 # Example
 
 ```julia
-q = from(:users) |> leftjoin(:orders, col(:users, :id) == col(:orders, :user_id))
+q = from(:users) |> left_join(:orders, col(:users, :id) == col(:orders, :user_id))
 ```
 """
-leftjoin(q::Query{T}, table::Symbol, on::SQLExpr) where {T} = join(q, table, on;
-                                                                   kind = :left)
-leftjoin(table::Symbol, on::SQLExpr) = q -> leftjoin(q, table, on)
+function left_join(q::Query{T}, table::Symbol, on::SQLExpr)::Join{T} where {T}
+    return Join{T}(q, table, on, :left)
+end
+left_join(table::Symbol, on::SQLExpr) = q -> left_join(q, table, on)
 
 """
-    rightjoin(q::Query{T}, table::Symbol, on::SQLExpr) -> Join{T}
+    right_join(q::Query{T}, table::Symbol, on::SQLExpr) -> Join{T}
 
-Alias for `join(q, table, on, kind=:right)`.
+Creates a RIGHT JOIN clause.
 
 # Example
 
 ```julia
-q = from(:users) |> rightjoin(:orders, col(:users, :id) == col(:orders, :user_id))
+q = from(:users) |> right_join(:orders, col(:users, :id) == col(:orders, :user_id))
 ```
 """
-rightjoin(q::Query{T}, table::Symbol, on::SQLExpr) where {T} = join(q, table, on;
-                                                                    kind = :right)
-rightjoin(table::Symbol, on::SQLExpr) = q -> rightjoin(q, table, on)
+function right_join(q::Query{T}, table::Symbol, on::SQLExpr)::Join{T} where {T}
+    return Join{T}(q, table, on, :right)
+end
+right_join(table::Symbol, on::SQLExpr) = q -> right_join(q, table, on)
 
 """
-    fulljoin(q::Query{T}, table::Symbol, on::SQLExpr) -> Join{T}
+    full_join(q::Query{T}, table::Symbol, on::SQLExpr) -> Join{T}
 
-Alias for `join(q, table, on, kind=:full)`.
+Creates a FULL JOIN clause.
 
 # Example
 
 ```julia
-q = from(:users) |> fulljoin(:orders, col(:users, :id) == col(:orders, :user_id))
+q = from(:users) |> full_join(:orders, col(:users, :id) == col(:orders, :user_id))
 ```
 """
-fulljoin(q::Query{T}, table::Symbol, on::SQLExpr) where {T} = join(q, table, on;
-                                                                   kind = :full)
-fulljoin(table::Symbol, on::SQLExpr) = q -> fulljoin(q, table, on)
+function full_join(q::Query{T}, table::Symbol, on::SQLExpr)::Join{T} where {T}
+    return Join{T}(q, table, on, :full)
+end
+full_join(table::Symbol, on::SQLExpr) = q -> full_join(q, table, on)
 
 #
 # Structural Equality (for testing)
@@ -864,47 +835,16 @@ q = insert_into(:users, [:name, :email]) |>
 insert_into(table::Symbol, columns::Vector{Symbol})::InsertInto{NamedTuple} = InsertInto{NamedTuple}(table,
                                                                                                      columns)
 
-"""
-    values(rows) -> Function
-
-Create a VALUES clause (curried for pipeline).
-
-# Example
-
-```julia
-insert_into(:users, [:name, :email]) |>
-values([[literal("Alice"), literal("alice@example.com")]])
-```
-"""
-values(rows) = source -> values(source, rows)
-
-"""
-    values(source::InsertInto{T}, rows) -> InsertValues{T}
-
-Create a VALUES clause (explicit version).
-
-Accepts rows as any iterable of iterables containing SQLExpr elements.
-Converts to Vector{Vector{SQLExpr}} internally.
-"""
-function values(source::InsertInto{T}, rows)::InsertValues{T} where {T}
-    # Convert rows to Vector{Vector{SQLExpr}}
-    converted_rows = Vector{Vector{SQLExpr}}()
-    for row in rows
-        converted_row = SQLExpr[expr for expr in row]
-        push!(converted_rows, converted_row)
-    end
-    return InsertValues{T}(source, converted_rows)
-end
 
 #
-# VALUES Alias (to avoid Base.values conflict)
+# INSERT VALUES (renamed to avoid Base.values conflict)
 #
 
 """
     insert_values(rows) -> Function
     insert_values(source::InsertInto{T}, rows) -> InsertValues{T}
 
-Alias for `values()`.
+Creates a VALUES clause for INSERT statement.
 Avoids naming conflict with Base.values.
 
 # Example
@@ -914,7 +854,25 @@ insert_into(:users, [:name, :email]) |>
 insert_values([[literal("Alice"), literal("alice@example.com")]])
 ```
 """
-const insert_values = values
+insert_values(rows) = source -> insert_values(source, rows)
+
+"""
+    insert_values(source::InsertInto{T}, rows) -> InsertValues{T}
+
+Create a VALUES clause (explicit version).
+
+Accepts rows as any iterable of iterables containing SQLExpr elements.
+Converts to Vector{Vector{SQLExpr}} internally.
+"""
+function insert_values(source::InsertInto{T}, rows)::InsertValues{T} where {T}
+    # Convert rows to Vector{Vector{SQLExpr}}
+    converted_rows = Vector{Vector{SQLExpr}}()
+    for row in rows
+        converted_row = SQLExpr[expr for expr in row]
+        push!(converted_rows, converted_row)
+    end
+    return InsertValues{T}(source, converted_rows)
+end
 
 """
     update(table::Symbol) -> Update{NamedTuple}
@@ -932,28 +890,29 @@ q = update(:users) |>
 update(table::Symbol)::Update{NamedTuple} = Update{NamedTuple}(table)
 
 """
-    set(assignments::Pair...) -> Function
+    set_values(assignments::Pair...) -> Function
 
 Create a SET clause (curried for pipeline).
+Renamed to avoid conflict with Base.set.
 
 # Example
 
 ```julia
 update(:users) |>
-set(:name => param(String, :name), :email => param(String, :email))
+set_values(:name => param(String, :name), :email => param(String, :email))
 ```
 """
-set(assignments::Pair...) = source -> set(source, assignments...)
+set_values(assignments::Pair...) = source -> set_values(source, assignments...)
 
 """
-    set(source::Update{T}, assignments::Pair...) -> UpdateSet{T}
+    set_values(source::Update{T}, assignments::Pair...) -> UpdateSet{T}
 
 Create a SET clause (explicit version).
 
 Accepts pairs of Symbol => SQLExpr (or any subtype).
 Converts to Vector{Pair{Symbol, SQLExpr}} internally.
 """
-function set(source::Update{T}, assignments::Pair...)::UpdateSet{T} where {T}
+function set_values(source::Update{T}, assignments::Pair...)::UpdateSet{T} where {T}
     # Convert assignments to Vector{Pair{Symbol, SQLExpr}}
     converted = Pair{Symbol, SQLExpr}[k => v for (k, v) in assignments]
     return UpdateSet{T}(source, converted)
@@ -1500,66 +1459,52 @@ end
 #
 
 """
-    union(left::Query{T}, right::Query{T}; all::Bool=false)::SetUnion{T}
+    union_all(left::Query{T}, right::Query{T})::SetUnion{T}
 
-Combines the results of two queries using UNION or UNION ALL.
-
-UNION removes duplicate rows, while UNION ALL preserves them.
-
-Can be used in two ways:
-
-  - Explicit: `union(query1, query2, all=false)`
-  - Pipeline: `query1 |> union(query2, all=false)`
-
-The curried form `union(query2; all=false)` returns a function suitable for pipeline composition.
-
-# Arguments
-
-  - `left::Query{T}` – first query
-  - `right::Query{T}` – second query
-  - `all::Bool` – true for UNION ALL, false for UNION (default)
+Combines the results of two queries using UNION ALL.
+Preserves duplicate rows.
 
 # Example
 
 ```julia
-# Pipeline style
-q = from(:users) |> select(NamedTuple, col(:users, :email)) |>
-    union(from(:admins) |> select(NamedTuple, col(:admins, :email)))
-
-# UNION ALL
-q = from(:users) |> select(NamedTuple, col(:users, :email)) |>
-    union(from(:admins) |> select(NamedTuple, col(:admins, :email)); all = true)
-
-# Explicit style
 q1 = from(:users) |> select(NamedTuple, col(:users, :email))
 q2 = from(:admins) |> select(NamedTuple, col(:admins, :email))
-q = union(q1, q2)
+q = q1 |> union_all(q2)
 ```
 """
-function union(left::Query{T}, right::Query{T}; all::Bool = false)::SetUnion{T} where {T}
-    return SetUnion{T}(left, right, all)
+function union_all(left::Query{T}, right::Query{T})::SetUnion{T} where {T}
+    return SetUnion{T}(left, right, true)
 end
 
 # Curried version for pipeline composition
-union(right::Query{T}; all::Bool = false) where {T} = left -> union(left, right; all = all)
+union_all(right::Query{T}) where {T} = left -> union_all(left, right)
 
 """
-    intersect(left::Query{T}, right::Query{T}; all::Bool=false)::SetIntersect{T}
+    union_distinct(left::Query{T}, right::Query{T})::SetUnion{T}
+
+Combines the results of two queries using UNION.
+Removes duplicate rows.
+
+# Example
+
+```julia
+q1 = from(:users) |> select(NamedTuple, col(:users, :email))
+q2 = from(:admins) |> select(NamedTuple, col(:admins, :email))
+q = q1 |> union_distinct(q2)
+```
+"""
+function union_distinct(left::Query{T}, right::Query{T})::SetUnion{T} where {T}
+    return SetUnion{T}(left, right, false)
+end
+
+# Curried version for pipeline composition
+union_distinct(right::Query{T}) where {T} = left -> union_distinct(left, right)
+
+"""
+    intersect_query(left::Query{T}, right::Query{T})::SetIntersect{T}
 
 Returns only rows that appear in both queries using INTERSECT.
-
-Can be used in two ways:
-
-  - Explicit: `intersect(query1, query2)`
-  - Pipeline: `query1 |> intersect(query2)`
-
-The curried form `intersect(query2)` returns a function suitable for pipeline composition.
-
-# Arguments
-
-  - `left::Query{T}` – first query
-  - `right::Query{T}` – second query
-  - `all::Bool` – true for INTERSECT ALL, false for INTERSECT (default)
+Renamed to avoid conflict with Base.intersect.
 
 # Example
 
@@ -1568,35 +1513,21 @@ q1 = from(:customers) |> select(NamedTuple, col(:customers, :id))
 q2 = from(:orders) |> select(NamedTuple, col(:orders, :customer_id))
 
 # Find customers who have placed orders
-q = q1 |> intersect(q2)
+q = q1 |> intersect_query(q2)
 ```
 """
-function intersect(left::Query{T}, right::Query{T};
-                   all::Bool = false)::SetIntersect{T} where {T}
-    return SetIntersect{T}(left, right, all)
+function intersect_query(left::Query{T}, right::Query{T})::SetIntersect{T} where {T}
+    return SetIntersect{T}(left, right, false)
 end
 
 # Curried version for pipeline composition
-intersect(right::Query{T}; all::Bool = false) where {T} = left -> intersect(left, right;
-                                                                            all = all)
+intersect_query(right::Query{T}) where {T} = left -> intersect_query(left, right)
 
 """
-    except(left::Query{T}, right::Query{T}; all::Bool=false)::SetExcept{T}
+    except_query(left::Query{T}, right::Query{T})::SetExcept{T}
 
 Returns rows from the left query that do not appear in the right query using EXCEPT.
-
-Can be used in two ways:
-
-  - Explicit: `except(query1, query2)`
-  - Pipeline: `query1 |> except(query2)`
-
-The curried form `except(query2)` returns a function suitable for pipeline composition.
-
-# Arguments
-
-  - `left::Query{T}` – first query
-  - `right::Query{T}` – second query
-  - `all::Bool` – true for EXCEPT ALL, false for EXCEPT (default)
+Renamed for clarity and to distinguish from other uses of the term "except".
 
 # Example
 
@@ -1605,16 +1536,15 @@ q1 = from(:all_users) |> select(NamedTuple, col(:all_users, :id))
 q2 = from(:banned_users) |> select(NamedTuple, col(:banned_users, :user_id))
 
 # Find users who are not banned
-q = q1 |> except(q2)
+q = q1 |> except_query(q2)
 ```
 """
-function except(left::Query{T}, right::Query{T}; all::Bool = false)::SetExcept{T} where {T}
-    return SetExcept{T}(left, right, all)
+function except_query(left::Query{T}, right::Query{T})::SetExcept{T} where {T}
+    return SetExcept{T}(left, right, false)
 end
 
 # Curried version for pipeline composition
-except(right::Query{T}; all::Bool = false) where {T} = left -> except(left, right;
-                                                                      all = all)
+except_query(right::Query{T}) where {T} = left -> except_query(left, right)
 
 # Structural Equality for Set Operations
 Base.isequal(a::SetUnion{T}, b::SetUnion{T}) where {T} = isequal(a.left, b.left) &&

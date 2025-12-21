@@ -54,14 +54,13 @@ export Returning
 export CTE, With
 export SetUnion, SetIntersect, SetExcept
 export OnConflict
-export from, where, select, order_by, limit, offset, distinct, group_by, having, join
-export insert_into, values, update, set, delete_from
+export from, where, select, order_by, limit, offset, distinct, group_by, having
+export inner_join, left_join, right_join, full_join
+export insert_into, insert_values, update, set_values, delete_from
 export returning
 export cte, with
-export union, intersect, except
+export union_all, union_distinct, intersect_query, except_query
 export on_conflict_do_nothing, on_conflict_do_update
-# Aliases to avoid Base conflicts
-export innerjoin, leftjoin, rightjoin, fulljoin, insert_values
 
 # Dialect abstraction (Phase 3)
 include("Core/dialect.jl")
@@ -211,14 +210,13 @@ export Returning
 export CTE, With
 export SetUnion, SetIntersect, SetExcept
 export OnConflict
-export from, where, select, order_by, limit, offset, distinct, group_by, having, join
-export insert_into, values, update, set, delete_from
+export from, where, select, order_by, limit, offset, distinct, group_by, having
+export inner_join, left_join, right_join, full_join
+export insert_into, insert_values, update, set_values, delete_from
 export returning
 export cte, with
-export union, intersect, except
+export union_all, union_distinct, intersect_query, except_query
 export on_conflict_do_nothing, on_conflict_do_update
-# Aliases to avoid Base conflicts
-export innerjoin, leftjoin, rightjoin, fulljoin, insert_values
 export Dialect, Capability
 export CAP_CTE, CAP_RETURNING, CAP_UPSERT, CAP_WINDOW, CAP_LATERAL, CAP_BULK_COPY,
        CAP_SAVEPOINT, CAP_ADVISORY_LOCK
