@@ -1,0 +1,231 @@
+{
+    "name": "SQLSketch Benchmark Suite",
+    "results": [
+        {
+            "name": "Query Construction - filter_and_project",
+            "median_ns": 292,
+            "max_ns": 6708,
+            "allocs": 7,
+            "mean_ns": 313.9844,
+            "min_ns": 250,
+            "memory_bytes": 272
+        },
+        {
+            "name": "Query Construction - simple_select",
+            "median_ns": 292,
+            "max_ns": 9000,
+            "allocs": 7,
+            "mean_ns": 318.1883,
+            "min_ns": 208,
+            "memory_bytes": 272
+        },
+        {
+            "name": "Query Construction - complex_query",
+            "median_ns": 334,
+            "max_ns": 6375,
+            "allocs": 16,
+            "mean_ns": 364.8616,
+            "min_ns": 250,
+            "memory_bytes": 640
+        },
+        {
+            "name": "Query Construction - join_query",
+            "median_ns": 292,
+            "max_ns": 9500,
+            "allocs": 8,
+            "mean_ns": 300.2031,
+            "min_ns": 208,
+            "memory_bytes": 320
+        },
+        {
+            "name": "Query Construction - order_and_limit",
+            "median_ns": 334,
+            "max_ns": 8625,
+            "allocs": 13,
+            "mean_ns": 358.8195,
+            "min_ns": 250,
+            "memory_bytes": 480
+        },
+        {
+            "name": "SQL Compilation - filter_and_project",
+            "median_ns": 2458,
+            "max_ns": 39084,
+            "allocs": 60,
+            "mean_ns": 2613.2258,
+            "min_ns": 2250,
+            "memory_bytes": 2400
+        },
+        {
+            "name": "SQL Compilation - simple_select",
+            "median_ns": 2459,
+            "max_ns": 31083,
+            "allocs": 60,
+            "mean_ns": 2630.6892,
+            "min_ns": 2250,
+            "memory_bytes": 2336
+        },
+        {
+            "name": "SQL Compilation - complex_query",
+            "median_ns": 6625,
+            "max_ns": 70458,
+            "allocs": 144,
+            "mean_ns": 6954.5663,
+            "min_ns": 6333,
+            "memory_bytes": 6672
+        },
+        {
+            "name": "SQL Compilation - join_query",
+            "median_ns": 3917,
+            "max_ns": 32291,
+            "allocs": 84,
+            "mean_ns": 3970.7038,
+            "min_ns": 3750,
+            "memory_bytes": 3776
+        },
+        {
+            "name": "SQL Compilation - order_and_limit",
+            "median_ns": 3709,
+            "max_ns": 38458,
+            "allocs": 95,
+            "mean_ns": 3954.7161,
+            "min_ns": 3416,
+            "memory_bytes": 3952
+        },
+        {
+            "name": "Query Execution - filter_and_project",
+            "median_ns": 3404500,
+            "max_ns": 8951666,
+            "allocs": 40363,
+            "mean_ns": 3.468523060332871e6,
+            "min_ns": 3123417,
+            "memory_bytes": 1650320
+        },
+        {
+            "name": "Query Execution - simple_select",
+            "median_ns": 1003271,
+            "max_ns": 6541750,
+            "allocs": 11838,
+            "mean_ns": 1.027977137654321e6,
+            "min_ns": 908083,
+            "memory_bytes": 493888
+        },
+        {
+            "name": "Query Execution - complex_query",
+            "median_ns": 836667,
+            "max_ns": 5389292,
+            "allocs": 3573,
+            "mean_ns": 837921.8511994631,
+            "min_ns": 762375,
+            "memory_bytes": 152736
+        },
+        {
+            "name": "Query Execution - join_query",
+            "median_ns": 3.3836665e6,
+            "max_ns": 7852417,
+            "allocs": 39624,
+            "mean_ns": 3.4336670178571427e6,
+            "min_ns": 3113875,
+            "memory_bytes": 1613120
+        },
+        {
+            "name": "Query Execution - order_and_limit",
+            "median_ns": 406584,
+            "max_ns": 7537000,
+            "allocs": 388,
+            "mean_ns": 408312.3282,
+            "min_ns": 364667,
+            "memory_bytes": 15744
+        },
+        {
+            "name": "Comparison (SQLSketch) - simple_select",
+            "median_ns": 1000166,
+            "max_ns": 7492792,
+            "allocs": 11838,
+            "mean_ns": 1.0243036104162395e6,
+            "min_ns": 902959,
+            "memory_bytes": 493888
+        },
+        {
+            "name": "Comparison (Raw SQL) - simple_select",
+            "median_ns": 59625,
+            "max_ns": 6725750,
+            "allocs": 1549,
+            "mean_ns": 64476.483,
+            "min_ns": 47667,
+            "memory_bytes": 87888
+        },
+        {
+            "name": "Comparison (SQLSketch) - complex_query",
+            "median_ns": 834542,
+            "max_ns": 5826459,
+            "allocs": 3573,
+            "mean_ns": 837045.735422252,
+            "min_ns": 762083,
+            "memory_bytes": 152736
+        },
+        {
+            "name": "Comparison (Raw SQL) - complex_query",
+            "median_ns": 554958,
+            "max_ns": 9231292,
+            "allocs": 386,
+            "mean_ns": 553533.8023062424,
+            "min_ns": 504667,
+            "memory_bytes": 20576
+        },
+        {
+            "name": "Comparison (SQLSketch) - order_and_limit",
+            "median_ns": 406292,
+            "max_ns": 4786000,
+            "allocs": 388,
+            "mean_ns": 405848.3614,
+            "min_ns": 366000,
+            "memory_bytes": 15744
+        },
+        {
+            "name": "Comparison (Raw SQL) - order_and_limit",
+            "median_ns": 382458,
+            "max_ns": 1109250,
+            "allocs": 76,
+            "mean_ns": 382742.8638,
+            "min_ns": 344792,
+            "memory_bytes": 3680
+        },
+        {
+            "name": "Comparison (SQLSketch) - join_query",
+            "median_ns": 3381542,
+            "max_ns": 8420500,
+            "allocs": 39624,
+            "mean_ns": 3.4373680797250858e6,
+            "min_ns": 3110208,
+            "memory_bytes": 1613120
+        },
+        {
+            "name": "Comparison (Raw SQL) - join_query",
+            "median_ns": 410209,
+            "max_ns": 20196667,
+            "allocs": 5067,
+            "mean_ns": 434392.6343,
+            "min_ns": 365167,
+            "memory_bytes": 311408
+        },
+        {
+            "name": "Comparison (SQLSketch) - filter_and_project",
+            "median_ns": 3377041,
+            "max_ns": 9459791,
+            "allocs": 40363,
+            "mean_ns": 3.4512316563147e6,
+            "min_ns": 3084541,
+            "memory_bytes": 1650320
+        },
+        {
+            "name": "Comparison (Raw SQL) - filter_and_project",
+            "median_ns": 207625,
+            "max_ns": 5865541,
+            "allocs": 5051,
+            "mean_ns": 225065.5577,
+            "min_ns": 177833,
+            "memory_bytes": 310864
+        }
+    ],
+    "timestamp": "2025-12-21 13:18:29"
+}

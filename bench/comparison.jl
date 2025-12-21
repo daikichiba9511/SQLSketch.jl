@@ -70,6 +70,10 @@ for name in keys(raw_sql_queries)
         println("  Raw SQL:   $(BenchmarkTools.prettytime(raw_sql_time))")
         println("  Overhead:  $(round(overhead, digits=2))%")
         println()
+
+        # Add to global suite
+        push!(SUITE, "Comparison (SQLSketch) - $name_str", results["sqlsketch"][name_str])
+        push!(SUITE, "Comparison (Raw SQL) - $name_str", results["raw_sql"][name_str])
     end
 end
 

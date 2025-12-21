@@ -34,4 +34,7 @@ for (name, result) in results
     println("  Memory:      $(BenchmarkTools.prettymemory(med.memory))")
     println("  Allocations: $(med.allocs)")
     println()
+
+    # Add to global suite
+    push!(SUITE, "Query Construction - $name", result)
 end

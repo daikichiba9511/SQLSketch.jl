@@ -6,6 +6,11 @@
 using Pkg
 Pkg.activate(".")
 
+using Printf
+
+# Load utilities
+include("utils.jl")
+
 println("SQLSketch Benchmark Suite")
 println("=" ^ 80)
 println()
@@ -17,6 +22,9 @@ println("  4. SQLSketch vs Raw SQL Comparison")
 println()
 println("=" ^ 80)
 println()
+
+# Create suite to collect all results
+const SUITE = BenchmarkSuite("SQLSketch Benchmark Suite")
 
 # Run each benchmark file
 benchmarks = [("Query Construction", "query_construction.jl"),
@@ -36,3 +44,6 @@ end
 
 println()
 println("All benchmarks completed!")
+
+# Save results
+save_results(SUITE)

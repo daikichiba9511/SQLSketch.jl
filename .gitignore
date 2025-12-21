@@ -31,5 +31,10 @@ examples/*.db-*
 # Local documentation and scratch files
 /tmp/
 
+# Benchmark results (exclude timestamped history, keep latest)
+/bench/results/*
+!/bench/results/latest.json
+!/bench/results/latest.md
+
 CLAUDE.md
 .tools/Manifest.toml

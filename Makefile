@@ -1,4 +1,4 @@
-.PHONY: help test lint format format-check clean all docs docs-open docs-url
+.PHONY: help test lint format format-check clean all docs docs-open docs-url benchmark
 
 # Default target
 help:
@@ -8,6 +8,7 @@ help:
 	@echo "  make lint          - Run JET static analysis"
 	@echo "  make format        - Format all Julia files (dev tool)"
 	@echo "  make format-check  - Check if files are formatted (CI)"
+	@echo "  make benchmark     - Run performance benchmarks"
 	@echo "  make docs          - Build documentation"
 	@echo "  make docs-open     - Build and open documentation in browser"
 	@echo "  make docs-url      - Show documentation URL"
@@ -22,6 +23,10 @@ test:
 # Run JET static analysis
 lint:
 	julia --project=. scripts/lint.jl
+
+# Run benchmarks
+benchmark:
+	julia --project=. bench/run_all.jl
 
 # Format all Julia files (using .tools environment)
 format:
