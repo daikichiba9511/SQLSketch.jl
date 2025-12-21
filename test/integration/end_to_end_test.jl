@@ -24,14 +24,14 @@ import SQLSketch.Core: fetch_all, fetch_one, fetch_maybe, sql, explain
 import SQLSketch.Core: from, where, select, order_by, limit, offset, distinct, group_by,
                        having
 import SQLSketch.Core: col, literal, param, func
-import SQLSketch.Core: insert_into, update, set, delete_from
+import SQLSketch.Core: insert_into, update, set_values, delete_from
 import SQLSketch.Core: cte
 import SQLSketch.Core: connect, execute_sql, execute, close
 import SQLSketch.Core: ExecResult
 import SQLSketch.Core: create_table, add_column, add_foreign_key
 import SQLSketch: SQLiteDialect, CodecRegistry
 # Use aliases to avoid Base conflicts
-import SQLSketch.Core: innerjoin, insert_values, with
+import SQLSketch.Core: inner_join, insert_values, with
 
 @testset "End-to-End Integration Tests" begin
     # Setup: Create in-memory database
@@ -177,7 +177,7 @@ import SQLSketch.Core: innerjoin, insert_values, with
 
     @testset "Query with JOIN" begin
         q = from(:users) |>
-            innerjoin(:posts, col(:users, :id) == col(:posts, :user_id)) |>
+            inner_join(:posts, col(:users, :id) == col(:posts, :user_id)) |>
             select(NamedTuple,
                    col(:users, :name),
                    col(:posts, :title))
@@ -360,7 +360,7 @@ import SQLSketch.Core: innerjoin, insert_values, with
     @testset "Complex Query - Multiple operations" begin
         # Complex query: JOIN, WHERE, ORDER BY, LIMIT
         q = from(:users) |>
-            innerjoin(:posts, col(:users, :id) == col(:posts, :user_id)) |>
+            inner_join(:posts, col(:users, :id) == col(:posts, :user_id)) |>
             where(col(:posts, :published) == literal(1)) |>
             select(NamedTuple,
                    col(:users, :name),
@@ -443,7 +443,7 @@ import SQLSketch.Core: innerjoin, insert_values, with
 
         @testset "UPDATE with WHERE" begin
             q = update(:dml_test) |>
-                set(:value => param(Int, :new_value)) |>
+                set_values(:value => param(Int, :new_value)) |>
                 where(col(:dml_test, :name) == param(String, :name))
 
             execute(db, dialect, q, (new_value = 999, name = "test1"))
@@ -612,7 +612,7 @@ import SQLSketch.Core: innerjoin, insert_values, with
 
             # Main query: JOIN both CTEs
             main_query = from(:active_users) |>
-                         innerjoin(:completed_orders,
+                         inner_join(:completed_orders,
                                    col(:active_users, :id) ==
                                    col(:completed_orders, :user_id)) |>
                          select(NamedTuple, col(:active_users, :name),
@@ -687,7 +687,7 @@ import SQLSketch.Core: innerjoin, insert_values, with
 
             # CTE2: orders from active users
             cte2_query = from(:orders) |>
-                         innerjoin(:active_users,
+                         inner_join(:active_users,
                                    col(:orders, :user_id) == col(:active_users, :id)) |>
                          select(NamedTuple, col(:orders, :id), col(:orders, :user_id),
                                 col(:orders, :total), col(:active_users, :name))

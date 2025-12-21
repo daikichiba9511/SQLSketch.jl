@@ -2,8 +2,8 @@ using Test
 using SQLSketch.Core: Query, From, Where, Select, OrderBy, Limit, Offset, Distinct, GroupBy,
                       Having, Join, CTE, With, Returning
 using SQLSketch.Core: from, where, select, order_by, limit, offset, distinct, group_by,
-                      having, join, cte, with, returning
-using SQLSketch.Core: insert_into, values, update, set, delete_from
+                      having, inner_join, left_join, right_join, full_join, cte, with, returning
+using SQLSketch.Core: insert_into, insert_values, update, set_values, delete_from
 using SQLSketch.Core: SQLExpr, col, literal, param, func
 using SQLSketch.Extras: p_
 
@@ -217,31 +217,43 @@ using SQLSketch.Extras: p_
         @test q.kind == :inner
     end
 
-    @testset "join() helper - inner join" begin
+    @testset "inner_join() helper" begin
         source = from(:users)
         on_condition = col(:users, :id) == col(:orders, :user_id)
-        q = join(source, :orders, on_condition)
+        q = inner_join(source, :orders, on_condition)
 
         @test q isa Join{NamedTuple}
         @test q.source === source
         @test q.table == :orders
         @test q.on === on_condition
-        @test q.kind == :inner  # default
+        @test q.kind == :inner
     end
 
-    @testset "join() helper - left join" begin
+    @testset "left_join() helper" begin
         source = from(:users)
         on_condition = col(:users, :id) == col(:orders, :user_id)
-        q = join(source, :orders, on_condition, kind = :left)
+        q = left_join(source, :orders, on_condition)
 
         @test q isa Join{NamedTuple}
         @test q.kind == :left
     end
 
-    @testset "join() helper - invalid kind" begin
+    @testset "right_join() helper" begin
         source = from(:users)
         on_condition = col(:users, :id) == col(:orders, :user_id)
-        @test_throws AssertionError join(source, :orders, on_condition, kind = :invalid)
+        q = right_join(source, :orders, on_condition)
+
+        @test q isa Join{NamedTuple}
+        @test q.kind == :right
+    end
+
+    @testset "full_join() helper" begin
+        source = from(:users)
+        on_condition = col(:users, :id) == col(:orders, :user_id)
+        q = full_join(source, :orders, on_condition)
+
+        @test q isa Join{NamedTuple}
+        @test q.kind == :full
     end
 end
 
@@ -277,7 +289,7 @@ end
 
     @testset "Pipeline with join" begin
         q = from(:users) |>
-            join(:orders, col(:users, :id) == col(:orders, :user_id)) |>
+            inner_join(:orders, col(:users, :id) == col(:orders, :user_id)) |>
             where(col(:orders, :status) == literal("completed")) |>
             select(NamedTuple, col(:users, :email), col(:orders, :total))
 
@@ -454,7 +466,7 @@ end
 
     @testset "Example 3: Join query" begin
         q = from(:users) |>
-            join(:orders, col(:users, :id) == col(:orders, :user_id), kind = :left) |>
+            left_join(:orders, col(:users, :id) == col(:orders, :user_id)) |>
             where(col(:users, :active) == literal(true)) |>
             select(NamedTuple,
                    col(:users, :email),
@@ -534,8 +546,8 @@ end
         c1 = cte(:active_users, subq1)
         c2 = cte(:completed_orders, subq2)
         main_q = from(:active_users) |>
-                 join(:completed_orders,
-                      col(:active_users, :id) == col(:completed_orders, :user_id)) |>
+                 inner_join(:completed_orders,
+                            col(:active_users, :id) == col(:completed_orders, :user_id)) |>
                  select(NamedTuple, col(:active_users, :id))
 
         w = With{NamedTuple}([c1, c2], main_q)
@@ -661,7 +673,7 @@ end
     @testset "RETURNING clause" begin
         @testset "Returning constructor with INSERT" begin
             insert_q = insert_into(:users, [:email]) |>
-                       values([[literal("test@example.com")]])
+                       insert_values([[literal("test@example.com")]])
             fields = [col(:users, :id), col(:users, :email)]
             q = Returning{NamedTuple}(insert_q, fields)
 
@@ -673,7 +685,7 @@ end
 
         @testset "Returning constructor with UPDATE" begin
             update_q = update(:users) |>
-                       set(:status => literal("active")) |>
+                       set_values(:status => literal("active")) |>
                        where(col(:users, :id) == param(Int, :id))
             fields = [col(:users, :id), col(:users, :status)]
             q = Returning{NamedTuple}(update_q, fields)
@@ -696,7 +708,7 @@ end
 
         @testset "returning() helper with explicit version" begin
             insert_q = insert_into(:users, [:email]) |>
-                       values([[literal("test@example.com")]])
+                       insert_values([[literal("test@example.com")]])
             q = returning(insert_q, NamedTuple, col(:users, :id), col(:users, :email))
 
             @test q isa Returning{NamedTuple}
@@ -706,7 +718,7 @@ end
 
         @testset "returning() curried for pipeline" begin
             q = insert_into(:users, [:email]) |>
-                values([[literal("test@example.com")]]) |>
+                insert_values([[literal("test@example.com")]]) |>
                 returning(NamedTuple, col(:users, :id), col(:users, :email))
 
             @test q isa Returning{NamedTuple}
@@ -715,7 +727,7 @@ end
 
         @testset "RETURNING with placeholder syntax" begin
             q = insert_into(:users, [:email]) |>
-                values([[param(String, :email)]]) |>
+                insert_values([[param(String, :email)]]) |>
                 returning(NamedTuple, p_.id, p_.email)
 
             @test q isa Returning{NamedTuple}
@@ -727,7 +739,7 @@ end
         @testset "RETURNING type changes output type (shape-changing)" begin
             # INSERT returns NamedTuple
             insert_q = insert_into(:users, [:email]) |>
-                       values([[literal("test@example.com")]])
+                       insert_values([[literal("test@example.com")]])
             @test insert_q isa Query{NamedTuple}
 
             # RETURNING changes type to specified OutT
@@ -743,7 +755,7 @@ end
 
         @testset "RETURNING structural equality" begin
             insert_q = insert_into(:users, [:email]) |>
-                       values([[literal("test@example.com")]])
+                       insert_values([[literal("test@example.com")]])
             r1 = returning(insert_q, NamedTuple, col(:users, :id), col(:users, :email))
             r2 = returning(insert_q, NamedTuple, col(:users, :id), col(:users, :email))
 
@@ -755,7 +767,7 @@ end
 
             # Different source
             different_insert = insert_into(:users, [:name]) |>
-                               values([[literal("Alice")]])
+                               insert_values([[literal("Alice")]])
             r4 = returning(different_insert, NamedTuple, col(:users, :id),
                            col(:users, :email))
             @test !isequal(r1, r4)
@@ -763,7 +775,7 @@ end
 
         @testset "RETURNING hash function" begin
             insert_q = insert_into(:users, [:email]) |>
-                       values([[literal("test@example.com")]])
+                       insert_values([[literal("test@example.com")]])
             r1 = returning(insert_q, NamedTuple, col(:users, :id), col(:users, :email))
             r2 = returning(insert_q, NamedTuple, col(:users, :id), col(:users, :email))
 
@@ -778,13 +790,13 @@ end
         @testset "RETURNING with UPDATE SET variations" begin
             # UPDATE without WHERE
             q1 = update(:users) |>
-                 set(:status => literal("active")) |>
+                 set_values(:status => literal("active")) |>
                  returning(NamedTuple, col(:users, :id))
             @test q1 isa Returning{NamedTuple}
 
             # UPDATE with WHERE
             q2 = update(:users) |>
-                 set(:status => literal("active")) |>
+                 set_values(:status => literal("active")) |>
                  where(col(:users, :id) == param(Int, :id)) |>
                  returning(NamedTuple, col(:users, :id), col(:users, :status))
             @test q2 isa Returning{NamedTuple}

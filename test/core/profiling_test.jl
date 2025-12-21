@@ -139,7 +139,7 @@ using SQLSketch.Drivers
 
             # Query with JOIN
             query = from(:users) |>
-                    innerjoin(:posts, col(:users, :id) == col(:posts, :user_id)) |>
+                    inner_join(:posts, col(:users, :id) == col(:posts, :user_id)) |>
                     select(NamedTuple, col(:users, :name), col(:posts, :title))
 
             dialect = SQLiteDialect()
@@ -182,7 +182,7 @@ using SQLSketch.Drivers
 
             # UPDATE (using execute)
             q_update = update(:users) |>
-                       set(:age => literal(31)) |>
+                       set_values(:age => literal(31)) |>
                        where(col(:users, :name) == literal("Alice"))
             result, timing = @timed_query execute(conn, dialect, q_update)
             @test timing.total_time >= 0.0

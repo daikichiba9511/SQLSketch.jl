@@ -5,15 +5,15 @@ using SQLSketch.Core: Query, From, Where, Select, Join, OrderBy, Limit, Offset, 
                       GroupBy, Having, CTE, With, Returning
 using SQLSketch.Core: InsertInto, InsertValues, Update, UpdateSet, UpdateWhere,
                       DeleteFrom, DeleteWhere
-using SQLSketch.Core: from, where, select, join, order_by, limit, offset, distinct,
-                      group_by, having, cte, with, returning
-using SQLSketch.Core: insert_into, values, update, set, delete_from
+using SQLSketch.Core: from, where, select, inner_join, left_join, right_join, full_join,
+                      order_by, limit, offset, distinct, group_by, having, cte, with, returning
+using SQLSketch.Core: insert_into, insert_values, update, set_values, delete_from
 using SQLSketch.Core: SQLExpr, col, literal, param, func, is_null, is_not_null
 using SQLSketch.Extras: p_
 using SQLSketch.Core: like, not_like, ilike, not_ilike, between, not_between
 using SQLSketch.Core: in_list, not_in_list
 using SQLSketch.Core: compile, compile_expr, quote_identifier, placeholder, supports
-using SQLSketch.Core: union, intersect, except
+using SQLSketch.Core: union_all, union_distinct, intersect_query, except_query
 using SQLSketch.Core: on_conflict_do_nothing, on_conflict_do_update
 using SQLSketch: MySQLDialect
 
@@ -284,7 +284,7 @@ end
 
     @testset "JOIN - INNER" begin
         q = from(:users) |>
-            join(:orders, col(:users, :id) == col(:orders, :user_id))
+            inner_join(:orders, col(:users, :id) == col(:orders, :user_id))
         sql, params = compile(dialect, q)
 
         @test sql ==
@@ -294,7 +294,7 @@ end
 
     @testset "JOIN - LEFT" begin
         q = from(:users) |>
-            join(:orders, col(:users, :id) == col(:orders, :user_id); kind = :left)
+            left_join(:orders, col(:users, :id) == col(:orders, :user_id))
         sql, params = compile(dialect, q)
 
         @test sql ==
@@ -304,7 +304,7 @@ end
 
     @testset "JOIN - FULL (error)" begin
         q = from(:users) |>
-            join(:orders, col(:users, :id) == col(:orders, :user_id); kind = :full)
+            full_join(:orders, col(:users, :id) == col(:orders, :user_id))
 
         @test_throws ErrorException compile(dialect, q)
     end
@@ -371,7 +371,7 @@ end
 
     @testset "INSERT INTO" begin
         q = insert_into(:users, [:email, :name]) |>
-            values([[literal("alice@example.com"), literal("Alice")]])
+            insert_values([[literal("alice@example.com"), literal("Alice")]])
         sql, params = compile(dialect, q)
 
         @test sql ==
@@ -381,7 +381,7 @@ end
 
     @testset "INSERT with parameters" begin
         q = insert_into(:users, [:email, :name]) |>
-            values([[param(String, :email), param(String, :name)]])
+            insert_values([[param(String, :email), param(String, :name)]])
         sql, params = compile(dialect, q)
 
         @test sql == "INSERT INTO `users` (`email`, `name`) VALUES (?, ?)"
@@ -390,7 +390,7 @@ end
 
     @testset "UPDATE" begin
         q = update(:users) |>
-            set(:email => param(String, :email)) |>
+            set_values(:email => param(String, :email)) |>
             where(col(:users, :id) == param(Int, :id))
         sql, params = compile(dialect, q)
 
@@ -413,7 +413,7 @@ end
 
     @testset "INSERT IGNORE (DO NOTHING emulation)" begin
         q = insert_into(:users, [:email]) |>
-            values([[literal("alice@example.com")]]) |>
+            insert_values([[literal("alice@example.com")]]) |>
             on_conflict_do_nothing()
         sql, params = compile(dialect, q)
 
@@ -423,7 +423,7 @@ end
 
     @testset "ON DUPLICATE KEY UPDATE" begin
         q = insert_into(:users, [:email, :name]) |>
-            values([[literal("alice@example.com"), literal("Alice")]]) |>
+            insert_values([[literal("alice@example.com"), literal("Alice")]]) |>
             on_conflict_do_update([:email], :name => literal("Alice Updated"))
         sql, params = compile(dialect, q)
 
@@ -469,7 +469,7 @@ end
     @testset "UNION" begin
         q1 = from(:users) |> select(NamedTuple, col(:users, :email))
         q2 = from(:admins) |> select(NamedTuple, col(:admins, :email))
-        q = union(q1, q2)
+        q = union_distinct(q1, q2)
 
         sql, params = compile(dialect, q)
         @test contains(sql, "UNION")
@@ -480,7 +480,7 @@ end
     @testset "UNION ALL" begin
         q1 = from(:users) |> select(NamedTuple, col(:users, :email))
         q2 = from(:admins) |> select(NamedTuple, col(:admins, :email))
-        q = union(q1, q2; all = true)
+        q = union_all(q1, q2)
 
         sql, params = compile(dialect, q)
         @test contains(sql, "UNION ALL")
@@ -489,7 +489,7 @@ end
     @testset "INTERSECT (error)" begin
         q1 = from(:users) |> select(NamedTuple, col(:users, :id))
         q2 = from(:orders) |> select(NamedTuple, col(:orders, :user_id))
-        q = intersect(q1, q2)
+        q = intersect_query(q1, q2)
 
         @test_throws ErrorException compile(dialect, q)
     end
@@ -497,7 +497,7 @@ end
     @testset "EXCEPT (error)" begin
         q1 = from(:users) |> select(NamedTuple, col(:users, :id))
         q2 = from(:banned) |> select(NamedTuple, col(:banned, :user_id))
-        q = except(q1, q2)
+        q = except_query(q1, q2)
 
         @test_throws ErrorException compile(dialect, q)
     end

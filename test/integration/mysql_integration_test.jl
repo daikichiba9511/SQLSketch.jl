@@ -25,7 +25,7 @@ using Test
 using SQLSketch
 using SQLSketch.Core: from, where, select, join, order_by, limit, offset, distinct,
                       group_by, having
-using SQLSketch.Core: insert_into, values, update, set, delete_from, returning
+using SQLSketch.Core: insert_into, insert_values, update, set_values, delete_from, returning
 using SQLSketch.Core: col, literal, param, func
 using SQLSketch.Extras: p_
 using SQLSketch.Core: cte, with, union
@@ -118,7 +118,7 @@ function insert_test_data(conn, dialect)
 
     for (email, name, age, active, created_at) in users_data
         q = insert_into(:users, [:email, :name, :age, :active, :created_at]) |>
-            values([[literal(email), literal(name), literal(age), literal(active),
+            insert_values([[literal(email), literal(name), literal(age), literal(active),
                      literal(created_at)]])
         execute(conn, dialect, q)
     end
@@ -132,7 +132,7 @@ function insert_test_data(conn, dialect)
 
     for (user_id, total, status, created_at) in orders_data
         q = insert_into(:orders, [:user_id, :total, :status, :created_at]) |>
-            values([[literal(user_id), literal(total), literal(status),
+            insert_values([[literal(user_id), literal(total), literal(status),
                      literal(created_at)]])
         execute(conn, dialect, q)
     end
@@ -240,7 +240,7 @@ else
 
             @testset "INSERT with AUTO_INCREMENT" begin
                 q = insert_into(:users, [:email, :name, :age]) |>
-                    values([[literal("eve@example.com"), literal("Eve"), literal(27)]])
+                    insert_values([[literal("eve@example.com"), literal("Eve"), literal(27)]])
 
                 result = execute(mysql_conn, mysql_dialect, q)
                 @test result.rowcount === nothing || result.rowcount >= 1
@@ -292,7 +292,7 @@ else
             @testset "UPSERT - INSERT IGNORE (DO NOTHING)" begin
                 # Try to insert duplicate email (should be ignored)
                 q = insert_into(:users, [:email, :name, :age]) |>
-                    values([[literal("alice@example.com"), literal("Alice2"), literal(99)]]) |>
+                    insert_values([[literal("alice@example.com"), literal("Alice2"), literal(99)]]) |>
                     on_conflict_do_nothing()
 
                 # MySQL uses INSERT IGNORE
@@ -312,7 +312,7 @@ else
             @testset "UPSERT - ON DUPLICATE KEY UPDATE" begin
                 # Insert or update
                 q = insert_into(:users, [:email, :name, :age]) |>
-                    values([[literal("frank@example.com"), literal("Frank"), literal(40)]]) |>
+                    insert_values([[literal("frank@example.com"), literal("Frank"), literal(40)]]) |>
                     on_conflict_do_update([:email], :name => literal("Frank Updated"),
                                           :age => literal(41))
 
@@ -339,7 +339,7 @@ else
             @testset "Transactions - Commit" begin
                 transaction(mysql_conn) do txn
                     q = insert_into(:users, [:email, :name, :age]) |>
-                        values([[literal("grace@example.com"), literal("Grace"),
+                        insert_values([[literal("grace@example.com"), literal("Grace"),
                                  literal(26)]])
                     execute(txn, mysql_dialect, q)
                 end
@@ -359,7 +359,7 @@ else
                 try
                     transaction(mysql_conn) do txn
                         q = insert_into(:users, [:email, :name, :age]) |>
-                            values([[literal("henry@example.com"), literal("Henry"),
+                            insert_values([[literal("henry@example.com"), literal("Henry"),
                                      literal(29)]])
                         execute(txn, mysql_dialect, q)
 
@@ -384,14 +384,14 @@ else
                 transaction(mysql_conn) do txn
                     # Insert first user
                     q1 = insert_into(:users, [:email, :name, :age]) |>
-                         values([[literal("ivy@example.com"), literal("Ivy"), literal(24)]])
+                         insert_values([[literal("ivy@example.com"), literal("Ivy"), literal(24)]])
                     execute(txn, mysql_dialect, q1)
 
                     # Savepoint
                     try
                         savepoint(txn, :sp1) do sp
                             q2 = insert_into(:users, [:email, :name, :age]) |>
-                                 values([[literal("jack@example.com"), literal("Jack"),
+                                 insert_values([[literal("jack@example.com"), literal("Jack"),
                                           literal(32)]])
                             execute(sp, mysql_dialect, q2)
 

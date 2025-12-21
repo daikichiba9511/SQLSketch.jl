@@ -124,7 +124,7 @@ println("-"^80)
 println("Shows only users who have a department")
 
 q1 = from(:users) |>
-     innerjoin(:departments, col(:users, :department_id) == col(:departments, :id)) |>
+     inner_join(:departments, col(:users, :department_id) == col(:departments, :id)) |>
      select(NamedTuple,
             col(:users, :name),
             col(:users, :email),
@@ -211,8 +211,8 @@ println("-"^80)
 println("Join users, departments, and projects together")
 
 q4 = from(:users) |>
-     innerjoin(:departments, col(:users, :department_id) == col(:departments, :id)) |>
-     innerjoin(:projects, col(:projects, :user_id) == col(:users, :id)) |>
+     inner_join(:departments, col(:users, :department_id) == col(:departments, :id)) |>
+     inner_join(:projects, col(:projects, :user_id) == col(:users, :id)) |>
      where(col(:projects, :status) == literal("active")) |>
      select(NamedTuple,
             col(:users, :name),
@@ -235,7 +235,7 @@ println("Find users in the same department (excluding self)")
 
 # First, let's create an alias pattern by using different table references
 q5 = from(:users) |>
-     innerjoin(:users, col(:users, :department_id) == col(:users, :department_id)) |>
+     inner_join(:users, col(:users, :department_id) == col(:users, :department_id)) |>
      where(col(:users, :id) < col(:users, :id)) |>
      select(NamedTuple,
             col(:users, :name),
@@ -260,7 +260,7 @@ println("\n[8] Example 6: JOIN with filtering on both tables")
 println("-"^80)
 
 q6 = from(:users) |>
-     innerjoin(:departments, col(:users, :department_id) == col(:departments, :id)) |>
+     inner_join(:departments, col(:users, :department_id) == col(:departments, :id)) |>
      where((col(:departments, :budget) > literal(200000.0)) &
            like(col(:users, :name), literal("A%"))) |>
      select(NamedTuple,

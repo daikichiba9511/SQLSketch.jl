@@ -21,10 +21,10 @@ using Test
 using SQLSketch
 using SQLSketch.Core: from, where, select, join, order_by, limit, offset, distinct,
                       group_by, having
-using SQLSketch.Core: insert_into, values, update, set, delete_from, returning
+using SQLSketch.Core: insert_into, insert_values, update, set_values, delete_from, returning
 using SQLSketch.Core: col, literal, param, func
 using SQLSketch.Extras: p_
-using SQLSketch.Core: cte, with, union, intersect, except
+using SQLSketch.Core: cte, with, union_all, union_distinct, intersect_query, except_query
 using SQLSketch.Core: on_conflict_do_nothing, on_conflict_do_update
 using SQLSketch.Core: transaction, savepoint
 using SQLSketch.Core: create_table, add_column, drop_table, create_index, drop_index
@@ -105,7 +105,7 @@ function insert_test_data(conn, dialect)
 
     for (id, email, name, age, active, created_at) in users_data
         q = insert_into(:users, [:id, :email, :name, :age, :active, :created_at]) |>
-            values([[literal(id), literal(email), literal(name), literal(age),
+            insert_values([[literal(id), literal(email), literal(name), literal(age),
                      literal(active),
                      literal(created_at)]])
         execute(conn, dialect, q)
@@ -120,7 +120,7 @@ function insert_test_data(conn, dialect)
 
     for (id, user_id, total, status, created_at) in orders_data
         q = insert_into(:orders, [:id, :user_id, :total, :status, :created_at]) |>
-            values([[literal(id), literal(user_id), literal(total), literal(status),
+            insert_values([[literal(id), literal(user_id), literal(total), literal(status),
                      literal(created_at)]])
         execute(conn, dialect, q)
     end
@@ -245,7 +245,7 @@ else
             @testset "PostgreSQL: RETURNING clause" begin
                 # Test INSERT RETURNING
                 q = insert_into(:users, [:id, :email, :name, :age, :active]) |>
-                    values([[literal(5), literal("eve@example.com"), literal("Eve"),
+                    insert_values([[literal(5), literal("eve@example.com"), literal("Eve"),
                              literal(32),
                              literal(true)]]) |>
                     returning(NamedTuple, p_.id, p_.email, p_.name)
@@ -281,7 +281,7 @@ else
             @testset "PostgreSQL: UPSERT (ON CONFLICT)" begin
                 # Test ON CONFLICT DO NOTHING
                 q1 = insert_into(:users, [:id, :email, :name, :age, :active]) |>
-                     values([[literal(1), literal("alice@example.com"),
+                     insert_values([[literal(1), literal("alice@example.com"),
                               literal("Alice Updated"),
                               literal(31), literal(true)]]) |>
                      on_conflict_do_nothing()
@@ -298,7 +298,7 @@ else
 
                 # Test ON CONFLICT DO UPDATE
                 q2 = insert_into(:users, [:id, :email, :name, :age]) |>
-                     values([[literal(1), literal("alice@example.com"),
+                     insert_values([[literal(1), literal("alice@example.com"),
                               literal("Alice Updated"),
                               literal(31)]]) |>
                      on_conflict_do_update([:email], :name => col(:excluded, :name),
@@ -321,7 +321,7 @@ else
                 # Test COMMIT
                 transaction(pg_conn) do tx
                     q = insert_into(:users, [:id, :email, :name, :age, :active]) |>
-                        values([[literal(6), literal("frank@example.com"), literal("Frank"),
+                        insert_values([[literal(6), literal("frank@example.com"), literal("Frank"),
                                  literal(40), literal(true)]])
                     execute(tx, pg_dialect, q)
                 end
@@ -337,7 +337,7 @@ else
                 try
                     transaction(pg_conn) do tx
                         q = insert_into(:users, [:id, :email, :name, :age, :active]) |>
-                            values([[literal(7), literal("grace@example.com"),
+                            insert_values([[literal(7), literal("grace@example.com"),
                                      literal("Grace"),
                                      literal(45), literal(true)]])
                         execute(tx, pg_dialect, q)
@@ -358,7 +358,7 @@ else
                 transaction(pg_conn) do tx
                     # Insert Henry
                     q1 = insert_into(:users, [:id, :email, :name, :age, :active]) |>
-                         values([[literal(8), literal("henry@example.com"),
+                         insert_values([[literal(8), literal("henry@example.com"),
                                   literal("Henry"),
                                   literal(50), literal(true)]])
                     execute(tx, pg_dialect, q1)
@@ -367,7 +367,7 @@ else
                     try
                         savepoint(tx, :sp1) do sp
                             q2 = insert_into(:users, [:id, :email, :name, :age, :active]) |>
-                                 values([[literal(9), literal("iris@example.com"),
+                                 insert_values([[literal(9), literal("iris@example.com"),
                                           literal("Iris"),
                                           literal(55), literal(true)]])
                             execute(sp, pg_dialect, q2)

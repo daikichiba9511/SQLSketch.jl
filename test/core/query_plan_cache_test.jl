@@ -130,7 +130,7 @@ const SQ = SQLSketch
 
         # Complex query with join
         query = from(:users) |>
-                leftjoin(:posts, col(:users, :id) == col(:posts, :user_id)) |>
+                left_join(:posts, col(:users, :id) == col(:posts, :user_id)) |>
                 where(col(:posts, :published) == literal(true)) |>
                 select(NamedTuple, col(:users, :name), col(:posts, :title)) |>
                 order_by(col(:posts, :created_at); desc = true) |>
@@ -213,7 +213,7 @@ const SQ = SQLSketch
         compile_with_cache(cache, dialect, q_insert)
 
         # UPDATE query
-        q_update = update(:users) |> set(:email => param(String, :email)) |>
+        q_update = update(:users) |> set_values(:email => param(String, :email)) |>
                    where(col(:users, :id) == param(Int, :id))
         compile_with_cache(cache, dialect, q_update)
 
@@ -294,7 +294,7 @@ const SQ = SQLSketch
 
         q1 = from(:users) |> select(NamedTuple, col(:users, :email))
         q2 = from(:legacy_users) |> select(NamedTuple, col(:legacy_users, :email))
-        query = SQ.Core.union(q1, q2)
+        query = SQ.Core.union_distinct(q1, q2)
 
         sql1, _ = compile_with_cache(cache, dialect, query)
         sql2, _ = compile_with_cache(cache, dialect, query)

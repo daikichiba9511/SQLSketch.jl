@@ -196,11 +196,11 @@ else
                 execute_sql(conn, "TRUNCATE TABLE test_batch", [])
 
                 # Measure individual inserts time
-                using SQLSketch.Core: insert_into, values, literal
+                using SQLSketch.Core: insert_into, insert_values, literal
                 individual_time = @elapsed begin
                     for row in rows
                         q = insert_into(:test_batch, [:email, :name, :age, :active]) |>
-                            values([[literal(row.email), literal(row.name),
+                            insert_values([[literal(row.email), literal(row.name),
                                      literal(row.age), literal(row.active)]])
                         execute(conn, dialect, q)
                     end

@@ -5,9 +5,9 @@ using SQLSketch.Core: Query, From, Where, Select, Join, OrderBy, Limit, Offset, 
                       GroupBy, Having, CTE, With, Returning
 using SQLSketch.Core: InsertInto, InsertValues, Update, UpdateSet, UpdateWhere,
                       DeleteFrom, DeleteWhere
-using SQLSketch.Core: from, where, select, join, order_by, limit, offset, distinct,
-                      group_by, having, cte, with, returning
-using SQLSketch.Core: insert_into, values, update, set, delete_from
+using SQLSketch.Core: from, where, select, inner_join, left_join, right_join, full_join,
+                      order_by, limit, offset, distinct, group_by, having, cte, with, returning
+using SQLSketch.Core: insert_into, insert_values, update, set_values, delete_from
 using SQLSketch.Core: SQLExpr, col, literal, param, func, is_null, is_not_null
 using SQLSketch.Extras: p_
 using SQLSketch.Core: like, not_like, ilike, not_ilike, between, not_between
@@ -357,7 +357,7 @@ end
     end
 
     @testset "Join - Inner" begin
-        q = from(:users) |> join(:orders, col(:users, :id) == col(:orders, :user_id))
+        q = from(:users) |> inner_join(:orders, col(:users, :id) == col(:orders, :user_id))
         sql, params = compile(dialect, q)
 
         @test sql ==
@@ -367,7 +367,7 @@ end
 
     @testset "Join - Left" begin
         q = from(:users) |>
-            join(:orders, col(:users, :id) == col(:orders, :user_id), kind = :left)
+            left_join(:orders, col(:users, :id) == col(:orders, :user_id))
         sql, params = compile(dialect, q)
 
         @test sql ==
@@ -413,7 +413,7 @@ end
 
     @testset "Example 3: Join query with parameters" begin
         q = from(:users) |>
-            join(:orders, col(:users, :id) == col(:orders, :user_id), kind = :left) |>
+            left_join(:orders, col(:users, :id) == col(:orders, :user_id)) |>
             where(col(:users, :active) == param(Bool, :active)) |>
             select(NamedTuple,
                    col(:users, :email),
@@ -500,7 +500,7 @@ end
 
         @testset "INSERT...VALUES with literals" begin
             q = insert_into(:users, [:name, :email]) |>
-                values([[literal("Alice"), literal("alice@example.com")]])
+                insert_values([[literal("Alice"), literal("alice@example.com")]])
             sql, params = compile(dialect, q)
 
             @test sql ==
@@ -510,7 +510,7 @@ end
 
         @testset "INSERT...VALUES with parameters" begin
             q = insert_into(:users, [:name, :email]) |>
-                values([[param(String, :name), param(String, :email)]])
+                insert_values([[param(String, :name), param(String, :email)]])
             sql, params = compile(dialect, q)
 
             @test sql == "INSERT INTO `users` (`name`, `email`) VALUES (?, ?)"
@@ -519,8 +519,8 @@ end
 
         @testset "INSERT...VALUES multiple rows" begin
             q = insert_into(:users, [:name, :email]) |>
-                values([[literal("Alice"), literal("alice@example.com")],
-                        [literal("Bob"), literal("bob@example.com")]])
+                insert_values([[literal("Alice"), literal("alice@example.com")],
+                               [literal("Bob"), literal("bob@example.com")]])
             sql, params = compile(dialect, q)
 
             @test sql ==
@@ -538,7 +538,7 @@ end
 
         @testset "UPDATE...SET with literals" begin
             q = update(:users) |>
-                set(:name => literal("Alice"), :email => literal("alice@example.com"))
+                set_values(:name => literal("Alice"), :email => literal("alice@example.com"))
             sql, params = compile(dialect, q)
 
             @test sql ==
@@ -548,7 +548,7 @@ end
 
         @testset "UPDATE...SET with parameters" begin
             q = update(:users) |>
-                set(:name => param(String, :name), :email => param(String, :email))
+                set_values(:name => param(String, :name), :email => param(String, :email))
             sql, params = compile(dialect, q)
 
             @test sql == "UPDATE `users` SET `name` = ?, `email` = ?"
@@ -557,7 +557,7 @@ end
 
         @testset "UPDATE...SET...WHERE" begin
             q = update(:users) |>
-                set(:name => param(String, :name)) |>
+                set_values(:name => param(String, :name)) |>
                 where(col(:users, :id) == param(Int, :id))
             sql, params = compile(dialect, q)
 
@@ -858,7 +858,7 @@ end
             c2 = cte(:completed_orders, cte2_query)
 
             main_query = from(:active_users) |>
-                         join(:completed_orders,
+                         inner_join(:completed_orders,
                               col(:active_users, :id) == col(:completed_orders, :user_id)) |>
                          select(NamedTuple, col(:active_users, :id),
                                 col(:completed_orders, :total))
@@ -900,7 +900,7 @@ end
             c = cte(:active_users, cte_query)
 
             main_query = from(:active_users) |>
-                         join(:orders, col(:active_users, :id) == col(:orders, :user_id)) |>
+                         inner_join(:orders, col(:active_users, :id) == col(:orders, :user_id)) |>
                          where(col(:orders, :total) > literal(100)) |>
                          group_by(col(:active_users, :id)) |>
                          having(func(:COUNT, [col(:orders, :id)]) > literal(5)) |>
@@ -947,7 +947,7 @@ end
 
             # CTE2: orders from active users (references active_users)
             cte2_query = from(:orders) |>
-                         join(:active_users,
+                         inner_join(:active_users,
                               col(:orders, :user_id) == col(:active_users, :id)) |>
                          select(NamedTuple, col(:orders, :id), col(:orders, :user_id),
                                 col(:orders, :total))
@@ -995,7 +995,7 @@ end
     @testset "RETURNING Clause Compilation" begin
         @testset "INSERT...RETURNING with literals" begin
             q = insert_into(:users, [:email, :name]) |>
-                values([[literal("test@example.com"), literal("Test User")]]) |>
+                insert_values([[literal("test@example.com"), literal("Test User")]]) |>
                 returning(NamedTuple, col(:users, :id), col(:users, :email))
 
             sql, params = compile(dialect, q)
@@ -1008,7 +1008,7 @@ end
 
         @testset "INSERT...RETURNING with parameters" begin
             q = insert_into(:users, [:email, :name]) |>
-                values([[param(String, :email), param(String, :name)]]) |>
+                insert_values([[param(String, :email), param(String, :name)]]) |>
                 returning(NamedTuple, col(:users, :id), col(:users, :email),
                           col(:users, :name))
 
@@ -1022,7 +1022,7 @@ end
 
         @testset "INSERT...RETURNING with placeholder syntax" begin
             q = insert_into(:users, [:email]) |>
-                values([[param(String, :email)]]) |>
+                insert_values([[param(String, :email)]]) |>
                 returning(NamedTuple, p_.id, p_.email, p_.created_at)
 
             sql, params = compile(dialect, q)
@@ -1037,7 +1037,7 @@ end
 
         @testset "UPDATE...RETURNING with WHERE" begin
             q = update(:users) |>
-                set(:status => literal("premium"), :updated_at => literal("2025-01-01")) |>
+                set_values(:status => literal("premium"), :updated_at => literal("2025-01-01")) |>
                 where(col(:users, :id) == param(Int, :id)) |>
                 returning(NamedTuple, col(:users, :id), col(:users, :status),
                           col(:users, :updated_at))
@@ -1054,7 +1054,7 @@ end
 
         @testset "UPDATE...RETURNING without WHERE" begin
             q = update(:users) |>
-                set(:status => literal("active")) |>
+                set_values(:status => literal("active")) |>
                 returning(NamedTuple, col(:users, :id), col(:users, :status))
 
             sql, params = compile(dialect, q)
@@ -1068,7 +1068,7 @@ end
 
         @testset "UPDATE...RETURNING with placeholder syntax" begin
             q = update(:users) |>
-                set(:status => param(String, :status)) |>
+                set_values(:status => param(String, :status)) |>
                 where(p_.id == param(Int, :id)) |>
                 returning(NamedTuple, p_.id, p_.status, p_.email)
 
@@ -1122,7 +1122,7 @@ end
 
         @testset "RETURNING with single field" begin
             q = insert_into(:users, [:email]) |>
-                values([[literal("test@example.com")]]) |>
+                insert_values([[literal("test@example.com")]]) |>
                 returning(NamedTuple, col(:users, :id))
 
             sql, params = compile(dialect, q)
@@ -1133,7 +1133,7 @@ end
 
         @testset "RETURNING with multiple rows INSERT" begin
             q = insert_into(:users, [:email]) |>
-                values([[literal("user1@example.com")],
+                insert_values([[literal("user1@example.com")],
                         [literal("user2@example.com")],
                         [literal("user3@example.com")]]) |>
                 returning(NamedTuple, col(:users, :id), col(:users, :email))
@@ -1155,6 +1155,8 @@ using SQLSketch.Core: CreateTable, AlterTable, DropTable, CreateIndex, DropIndex
 using SQLSketch.Core: create_table, add_column, add_primary_key, add_foreign_key
 using SQLSketch.Core: add_unique, add_check
 using SQLSketch.Core: alter_table, add_alter_column, drop_alter_column, rename_alter_column
+using SQLSketch.Core: set_column_default, drop_column_default, set_column_not_null,
+                      drop_column_not_null, set_column_type
 using SQLSketch.Core: drop_table, create_index, drop_index
 
 @testset "SQLite Dialect - DDL Compilation" begin

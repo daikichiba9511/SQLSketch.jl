@@ -94,7 +94,7 @@ function main()
 
     # 5. Complex join query (using innerjoin to avoid Base.join conflict)
     join_query = from(:posts) |>
-                 innerjoin(:users, col(:posts, :user_id) == col(:users, :id)) |>
+                 inner_join(:users, col(:posts, :user_id) == col(:users, :id)) |>
                  select(NamedTuple,
                         col(:users, :name),
                         col(:posts, :title),

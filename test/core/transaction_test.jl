@@ -16,7 +16,7 @@ using SQLSketch.Core
 using SQLSketch.Drivers
 import SQLSketch.Core: transaction, savepoint, TransactionHandle, fetch_all, execute,
                        execute_sql
-import SQLSketch.Core: update, set, delete_from, insert_into, insert_values, from,
+import SQLSketch.Core: update, set_values, delete_from, insert_into, insert_values, from,
                        where, select, col, literal, raw_expr
 import Tables
 
@@ -196,7 +196,7 @@ import Tables
         @testset "Savepoint Success - Both Commit" begin
             transaction(db) do tx
                 q_update = update(:users) |>
-                           set(:balance => raw_expr("balance - 100")) |>
+                           set_values(:balance => raw_expr("balance - 100")) |>
                            where(col(:users, :email) == literal("alice@example.com"))
                 execute(tx, dialect, q_update)
 
@@ -231,7 +231,7 @@ import Tables
 
             transaction(db) do tx
                 q_update = update(:users) |>
-                           set(:balance => raw_expr("balance - 50")) |>
+                           set_values(:balance => raw_expr("balance - 50")) |>
                            where(col(:users, :email) == literal("alice@example.com"))
                 execute(tx, dialect, q_update)
 
@@ -270,7 +270,7 @@ import Tables
                 # First savepoint
                 savepoint(tx, :sp1) do sp1
                     q1 = update(:users) |>
-                         set(:balance => raw_expr("balance + 100")) |>
+                         set_values(:balance => raw_expr("balance + 100")) |>
                          where(col(:users, :email) == literal("alice@example.com"))
                     execute(sp1, dialect, q1)
                 end
@@ -278,7 +278,7 @@ import Tables
                 # Second savepoint
                 savepoint(tx, :sp2) do sp2
                     q2 = update(:users) |>
-                         set(:name => literal("Alice Updated")) |>
+                         set_values(:name => literal("Alice Updated")) |>
                          where(col(:users, :email) == literal("alice@example.com"))
                     execute(sp2, dialect, q2)
                 end
@@ -302,13 +302,13 @@ import Tables
             transaction(db) do tx
                 savepoint(tx, :outer) do sp_outer
                     q_outer = update(:users) |>
-                              set(:balance => raw_expr("balance + 50")) |>
+                              set_values(:balance => raw_expr("balance + 50")) |>
                               where(col(:users, :email) == literal("alice@example.com"))
                     execute(sp_outer, dialect, q_outer)
 
                     savepoint(sp_outer, :inner) do sp_inner
                         q_inner = update(:users) |>
-                                  set(:balance => raw_expr("balance + 25")) |>
+                                  set_values(:balance => raw_expr("balance + 25")) |>
                                   where(col(:users, :email) == literal("alice@example.com"))
                         execute(sp_inner, dialect, q_inner)
                     end
@@ -331,14 +331,14 @@ import Tables
             transaction(db) do tx
                 savepoint(tx, :outer) do sp_outer
                     q_outer = update(:users) |>
-                              set(:balance => raw_expr("balance + 100")) |>
+                              set_values(:balance => raw_expr("balance + 100")) |>
                               where(col(:users, :email) == literal("alice@example.com"))
                     execute(sp_outer, dialect, q_outer)
 
                     try
                         savepoint(sp_outer, :inner) do sp_inner
                             q_inner = update(:users) |>
-                                      set(:balance => raw_expr("balance + 200")) |>
+                                      set_values(:balance => raw_expr("balance + 200")) |>
                                       where(col(:users, :email) ==
                                             literal("alice@example.com"))
                             execute(sp_inner, dialect, q_inner)

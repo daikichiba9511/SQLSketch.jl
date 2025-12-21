@@ -2,7 +2,7 @@ using Test
 using SQLSketch.Core: Query, From, Where, Select, OrderBy, Limit
 using SQLSketch.Core: SetUnion, SetIntersect, SetExcept
 using SQLSketch.Core: from, where, select, order_by, limit
-using SQLSketch.Core: union, intersect, except
+using SQLSketch.Core: union_all, union_distinct, intersect_query, except_query
 using SQLSketch.Core: SQLExpr, col, literal, param
 using SQLSketch: SQLiteDialect
 using SQLSketch.Core: compile
@@ -25,19 +25,25 @@ using SQLSketch.Core: compile
         @test u_all.all == true
     end
 
-    @testset "union() helper - explicit" begin
+    @testset "union_distinct() helper - explicit" begin
         q1 = from(:users) |> select(NamedTuple, col(:users, :email))
         q2 = from(:admins) |> select(NamedTuple, col(:admins, :email))
 
-        # Default (UNION)
-        u = union(q1, q2)
+        # UNION (distinct)
+        u = union_distinct(q1, q2)
         @test u isa SetUnion{NamedTuple}
         @test u.left === q1
         @test u.right === q2
         @test u.all == false
+    end
+
+    @testset "union_all() helper - explicit" begin
+        q1 = from(:users) |> select(NamedTuple, col(:users, :email))
+        q2 = from(:admins) |> select(NamedTuple, col(:admins, :email))
 
         # UNION ALL
-        u_all = union(q1, q2, all = true)
+        u_all = union_all(q1, q2)
+        @test u_all isa SetUnion{NamedTuple}
         @test u_all.all == true
     end
 
@@ -45,15 +51,15 @@ using SQLSketch.Core: compile
         q1 = from(:users) |> select(NamedTuple, col(:users, :email))
         q2 = from(:admins) |> select(NamedTuple, col(:admins, :email))
 
-        # Default (UNION)
-        u = q1 |> union(q2)
+        # UNION (distinct)
+        u = q1 |> union_distinct(q2)
         @test u isa SetUnion{NamedTuple}
         @test u.left === q1
         @test u.right === q2
         @test u.all == false
 
         # UNION ALL
-        u_all = q1 |> union(q2, all = true)
+        u_all = q1 |> union_all(q2)
         @test u_all.all == true
     end
 
@@ -79,15 +85,11 @@ using SQLSketch.Core: compile
         q2 = from(:orders) |> select(NamedTuple, col(:orders, :customer_id))
 
         # Default (INTERSECT)
-        i = intersect(q1, q2)
+        i = intersect_query(q1, q2)
         @test i isa SetIntersect{NamedTuple}
         @test i.left === q1
         @test i.right === q2
         @test i.all == false
-
-        # INTERSECT ALL
-        i_all = intersect(q1, q2, all = true)
-        @test i_all.all == true
     end
 
     @testset "intersect() helper - curried" begin
@@ -95,15 +97,11 @@ using SQLSketch.Core: compile
         q2 = from(:orders) |> select(NamedTuple, col(:orders, :customer_id))
 
         # Default (INTERSECT)
-        i = q1 |> intersect(q2)
+        i = q1 |> intersect_query(q2)
         @test i isa SetIntersect{NamedTuple}
         @test i.left === q1
         @test i.right === q2
         @test i.all == false
-
-        # INTERSECT ALL
-        i_all = q1 |> intersect(q2, all = true)
-        @test i_all.all == true
     end
 
     @testset "Except constructor" begin
@@ -128,15 +126,11 @@ using SQLSketch.Core: compile
         q2 = from(:banned_users) |> select(NamedTuple, col(:banned_users, :user_id))
 
         # Default (EXCEPT)
-        e = except(q1, q2)
+        e = except_query(q1, q2)
         @test e isa SetExcept{NamedTuple}
         @test e.left === q1
         @test e.right === q2
         @test e.all == false
-
-        # EXCEPT ALL
-        e_all = except(q1, q2, all = true)
-        @test e_all.all == true
     end
 
     @testset "except() helper - curried" begin
@@ -144,15 +138,11 @@ using SQLSketch.Core: compile
         q2 = from(:banned_users) |> select(NamedTuple, col(:banned_users, :user_id))
 
         # Default (EXCEPT)
-        e = q1 |> except(q2)
+        e = q1 |> except_query(q2)
         @test e isa SetExcept{NamedTuple}
         @test e.left === q1
         @test e.right === q2
         @test e.all == false
-
-        # EXCEPT ALL
-        e_all = q1 |> except(q2, all = true)
-        @test e_all.all == true
     end
 
     @testset "Set operations with WHERE clauses" begin
@@ -164,7 +154,7 @@ using SQLSketch.Core: compile
              where(col(:admins, :verified) == literal(true)) |>
              select(NamedTuple, col(:admins, :email))
 
-        u = union(q1, q2)
+        u = union_distinct(q1, q2)
         @test u isa SetUnion{NamedTuple}
         @test u.left.source isa Where{NamedTuple}
         @test u.right.source isa Where{NamedTuple}
@@ -175,7 +165,7 @@ using SQLSketch.Core: compile
         q2 = from(:admins) |> select(NamedTuple, col(:admins, :email))
 
         # UNION with ORDER BY on result
-        u = union(q1, q2) |> order_by(col(:users, :email))
+        u = union_distinct(q1, q2) |> order_by(col(:users, :email))
         @test u isa OrderBy{NamedTuple}
         @test u.source isa SetUnion{NamedTuple}
     end
@@ -185,7 +175,7 @@ using SQLSketch.Core: compile
         q2 = from(:admins) |> select(NamedTuple, col(:admins, :email))
 
         # UNION with LIMIT
-        u = union(q1, q2) |> limit(10)
+        u = union_distinct(q1, q2) |> limit(10)
         @test u isa Limit{NamedTuple}
         @test u.source isa SetUnion{NamedTuple}
     end
@@ -196,7 +186,7 @@ using SQLSketch.Core: compile
         q3 = from(:guests) |> select(NamedTuple, col(:guests, :email))
 
         # UNION then UNION
-        u = union(q1, q2) |> union(q3)
+        u = union_distinct(q1, q2) |> union_distinct(q3)
         @test u isa SetUnion{NamedTuple}
         @test u.left isa SetUnion{NamedTuple}
         @test u.right === q3
@@ -207,7 +197,7 @@ using SQLSketch.Core: compile
         q2 = from(:admins) |> select(NamedTuple, col(:admins, :email))
 
         # Both have NamedTuple - OK
-        u = union(q1, q2)
+        u = union_distinct(q1, q2)
         @test u isa SetUnion{NamedTuple}
     end
 
@@ -215,11 +205,11 @@ using SQLSketch.Core: compile
         q1 = from(:users) |> select(NamedTuple, col(:users, :email))
         q2 = from(:admins) |> select(NamedTuple, col(:admins, :email))
 
-        u1 = union(q1, q2)
-        u2 = union(q1, q2)
+        u1 = union_distinct(q1, q2)
+        u2 = union_distinct(q1, q2)
         @test isequal(u1, u2)
 
-        u3 = union(q1, q2, all = true)
+        u3 = union_all(q1, q2)
         @test !isequal(u1, u3)  # Different `all` flag
     end
 
@@ -227,32 +217,26 @@ using SQLSketch.Core: compile
         q1 = from(:customers) |> select(NamedTuple, col(:customers, :id))
         q2 = from(:orders) |> select(NamedTuple, col(:orders, :customer_id))
 
-        i1 = intersect(q1, q2)
-        i2 = intersect(q1, q2)
+        i1 = intersect_query(q1, q2)
+        i2 = intersect_query(q1, q2)
         @test isequal(i1, i2)
-
-        i3 = intersect(q1, q2, all = true)
-        @test !isequal(i1, i3)
     end
 
     @testset "Structural equality - Except" begin
         q1 = from(:all_users) |> select(NamedTuple, col(:all_users, :id))
         q2 = from(:banned_users) |> select(NamedTuple, col(:banned_users, :user_id))
 
-        e1 = except(q1, q2)
-        e2 = except(q1, q2)
+        e1 = except_query(q1, q2)
+        e2 = except_query(q1, q2)
         @test isequal(e1, e2)
-
-        e3 = except(q1, q2, all = true)
-        @test !isequal(e1, e3)
     end
 
     @testset "Hashing - Union" begin
         q1 = from(:users) |> select(NamedTuple, col(:users, :email))
         q2 = from(:admins) |> select(NamedTuple, col(:admins, :email))
 
-        u1 = union(q1, q2)
-        u2 = union(q1, q2)
+        u1 = union_distinct(q1, q2)
+        u2 = union_distinct(q1, q2)
         @test hash(u1) == hash(u2)
 
         # Can be used in Dict/Set
@@ -264,8 +248,8 @@ using SQLSketch.Core: compile
         q1 = from(:customers) |> select(NamedTuple, col(:customers, :id))
         q2 = from(:orders) |> select(NamedTuple, col(:orders, :customer_id))
 
-        i1 = intersect(q1, q2)
-        i2 = intersect(q1, q2)
+        i1 = intersect_query(q1, q2)
+        i2 = intersect_query(q1, q2)
         @test hash(i1) == hash(i2)
     end
 
@@ -273,8 +257,8 @@ using SQLSketch.Core: compile
         q1 = from(:all_users) |> select(NamedTuple, col(:all_users, :id))
         q2 = from(:banned_users) |> select(NamedTuple, col(:banned_users, :user_id))
 
-        e1 = except(q1, q2)
-        e2 = except(q1, q2)
+        e1 = except_query(q1, q2)
+        e2 = except_query(q1, q2)
         @test hash(e1) == hash(e2)
     end
 
@@ -289,7 +273,7 @@ using SQLSketch.Core: compile
                         select(NamedTuple, col(:admins, :email))
 
         all_active = active_users |>
-                     union(active_admins) |>
+                     union_distinct(active_admins) |>
                      order_by(col(:users, :email)) |>
                      limit(100)
 
@@ -303,11 +287,11 @@ using SQLSketch.Core: compile
         q2 = from(:admins) |> select(NamedTuple, col(:admins, :email))
 
         # UNION (removes duplicates)
-        u_distinct = union(q1, q2, all = false)
+        u_distinct = union_distinct(q1, q2)
         @test u_distinct.all == false
 
         # UNION ALL (keeps duplicates)
-        u_all = union(q1, q2, all = true)
+        u_all = union_all(q1, q2)
         @test u_all.all == true
     end
 end
@@ -318,7 +302,7 @@ end
     @testset "UNION compilation" begin
         q1 = from(:users) |> select(NamedTuple, col(:users, :email))
         q2 = from(:admins) |> select(NamedTuple, col(:admins, :email))
-        q = union(q1, q2)
+        q = union_distinct(q1, q2)
 
         sql, params = compile(dialect, q)
         @test occursin("UNION", sql)
@@ -330,7 +314,7 @@ end
     @testset "UNION ALL compilation" begin
         q1 = from(:users) |> select(NamedTuple, col(:users, :email))
         q2 = from(:admins) |> select(NamedTuple, col(:admins, :email))
-        q = union(q1, q2, all = true)
+        q = union_all(q1, q2)
 
         sql, params = compile(dialect, q)
         @test occursin("UNION ALL", sql)
@@ -340,7 +324,7 @@ end
     @testset "INTERSECT compilation" begin
         q1 = from(:customers) |> select(NamedTuple, col(:customers, :id))
         q2 = from(:orders) |> select(NamedTuple, col(:orders, :customer_id))
-        q = intersect(q1, q2)
+        q = intersect_query(q1, q2)
 
         sql, params = compile(dialect, q)
         @test occursin("INTERSECT", sql)
@@ -352,7 +336,7 @@ end
     @testset "EXCEPT compilation" begin
         q1 = from(:all_users) |> select(NamedTuple, col(:all_users, :id))
         q2 = from(:banned_users) |> select(NamedTuple, col(:banned_users, :user_id))
-        q = except(q1, q2)
+        q = except_query(q1, q2)
 
         sql, params = compile(dialect, q)
         @test occursin("EXCEPT", sql)
@@ -370,7 +354,7 @@ end
              where(col(:admins, :verified) == param(Bool, :verified2)) |>
              select(NamedTuple, col(:admins, :email))
 
-        q = union(q1, q2)
+        q = union_distinct(q1, q2)
 
         sql, params = compile(dialect, q)
         @test occursin("UNION", sql)
@@ -385,7 +369,7 @@ end
         q3 = from(:guests) |> select(NamedTuple, col(:guests, :email))
 
         # (q1 UNION q2) UNION q3
-        q = union(union(q1, q2), q3)
+        q = union_distinct(union_distinct(q1, q2), q3)
 
         sql, params = compile(dialect, q)
         # Should have two UNION operators
@@ -397,7 +381,7 @@ end
         q1 = from(:users) |> select(NamedTuple, col(:users, :email))
         q2 = from(:admins) |> select(NamedTuple, col(:admins, :email))
 
-        q = union(q1, q2) |>
+        q = union_distinct(q1, q2) |>
             order_by(col(:users, :email)) |>
             limit(10)
 
@@ -421,7 +405,7 @@ end
                        select(NamedTuple, col(:banned, :user_id))
 
         # (active UNION premium) EXCEPT banned
-        q = union(active_users, premium_users) |> except(banned_users)
+        q = union_distinct(active_users, premium_users) |> except_query(banned_users)
 
         sql, params = compile(dialect, q)
         @test occursin("UNION", sql)

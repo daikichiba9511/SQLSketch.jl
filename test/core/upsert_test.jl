@@ -7,12 +7,12 @@ Test suite for UPSERT/ON CONFLICT functionality.
 using Test
 using SQLSketch
 using SQLSketch.Core
-using SQLSketch.Core: values  # Avoid conflict with Base.values
+using SQLSketch.Core: insert_values  # Avoid conflict with Base.values
 
 @testset "ON CONFLICT DO NOTHING - AST Construction" begin
     # Basic ON CONFLICT DO NOTHING
     base_insert = insert_into(:users, [:id, :email, :name]) |>
-                  values([[literal(1), literal("alice@example.com"), literal("Alice")]])
+                  insert_values([[literal(1), literal("alice@example.com"), literal("Alice")]])
 
     upsert = base_insert |> on_conflict_do_nothing()
 
@@ -38,7 +38,7 @@ end
 
 @testset "ON CONFLICT DO UPDATE - AST Construction" begin
     base_insert = insert_into(:users, [:id, :email, :name]) |>
-                  values([[literal(1), literal("alice@example.com"), literal("Alice")]])
+                  insert_values([[literal(1), literal("alice@example.com"), literal("Alice")]])
 
     # Basic ON CONFLICT DO UPDATE
     upsert = base_insert |>
@@ -84,7 +84,7 @@ end
 
 @testset "ON CONFLICT - Explicit Function Calls" begin
     base_insert = insert_into(:users, [:id, :email, :name]) |>
-                  values([[literal(1), literal("alice@example.com"), literal("Alice")]])
+                  insert_values([[literal(1), literal("alice@example.com"), literal("Alice")]])
 
     # Explicit on_conflict_do_nothing
     upsert1 = on_conflict_do_nothing(base_insert)
@@ -113,7 +113,7 @@ end
 
 @testset "ON CONFLICT - Structural Equality" begin
     base_insert = insert_into(:users, [:id, :email]) |>
-                  values([[param(Int, :id), param(String, :email)]])
+                  insert_values([[param(Int, :id), param(String, :email)]])
 
     # Same ON CONFLICT DO NOTHING queries have same structure
     upsert1 = base_insert |> on_conflict_do_nothing()
@@ -145,7 +145,7 @@ end
 
 @testset "ON CONFLICT - Edge Cases" begin
     base_insert = insert_into(:users, [:id, :email, :name]) |>
-                  values([[literal(1), literal("alice@example.com"), literal("Alice")]])
+                  insert_values([[literal(1), literal("alice@example.com"), literal("Alice")]])
 
     # Empty target columns (conflict on any constraint)
     upsert_empty = on_conflict_do_nothing(base_insert; target = Symbol[])
@@ -181,7 +181,7 @@ end
 @testset "ON CONFLICT - Type Preservation" begin
     # Type should be preserved through ON CONFLICT
     base_insert = insert_into(:users, [:id, :email, :name]) |>
-                  values([[literal(1), literal("alice@example.com"), literal("Alice")]])
+                  insert_values([[literal(1), literal("alice@example.com"), literal("Alice")]])
 
     upsert = base_insert |> on_conflict_do_nothing()
 
@@ -205,7 +205,7 @@ end
 
     # Basic ON CONFLICT DO NOTHING
     q = insert_into(:users, [:id, :email]) |>
-        values([[param(Int, :id), param(String, :email)]]) |>
+        insert_values([[param(Int, :id), param(String, :email)]]) |>
         on_conflict_do_nothing()
 
     sql, params = compile(dialect, q)
@@ -214,7 +214,7 @@ end
 
     # With specific conflict columns
     q2 = insert_into(:users, [:id, :email]) |>
-         values([[param(Int, :id), param(String, :email)]]) |>
+         insert_values([[param(Int, :id), param(String, :email)]]) |>
          on_conflict_do_nothing([:email])
 
     sql2, params2 = compile(dialect, q2)
@@ -224,7 +224,7 @@ end
 
     # Multiple conflict columns
     q3 = insert_into(:users, [:id, :email, :name]) |>
-         values([[param(Int, :id), param(String, :email), param(String, :name)]]) |>
+         insert_values([[param(Int, :id), param(String, :email), param(String, :name)]]) |>
          on_conflict_do_nothing([:email, :name])
 
     sql3, params3 = compile(dialect, q3)
@@ -238,7 +238,7 @@ end
 
     # Basic DO UPDATE with single column
     q = insert_into(:users, [:id, :email, :name]) |>
-        values([[param(Int, :id), param(String, :email), param(String, :name)]]) |>
+        insert_values([[param(Int, :id), param(String, :email), param(String, :name)]]) |>
         on_conflict_do_update([:email],
                               :name => col(:excluded, :name))
 
@@ -249,7 +249,7 @@ end
 
     # Multiple update columns
     q2 = insert_into(:users, [:id, :email, :name, :active]) |>
-         values([[param(Int, :id), param(String, :email), param(String, :name),
+         insert_values([[param(Int, :id), param(String, :email), param(String, :name),
                   param(Bool, :active)]]) |>
          on_conflict_do_update([:email],
                                :name => col(:excluded, :name),
@@ -262,7 +262,7 @@ end
 
     # Update with literal value
     q3 = insert_into(:users, [:id, :email]) |>
-         values([[param(Int, :id), param(String, :email)]]) |>
+         insert_values([[param(Int, :id), param(String, :email)]]) |>
          on_conflict_do_update([:email],
                                :active => literal(true))
 
@@ -273,7 +273,7 @@ end
 
     # Update with function call
     q4 = insert_into(:users, [:id, :email]) |>
-         values([[param(Int, :id), param(String, :email)]]) |>
+         insert_values([[param(Int, :id), param(String, :email)]]) |>
          on_conflict_do_update([:email],
                                :updated_at => func(:CURRENT_TIMESTAMP, SQLExpr[]))
 
@@ -284,7 +284,7 @@ end
 
     # Update with binary operation
     q5 = insert_into(:users, [:id, :email, :login_count]) |>
-         values([[param(Int, :id), param(String, :email), param(Int, :login_count)]]) |>
+         insert_values([[param(Int, :id), param(String, :email), param(Int, :login_count)]]) |>
          on_conflict_do_update([:email],
                                :login_count => col(:users, :login_count) + literal(1))
 
@@ -299,7 +299,7 @@ end
 
     # DO UPDATE with WHERE clause
     q = insert_into(:users, [:id, :email, :name, :version]) |>
-        values([[param(Int, :id), param(String, :email), param(String, :name),
+        insert_values([[param(Int, :id), param(String, :email), param(String, :name),
                  param(Int, :version)]]) |>
         on_conflict_do_update([:email],
                               :name => col(:excluded, :name);
@@ -312,7 +312,7 @@ end
 
     # WHERE with literal comparison
     q2 = insert_into(:users, [:id, :email, :active]) |>
-         values([[param(Int, :id), param(String, :email), param(Bool, :active)]]) |>
+         insert_values([[param(Int, :id), param(String, :email), param(Bool, :active)]]) |>
          on_conflict_do_update([:email],
                                :active => col(:excluded, :active);
                                where = col(:users, :active) == literal(false))
@@ -328,7 +328,7 @@ end
 
     # No target columns (conflict on any constraint)
     q1 = insert_into(:users, [:id, :email]) |>
-         values([[param(Int, :id), param(String, :email)]]) |>
+         insert_values([[param(Int, :id), param(String, :email)]]) |>
          on_conflict_do_nothing(Symbol[])
 
     sql1, params1 = compile(dialect, q1)
@@ -336,7 +336,7 @@ end
 
     # ON CONFLICT with nothing target (same as empty)
     q2 = insert_into(:users, [:id, :email]) |>
-         values([[param(Int, :id), param(String, :email)]]) |>
+         insert_values([[param(Int, :id), param(String, :email)]]) |>
          on_conflict_do_nothing()
 
     sql2, params2 = compile(dialect, q2)
@@ -344,7 +344,7 @@ end
 
     # Single target column
     q3 = insert_into(:users, [:id, :email]) |>
-         values([[param(Int, :id), param(String, :email)]]) |>
+         insert_values([[param(Int, :id), param(String, :email)]]) |>
          on_conflict_do_nothing([:id])
 
     sql3, params3 = compile(dialect, q3)
@@ -357,7 +357,7 @@ end
 
     # ON CONFLICT with parameter values
     q = insert_into(:users, [:id, :email, :name]) |>
-        values([[param(Int, :user_id), param(String, :user_email),
+        insert_values([[param(Int, :user_id), param(String, :user_email),
                  param(String, :user_name)]]) |>
         on_conflict_do_update([:email],
                               :name => param(String, :new_name))
@@ -369,7 +369,7 @@ end
 
     # Mixed literals and parameters
     q2 = insert_into(:users, [:id, :email, :active]) |>
-         values([[param(Int, :user_id), param(String, :user_email), literal(true)]]) |>
+         insert_values([[param(Int, :user_id), param(String, :user_email), literal(true)]]) |>
          on_conflict_do_update([:email],
                                :active => literal(true),
                                :updated_at => func(:CURRENT_TIMESTAMP, SQLExpr[]))

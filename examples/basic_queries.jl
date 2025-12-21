@@ -84,7 +84,7 @@ execute(db, dialect,
                        [literal(4), literal(59.99), literal("2025-01-03")]]))
 
 q2 = from(:users) |>
-     innerjoin(:orders, col(:orders, :user_id) == col(:users, :id)) |>
+     inner_join(:orders, col(:orders, :user_id) == col(:users, :id)) |>
      where(col(:users, :status) == literal("active")) |>
      select(NamedTuple, col(:users, :name), col(:orders, :total), col(:orders, :created_at))
 
