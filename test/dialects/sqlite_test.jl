@@ -6,7 +6,8 @@ using SQLSketch.Core: Query, From, Where, Select, Join, OrderBy, Limit, Offset, 
 using SQLSketch.Core: InsertInto, InsertValues, Update, UpdateSet, UpdateWhere,
                       DeleteFrom, DeleteWhere
 using SQLSketch.Core: from, where, select, inner_join, left_join, right_join, full_join,
-                      order_by, limit, offset, distinct, group_by, having, cte, with, returning
+                      order_by, limit, offset, distinct, group_by, having, cte, with,
+                      returning
 using SQLSketch.Core: insert_into, insert_values, update, set_values, delete_from
 using SQLSketch.Core: SQLExpr, col, literal, param, func, is_null, is_not_null
 using SQLSketch.Extras: p_
@@ -538,7 +539,8 @@ end
 
         @testset "UPDATE...SET with literals" begin
             q = update(:users) |>
-                set_values(:name => literal("Alice"), :email => literal("alice@example.com"))
+                set_values(:name => literal("Alice"),
+                           :email => literal("alice@example.com"))
             sql, params = compile(dialect, q)
 
             @test sql ==
@@ -859,7 +861,8 @@ end
 
             main_query = from(:active_users) |>
                          inner_join(:completed_orders,
-                              col(:active_users, :id) == col(:completed_orders, :user_id)) |>
+                                    col(:active_users, :id) ==
+                                    col(:completed_orders, :user_id)) |>
                          select(NamedTuple, col(:active_users, :id),
                                 col(:completed_orders, :total))
 
@@ -900,7 +903,8 @@ end
             c = cte(:active_users, cte_query)
 
             main_query = from(:active_users) |>
-                         inner_join(:orders, col(:active_users, :id) == col(:orders, :user_id)) |>
+                         inner_join(:orders,
+                                    col(:active_users, :id) == col(:orders, :user_id)) |>
                          where(col(:orders, :total) > literal(100)) |>
                          group_by(col(:active_users, :id)) |>
                          having(func(:COUNT, [col(:orders, :id)]) > literal(5)) |>
@@ -948,7 +952,7 @@ end
             # CTE2: orders from active users (references active_users)
             cte2_query = from(:orders) |>
                          inner_join(:active_users,
-                              col(:orders, :user_id) == col(:active_users, :id)) |>
+                                    col(:orders, :user_id) == col(:active_users, :id)) |>
                          select(NamedTuple, col(:orders, :id), col(:orders, :user_id),
                                 col(:orders, :total))
             c2 = cte(:active_orders, cte2_query)
@@ -1037,7 +1041,8 @@ end
 
         @testset "UPDATE...RETURNING with WHERE" begin
             q = update(:users) |>
-                set_values(:status => literal("premium"), :updated_at => literal("2025-01-01")) |>
+                set_values(:status => literal("premium"),
+                           :updated_at => literal("2025-01-01")) |>
                 where(col(:users, :id) == param(Int, :id)) |>
                 returning(NamedTuple, col(:users, :id), col(:users, :status),
                           col(:users, :updated_at))
@@ -1134,8 +1139,8 @@ end
         @testset "RETURNING with multiple rows INSERT" begin
             q = insert_into(:users, [:email]) |>
                 insert_values([[literal("user1@example.com")],
-                        [literal("user2@example.com")],
-                        [literal("user3@example.com")]]) |>
+                               [literal("user2@example.com")],
+                               [literal("user3@example.com")]]) |>
                 returning(NamedTuple, col(:users, :id), col(:users, :email))
 
             sql, params = compile(dialect, q)

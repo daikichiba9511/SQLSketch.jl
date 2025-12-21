@@ -201,7 +201,7 @@ else
                     for row in rows
                         q = insert_into(:test_batch, [:email, :name, :age, :active]) |>
                             insert_values([[literal(row.email), literal(row.name),
-                                     literal(row.age), literal(row.active)]])
+                                            literal(row.age), literal(row.active)]])
                         execute(conn, dialect, q)
                     end
                 end

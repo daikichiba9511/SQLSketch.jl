@@ -106,8 +106,8 @@ function insert_test_data(conn, dialect)
     for (id, email, name, age, active, created_at) in users_data
         q = insert_into(:users, [:id, :email, :name, :age, :active, :created_at]) |>
             insert_values([[literal(id), literal(email), literal(name), literal(age),
-                     literal(active),
-                     literal(created_at)]])
+                            literal(active),
+                            literal(created_at)]])
         execute(conn, dialect, q)
     end
 
@@ -121,7 +121,7 @@ function insert_test_data(conn, dialect)
     for (id, user_id, total, status, created_at) in orders_data
         q = insert_into(:orders, [:id, :user_id, :total, :status, :created_at]) |>
             insert_values([[literal(id), literal(user_id), literal(total), literal(status),
-                     literal(created_at)]])
+                            literal(created_at)]])
         execute(conn, dialect, q)
     end
 end
@@ -246,8 +246,8 @@ else
                 # Test INSERT RETURNING
                 q = insert_into(:users, [:id, :email, :name, :age, :active]) |>
                     insert_values([[literal(5), literal("eve@example.com"), literal("Eve"),
-                             literal(32),
-                             literal(true)]]) |>
+                                    literal(32),
+                                    literal(true)]]) |>
                     returning(NamedTuple, p_.id, p_.email, p_.name)
 
                 result = fetch_one(pg_conn, pg_dialect, pg_registry, q)
@@ -282,8 +282,8 @@ else
                 # Test ON CONFLICT DO NOTHING
                 q1 = insert_into(:users, [:id, :email, :name, :age, :active]) |>
                      insert_values([[literal(1), literal("alice@example.com"),
-                              literal("Alice Updated"),
-                              literal(31), literal(true)]]) |>
+                                     literal("Alice Updated"),
+                                     literal(31), literal(true)]]) |>
                      on_conflict_do_nothing()
 
                 affected = execute(pg_conn, pg_dialect, q1)
@@ -299,8 +299,8 @@ else
                 # Test ON CONFLICT DO UPDATE
                 q2 = insert_into(:users, [:id, :email, :name, :age]) |>
                      insert_values([[literal(1), literal("alice@example.com"),
-                              literal("Alice Updated"),
-                              literal(31)]]) |>
+                                     literal("Alice Updated"),
+                                     literal(31)]]) |>
                      on_conflict_do_update([:email], :name => col(:excluded, :name),
                                            :age => col(:excluded, :age))
 
@@ -321,8 +321,9 @@ else
                 # Test COMMIT
                 transaction(pg_conn) do tx
                     q = insert_into(:users, [:id, :email, :name, :age, :active]) |>
-                        insert_values([[literal(6), literal("frank@example.com"), literal("Frank"),
-                                 literal(40), literal(true)]])
+                        insert_values([[literal(6), literal("frank@example.com"),
+                                        literal("Frank"),
+                                        literal(40), literal(true)]])
                     execute(tx, pg_dialect, q)
                 end
 
@@ -338,8 +339,8 @@ else
                     transaction(pg_conn) do tx
                         q = insert_into(:users, [:id, :email, :name, :age, :active]) |>
                             insert_values([[literal(7), literal("grace@example.com"),
-                                     literal("Grace"),
-                                     literal(45), literal(true)]])
+                                            literal("Grace"),
+                                            literal(45), literal(true)]])
                         execute(tx, pg_dialect, q)
 
                         # Force an error to trigger rollback
@@ -359,8 +360,8 @@ else
                     # Insert Henry
                     q1 = insert_into(:users, [:id, :email, :name, :age, :active]) |>
                          insert_values([[literal(8), literal("henry@example.com"),
-                                  literal("Henry"),
-                                  literal(50), literal(true)]])
+                                         literal("Henry"),
+                                         literal(50), literal(true)]])
                     execute(tx, pg_dialect, q1)
 
                     # Savepoint - try to insert Iris but rollback
@@ -368,8 +369,8 @@ else
                         savepoint(tx, :sp1) do sp
                             q2 = insert_into(:users, [:id, :email, :name, :age, :active]) |>
                                  insert_values([[literal(9), literal("iris@example.com"),
-                                          literal("Iris"),
-                                          literal(55), literal(true)]])
+                                                 literal("Iris"),
+                                                 literal(55), literal(true)]])
                             execute(sp, pg_dialect, q2)
 
                             error("Rollback to savepoint")

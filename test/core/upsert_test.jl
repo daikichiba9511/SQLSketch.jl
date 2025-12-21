@@ -12,7 +12,8 @@ using SQLSketch.Core: insert_values  # Avoid conflict with Base.values
 @testset "ON CONFLICT DO NOTHING - AST Construction" begin
     # Basic ON CONFLICT DO NOTHING
     base_insert = insert_into(:users, [:id, :email, :name]) |>
-                  insert_values([[literal(1), literal("alice@example.com"), literal("Alice")]])
+                  insert_values([[literal(1), literal("alice@example.com"),
+                                  literal("Alice")]])
 
     upsert = base_insert |> on_conflict_do_nothing()
 
@@ -38,7 +39,8 @@ end
 
 @testset "ON CONFLICT DO UPDATE - AST Construction" begin
     base_insert = insert_into(:users, [:id, :email, :name]) |>
-                  insert_values([[literal(1), literal("alice@example.com"), literal("Alice")]])
+                  insert_values([[literal(1), literal("alice@example.com"),
+                                  literal("Alice")]])
 
     # Basic ON CONFLICT DO UPDATE
     upsert = base_insert |>
@@ -84,7 +86,8 @@ end
 
 @testset "ON CONFLICT - Explicit Function Calls" begin
     base_insert = insert_into(:users, [:id, :email, :name]) |>
-                  insert_values([[literal(1), literal("alice@example.com"), literal("Alice")]])
+                  insert_values([[literal(1), literal("alice@example.com"),
+                                  literal("Alice")]])
 
     # Explicit on_conflict_do_nothing
     upsert1 = on_conflict_do_nothing(base_insert)
@@ -145,7 +148,8 @@ end
 
 @testset "ON CONFLICT - Edge Cases" begin
     base_insert = insert_into(:users, [:id, :email, :name]) |>
-                  insert_values([[literal(1), literal("alice@example.com"), literal("Alice")]])
+                  insert_values([[literal(1), literal("alice@example.com"),
+                                  literal("Alice")]])
 
     # Empty target columns (conflict on any constraint)
     upsert_empty = on_conflict_do_nothing(base_insert; target = Symbol[])
@@ -181,7 +185,8 @@ end
 @testset "ON CONFLICT - Type Preservation" begin
     # Type should be preserved through ON CONFLICT
     base_insert = insert_into(:users, [:id, :email, :name]) |>
-                  insert_values([[literal(1), literal("alice@example.com"), literal("Alice")]])
+                  insert_values([[literal(1), literal("alice@example.com"),
+                                  literal("Alice")]])
 
     upsert = base_insert |> on_conflict_do_nothing()
 
@@ -250,7 +255,7 @@ end
     # Multiple update columns
     q2 = insert_into(:users, [:id, :email, :name, :active]) |>
          insert_values([[param(Int, :id), param(String, :email), param(String, :name),
-                  param(Bool, :active)]]) |>
+                         param(Bool, :active)]]) |>
          on_conflict_do_update([:email],
                                :name => col(:excluded, :name),
                                :active => col(:excluded, :active))
@@ -300,7 +305,7 @@ end
     # DO UPDATE with WHERE clause
     q = insert_into(:users, [:id, :email, :name, :version]) |>
         insert_values([[param(Int, :id), param(String, :email), param(String, :name),
-                 param(Int, :version)]]) |>
+                        param(Int, :version)]]) |>
         on_conflict_do_update([:email],
                               :name => col(:excluded, :name);
                               where = col(:users, :version) < col(:excluded, :version))
@@ -358,7 +363,7 @@ end
     # ON CONFLICT with parameter values
     q = insert_into(:users, [:id, :email, :name]) |>
         insert_values([[param(Int, :user_id), param(String, :user_email),
-                 param(String, :user_name)]]) |>
+                        param(String, :user_name)]]) |>
         on_conflict_do_update([:email],
                               :name => param(String, :new_name))
 

@@ -528,7 +528,6 @@ end
 # Curried version for pipeline composition
 having(condition::SQLExpr) = q -> having(q, condition)
 
-
 #
 # Join Functions (renamed to avoid Base.join conflict)
 #
@@ -834,7 +833,6 @@ q = insert_into(:users, [:name, :email]) |>
 """
 insert_into(table::Symbol, columns::Vector{Symbol})::InsertInto{NamedTuple} = InsertInto{NamedTuple}(table,
                                                                                                      columns)
-
 
 #
 # INSERT VALUES (renamed to avoid Base.values conflict)

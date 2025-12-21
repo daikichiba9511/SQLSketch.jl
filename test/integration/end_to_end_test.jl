@@ -613,8 +613,8 @@ import SQLSketch.Core: inner_join, insert_values, with
             # Main query: JOIN both CTEs
             main_query = from(:active_users) |>
                          inner_join(:completed_orders,
-                                   col(:active_users, :id) ==
-                                   col(:completed_orders, :user_id)) |>
+                                    col(:active_users, :id) ==
+                                    col(:completed_orders, :user_id)) |>
                          select(NamedTuple, col(:active_users, :name),
                                 col(:completed_orders, :total)) |>
                          order_by(col(:active_users, :name))
@@ -688,7 +688,7 @@ import SQLSketch.Core: inner_join, insert_values, with
             # CTE2: orders from active users
             cte2_query = from(:orders) |>
                          inner_join(:active_users,
-                                   col(:orders, :user_id) == col(:active_users, :id)) |>
+                                    col(:orders, :user_id) == col(:active_users, :id)) |>
                          select(NamedTuple, col(:orders, :id), col(:orders, :user_id),
                                 col(:orders, :total), col(:active_users, :name))
 

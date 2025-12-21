@@ -2,7 +2,8 @@ using Test
 using SQLSketch.Core: Query, From, Where, Select, OrderBy, Limit, Offset, Distinct, GroupBy,
                       Having, Join, CTE, With, Returning
 using SQLSketch.Core: from, where, select, order_by, limit, offset, distinct, group_by,
-                      having, inner_join, left_join, right_join, full_join, cte, with, returning
+                      having, inner_join, left_join, right_join, full_join, cte, with,
+                      returning
 using SQLSketch.Core: insert_into, insert_values, update, set_values, delete_from
 using SQLSketch.Core: SQLExpr, col, literal, param, func
 using SQLSketch.Extras: p_

@@ -6,7 +6,8 @@ using SQLSketch.Core: Query, From, Where, Select, Join, OrderBy, Limit, Offset, 
 using SQLSketch.Core: InsertInto, InsertValues, Update, UpdateSet, UpdateWhere,
                       DeleteFrom, DeleteWhere
 using SQLSketch.Core: from, where, select, inner_join, left_join, right_join, full_join,
-                      order_by, limit, offset, distinct, group_by, having, cte, with, returning
+                      order_by, limit, offset, distinct, group_by, having, cte, with,
+                      returning
 using SQLSketch.Core: insert_into, insert_values, update, set_values, delete_from
 using SQLSketch.Core: SQLExpr, col, literal, param, func, is_null, is_not_null
 using SQLSketch.Extras: p_
