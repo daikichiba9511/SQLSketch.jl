@@ -62,7 +62,8 @@ println("  Memory:      $(BenchmarkTools.prettymemory(median(result_current).mem
 println("  Allocations: $(median(result_current).allocs)")
 println()
 
-overhead_current = (median(result_current).time - median(result_raw).time) / median(result_raw).time * 100
+overhead_current = (median(result_current).time - median(result_raw).time) /
+                   median(result_raw).time * 100
 println("Analysis:")
 println("  Overhead vs raw LibPQ: $(round(overhead_current, digits=1))%")
 println()
@@ -106,7 +107,8 @@ println("  Memory:      $(BenchmarkTools.prettymemory(median(result_join_current
 println("  Allocations: $(median(result_join_current).allocs)")
 println()
 
-overhead_join_current = (median(result_join_current).time - median(result_join_raw).time) / median(result_join_raw).time * 100
+overhead_join_current = (median(result_join_current).time - median(result_join_raw).time) /
+                        median(result_join_raw).time * 100
 println("Analysis:")
 println("  Overhead vs raw LibPQ: $(round(overhead_join_current, digits=1))%")
 println()

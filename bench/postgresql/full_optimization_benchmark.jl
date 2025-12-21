@@ -84,7 +84,7 @@ println("  Allocations: $(median(result_opt_hit).allocs)")
 println()
 
 cache_hit_improvement = (median(result_opt_miss).time - median(result_opt_hit).time) /
-                         median(result_opt_miss).time * 100
+                        median(result_opt_miss).time * 100
 
 println("Prepared Statement Cache Impact:")
 println("  Time improvement: $(round(cache_hit_improvement, digits=2))% faster (cache hit vs cache miss)")
@@ -134,7 +134,7 @@ println("  Allocations: $(median(result_no_prepared).allocs)")
 println()
 
 prepared_benefit = (median(result_no_prepared).time - median(result_opt_hit).time) /
-                    median(result_no_prepared).time * 100
+                   median(result_no_prepared).time * 100
 
 println("Prepared statements benefit:")
 println("  Time improvement: $(round(prepared_benefit, digits=2))% faster")
@@ -188,7 +188,7 @@ println("  Allocations: $(median(result_raw).allocs)")
 println()
 
 total_overhead = (median(result_opt_hit).time - median(result_raw).time) /
-                  median(result_raw).time * 100
+                 median(result_raw).time * 100
 
 println("SQLSketch overhead (with all optimizations):")
 println("  Time overhead:   $(round(total_overhead, digits=2))%")

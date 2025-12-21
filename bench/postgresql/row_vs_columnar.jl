@@ -68,8 +68,10 @@ println("  Allocations: $(median(result_col).allocs)")
 println()
 
 speedup_row_vs_col = median(result_row).time / median(result_col).time
-overhead_row = (median(result_row).time - median(result_raw).time) / median(result_raw).time * 100
-overhead_col = (median(result_col).time - median(result_raw).time) / median(result_raw).time * 100
+overhead_row = (median(result_row).time - median(result_raw).time) /
+               median(result_raw).time * 100
+overhead_col = (median(result_col).time - median(result_raw).time) /
+               median(result_raw).time * 100
 
 println("Analysis:")
 println("  Row-based overhead vs raw:     $(round(overhead_row, digits=1))%")
@@ -124,8 +126,10 @@ println("  Allocations: $(median(result_join_col).allocs)")
 println()
 
 speedup_join = median(result_join_row).time / median(result_join_col).time
-overhead_join_row = (median(result_join_row).time - median(result_join_raw).time) / median(result_join_raw).time * 100
-overhead_join_col = (median(result_join_col).time - median(result_join_raw).time) / median(result_join_raw).time * 100
+overhead_join_row = (median(result_join_row).time - median(result_join_raw).time) /
+                    median(result_join_raw).time * 100
+overhead_join_col = (median(result_join_col).time - median(result_join_raw).time) /
+                    median(result_join_raw).time * 100
 
 println("Analysis:")
 println("  Row-based overhead vs raw:     $(round(overhead_join_row, digits=1))%")
@@ -179,8 +183,10 @@ println("  Allocations: $(median(result_limit_col).allocs)")
 println()
 
 speedup_limit = median(result_limit_row).time / median(result_limit_col).time
-overhead_limit_row = (median(result_limit_row).time - median(result_limit_raw).time) / median(result_limit_raw).time * 100
-overhead_limit_col = (median(result_limit_col).time - median(result_limit_raw).time) / median(result_limit_raw).time * 100
+overhead_limit_row = (median(result_limit_row).time - median(result_limit_raw).time) /
+                     median(result_limit_raw).time * 100
+overhead_limit_col = (median(result_limit_col).time - median(result_limit_raw).time) /
+                     median(result_limit_raw).time * 100
 
 println("Analysis:")
 println("  Row-based overhead vs raw:     $(round(overhead_limit_row, digits=1))%")

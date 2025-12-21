@@ -83,8 +83,10 @@ println()
 
 # Compare
 speedup = median(result_current).time / median(result_via_columnar).time
-memory_reduction = (1 - median(result_via_columnar).memory / median(result_current).memory) * 100
-alloc_reduction = (1 - median(result_via_columnar).allocs / median(result_current).allocs) * 100
+memory_reduction = (1 - median(result_via_columnar).memory / median(result_current).memory) *
+                   100
+alloc_reduction = (1 - median(result_via_columnar).allocs / median(result_current).allocs) *
+                  100
 
 println("=" ^ 80)
 println("Results")

@@ -44,7 +44,7 @@ println("Done profiling. Generating report...")
 println()
 
 # Print profile
-Profile.print(format=:flat, sortedby=:count, maxdepth=20)
+Profile.print(; format = :flat, sortedby = :count, maxdepth = 20)
 
 println()
 println("=" ^ 80)
@@ -58,7 +58,7 @@ Profile.clear_malloc_data()
     fetch_all(conn, dialect, registry, q_simple)
 end
 
-Profile.print(format=:flat, sortedby=:count, maxdepth=15)
+Profile.print(; format = :flat, sortedby = :count, maxdepth = 15)
 
 # Cleanup
 cleanup_postgresql_db(conn)

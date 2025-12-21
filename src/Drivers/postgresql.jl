@@ -84,6 +84,7 @@ SQL compilation and planning. The cache:
 # Performance Impact
 
 Prepared statement caching provides:
+
   - 10-20% faster for repeated queries
   - Reduced PostgreSQL server load (no re-parsing)
   - Lower network overhead (binary protocol)
@@ -91,13 +92,13 @@ Prepared statement caching provides:
 mutable struct PostgreSQLConnection <: Connection
     conn::LibPQ.Connection
     stmt_counter::Int
-    stmt_cache::LRU{UInt64,String}
+    stmt_cache::LRU{UInt64, String}
     stmt_cache_enabled::Bool
 
     function PostgreSQLConnection(conn::LibPQ.Connection;
-                                   cache_size::Int = 100,
-                                   enable_cache::Bool = true)::PostgreSQLConnection
-        return new(conn, 0, LRU{UInt64,String}(; maxsize = cache_size), enable_cache)
+                                  cache_size::Int = 100,
+                                  enable_cache::Bool = true)::PostgreSQLConnection
+        return new(conn, 0, LRU{UInt64, String}(; maxsize = cache_size), enable_cache)
     end
 end
 
@@ -905,15 +906,17 @@ PostgreSQL-optimized version of fetch_all using DecodePlan and Prepared Statemen
 
 This specialization automatically uses two key optimizations:
 
-1. **DecodePlan Optimization**: Pre-resolves column types and codecs
-   - 15-19% faster execution
-   - 24-25% memory reduction
-   - 26% fewer allocations
+ 1. **DecodePlan Optimization**: Pre-resolves column types and codecs
 
-2. **Prepared Statement Caching**: Caches compiled SQL statements
-   - 10-20% faster for repeated queries
-   - Reduced PostgreSQL server load
-   - LRU eviction policy (default: 100 statements)
+      + 15-19% faster execution
+      + 24-25% memory reduction
+      + 26% fewer allocations
+
+ 2. **Prepared Statement Caching**: Caches compiled SQL statements
+
+      + 10-20% faster for repeated queries
+      + Reduced PostgreSQL server load
+      + LRU eviction policy (default: 100 statements)
 
 Combined, these optimizations provide 25-35% performance improvement.
 
@@ -944,13 +947,14 @@ users = fetch_all(conn, dialect, registry, q; use_prepared = false)
 # Implementation
 
 This function:
-1. Compiles the query to SQL
-2. Checks prepared statement cache (if enabled)
-3. Prepares statement on cache miss
-4. Binds parameters
-5. Executes the query (prepared or direct)
-6. Creates a DecodePlan (pre-resolves column types and codecs)
-7. Decodes all rows using the optimized path
+
+ 1. Compiles the query to SQL
+ 2. Checks prepared statement cache (if enabled)
+ 3. Prepares statement on cache miss
+ 4. Binds parameters
+ 5. Executes the query (prepared or direct)
+ 6. Creates a DecodePlan (pre-resolves column types and codecs)
+ 7. Decodes all rows using the optimized path
 
 See `prepare_decode_plan` and `decode_rows` for DecodePlan implementation.
 """
@@ -965,7 +969,8 @@ function fetch_all(conn::PostgreSQLConnection,
     # by using LibPQ's bulk columnar operations instead
 
     # Step 1: Fetch in columnar format (bulk LibPQ operations - fast!)
-    columnar = fetch_all_columnar(conn, dialect, registry, query, params; use_prepared=use_prepared)
+    columnar = fetch_all_columnar(conn, dialect, registry, query, params;
+                                  use_prepared = use_prepared)
 
     # Step 2: Convert columnar → row-based (Pure Julia - no LibPQ calls)
     # This is much faster than individual row × col LibPQ accesses
@@ -988,9 +993,10 @@ providing 5-8x speedup over direct LibPQ row × col access.
 # Performance
 
 Same performance characteristics as NamedTuple version:
-- 5.6-8.3x faster than direct LibPQ access
-- 40-155% overhead vs. raw LibPQ (vs. 1,000%+ before)
-- 86-87% memory reduction
+
+  - 5.6-8.3x faster than direct LibPQ access
+  - 40-155% overhead vs. raw LibPQ (vs. 1,000%+ before)
+  - 86-87% memory reduction
 
 # Example
 
@@ -1016,7 +1022,8 @@ function fetch_all(conn::PostgreSQLConnection,
     # Same strategy as NamedTuple version - avoids O(rows × cols) LibPQ overhead
 
     # Step 1: Fetch in columnar format (bulk LibPQ operations - fast!)
-    columnar = fetch_all_columnar(conn, dialect, registry, query, params; use_prepared=use_prepared)
+    columnar = fetch_all_columnar(conn, dialect, registry, query, params;
+                                  use_prepared = use_prepared)
 
     # Step 2: Convert columnar → struct-based (Pure Julia - no LibPQ calls)
     return _columnar_to_structs(T, columnar)
@@ -1157,6 +1164,7 @@ near-raw LibPQ performance for analytical workloads.
 # Performance
 
 Compared to row-based `fetch_all`:
+
   - **5-10x faster** (measured)
   - **Near raw LibPQ performance** (~300μs vs 2.7ms for 500 rows)
   - **Minimal memory overhead**
@@ -1166,7 +1174,7 @@ Compared to row-based `fetch_all`:
 
 ```julia
 # fetch_all returns: Vector{NamedTuple}
-[(id=1, name="Alice"), (id=2, name="Bob")]
+[(id = 1, name = "Alice"), (id = 2, name = "Bob")]
 
 # fetch_all_columnar returns: NamedTuple of Vectors
 (id = [1, 2], name = ["Alice", "Bob"])
@@ -1179,10 +1187,10 @@ using SQLSketch
 
 # Analytics query - columnar format is 10x faster
 result = fetch_all_columnar(conn, dialect, registry,
-                             from(:sales) |>
-                             select(NamedTuple,
-                                    col(:sales, :amount),
-                                    col(:sales, :quantity)))
+                            from(:sales) |>
+                            select(NamedTuple,
+                                   col(:sales, :amount),
+                                   col(:sales, :quantity)))
 
 # Direct column operations (super fast)
 total_revenue = sum(result.amount)
@@ -1196,6 +1204,7 @@ df = DataFrame(result)
 # When to Use
 
 **Use `fetch_all_columnar` for:**
+
   - ✅ Analytics queries (aggregations, statistics)
   - ✅ Large result sets (>1000 rows)
   - ✅ Column-wise operations
@@ -1203,6 +1212,7 @@ df = DataFrame(result)
   - ✅ Data science workflows
 
 **Use `fetch_all` (row-based) for:**
+
   - ✅ Application logic (CRUD operations)
   - ✅ Iterating over individual records
   - ✅ Small result sets (<1000 rows)
@@ -1210,11 +1220,11 @@ df = DataFrame(result)
 
 # Performance Benchmarks
 
-| Query | fetch_all | fetch_all_columnar | Speedup |
-|-------|-----------|-------------------|---------|
-| SELECT 500 rows | 2.7 ms | ~0.3 ms | **9x** |
-| SELECT 1667 rows | 14.2 ms | ~0.8 ms | **18x** |
-| SELECT 10 rows | 0.6 ms | ~0.1 ms | **6x** |
+| Query            | fetch_all | fetch_all_columnar | Speedup |
+|:---------------- |:--------- |:------------------ |:------- |
+| SELECT 500 rows  | 2.7 ms    | ~0.3 ms            | **9x**  |
+| SELECT 1667 rows | 14.2 ms   | ~0.8 ms            | **18x** |
+| SELECT 10 rows   | 0.6 ms    | ~0.1 ms            | **6x**  |
 
 # Implementation
 
@@ -1322,7 +1332,8 @@ function fetch_all_columnar(conn::PostgreSQLConnection,
                             params::NamedTuple = NamedTuple();
                             use_prepared::Bool = true)::CT where {T, CT}
     # Get raw columnar result (NamedTuple of Vectors)
-    columnar_nt = fetch_all_columnar(conn, dialect, registry, query, params; use_prepared=use_prepared)
+    columnar_nt = fetch_all_columnar(conn, dialect, registry, query, params;
+                                     use_prepared = use_prepared)
 
     # Convert NamedTuple of Vectors → User-defined columnar struct
     return _namedtuple_to_columnar_struct(columnar_type, columnar_nt)

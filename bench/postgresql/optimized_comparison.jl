@@ -56,9 +56,9 @@ println()
 
 # Calculate improvement
 time_improvement = (median(result_standard).time - median(result_optimized).time) /
-                    median(result_standard).time * 100
+                   median(result_standard).time * 100
 memory_improvement = (median(result_standard).memory - median(result_optimized).memory) /
-                      median(result_standard).memory * 100
+                     median(result_standard).memory * 100
 alloc_reduction = median(result_standard).allocs - median(result_optimized).allocs
 
 println("Improvement:")
@@ -128,7 +128,8 @@ println("  Allocations: $(median(result_limit_standard).allocs)")
 println()
 
 println("Optimized fetch_all_optimized (DecodePlan):")
-result_limit_optimized = @benchmark fetch_all_optimized($conn, $dialect, $registry, $q_limit)
+result_limit_optimized = @benchmark fetch_all_optimized($conn, $dialect, $registry,
+                                                        $q_limit)
 println("  Median time: $(BenchmarkTools.prettytime(median(result_limit_optimized).time))")
 println("  Memory:      $(BenchmarkTools.prettymemory(median(result_limit_optimized).memory))")
 println("  Allocations: $(median(result_limit_optimized).allocs)")
@@ -172,8 +173,10 @@ println("  Memory reduction:   $(round(memory_improvement_limit, digits=2))%")
 println("  Allocation reduction: $(round(alloc_reduction_limit / median(result_limit_standard).allocs * 100, digits=2))%")
 println()
 
-avg_time_improvement = (time_improvement + time_improvement_join + time_improvement_limit) / 3
-avg_memory_improvement = (memory_improvement + memory_improvement_join + memory_improvement_limit) / 3
+avg_time_improvement = (time_improvement + time_improvement_join + time_improvement_limit) /
+                       3
+avg_memory_improvement = (memory_improvement + memory_improvement_join +
+                          memory_improvement_limit) / 3
 
 println("Average improvement across all tests:")
 println("  Time:   $(round(avg_time_improvement, digits=2))% faster")

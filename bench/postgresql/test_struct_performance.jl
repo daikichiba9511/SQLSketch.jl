@@ -61,8 +61,10 @@ println("  Allocations: $(median(result_struct).allocs)")
 println()
 
 # Compare
-time_diff = (median(result_struct).time - median(result_nt).time) / median(result_nt).time * 100
-mem_diff = (median(result_struct).memory - median(result_nt).memory) / median(result_nt).memory * 100
+time_diff = (median(result_struct).time - median(result_nt).time) / median(result_nt).time *
+            100
+mem_diff = (median(result_struct).memory - median(result_nt).memory) /
+           median(result_nt).memory * 100
 
 println("=" ^ 80)
 println("Comparison")

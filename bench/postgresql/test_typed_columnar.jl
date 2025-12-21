@@ -74,7 +74,8 @@ println("  Struct version: type is UserColumnar ✅")
 println()
 
 # Verify data matches
-if result_typed.id == collect(result_nt.id) && result_typed.email == collect(result_nt.email)
+if result_typed.id == collect(result_nt.id) &&
+   result_typed.email == collect(result_nt.email)
     println("  ✅ Data matches between both versions")
 else
     println("  ❌ Data mismatch!")

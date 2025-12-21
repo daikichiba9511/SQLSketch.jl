@@ -152,12 +152,14 @@ eliminating runtime type instability that occurs with `NamedTuple{names}(values)
 # Performance Impact
 
 Without this optimization (type-unstable):
+
 ```julia
 # Type information lost at runtime - slow!
 NamedTuple{plan.column_names}(values)
 ```
 
 With this optimization (type-stable):
+
 ```julia
 # Type information available at compile time - fast!
 make_namedtuple(plan.names_val, values)

@@ -294,4 +294,5 @@ end
 export PostgreSQLCodecRegistry
 export PostgreSQLUUIDCodec, JSONBCodec, ArrayCodec
 export TextArrayCodec, IntArrayCodec
-export PostgreSQLInt32Codec, PostgreSQLBoolCodec, PostgreSQLDateCodec, PostgreSQLDateTimeCodec
+export PostgreSQLInt32Codec, PostgreSQLBoolCodec, PostgreSQLDateCodec,
+       PostgreSQLDateTimeCodec
