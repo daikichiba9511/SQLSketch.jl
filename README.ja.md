@@ -157,7 +157,7 @@ q = from(:users) |>
 using SQLSketch
 
 q = from(:users) |>
-    innerjoin(:orders, col(:orders, :user_id) == col(:users, :id)) |>
+    inner_join(:orders, col(:orders, :user_id) == col(:users, :id)) |>
     where(col(:users, :status) == literal("active")) |>
     select(NamedTuple, col(:users, :name), col(:orders, :total))
 ```
@@ -215,7 +215,7 @@ end
 
 # 大規模データセットのクエリ
 q = from(:sales) |>
-    join(:products, col(:products, :id) == col(:sales, :product_id)) |>
+    inner_join(:products, col(:products, :id) == col(:sales, :product_id)) |>
     select(NamedTuple,
            col(:products, :name),
            col(:sales, :revenue),
@@ -439,7 +439,7 @@ q = with(:recent_orders,
          from(:orders) |>
          where(col(:orders, :created_at) > literal("2024-01-01"))) |>
     from(:recent_orders) |>
-    innerjoin(:users, col(:recent_orders, :user_id) == col(:users, :id)) |>
+    inner_join(:users, col(:recent_orders, :user_id) == col(:users, :id)) |>
     where(col(:users, :active) == literal(true)) |>
     group_by(col(:users, :id), col(:users, :email)) |>
     having(func(:COUNT, col(:recent_orders, :id)) > literal(5)) |>
