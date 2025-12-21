@@ -89,16 +89,23 @@ SQLSketch is designed as a two-layer system:
 
 ## Status
 
-**Completed:** 12/12 phases | **Tests:** 1712 passing ✅
+**Completed:** 13/13 phases | **Tests:** 2126 passing ✅
 
 Core features implemented:
 
 - ✅ Expression & Query AST (500 tests)
-- ✅ SQLite & PostgreSQL dialects (433 tests)
+- ✅ SQLite, PostgreSQL & MySQL dialects (577 tests)
 - ✅ Type-safe execution & codecs (251 tests)
 - ✅ Transactions & migrations (105 tests)
 - ✅ Window functions, set operations, UPSERT (267 tests)
 - ✅ DDL support (227 tests)
+- ✅ Connection pooling & batch operations (58 tests)
+- ✅ Prepared statement caching (MySQL, PostgreSQL)
+
+**Supported Databases:**
+- **SQLite** - Full support (in-memory & file-based)
+- **PostgreSQL** - Full support with advanced features (COPY, JSONB, UUID, Arrays)
+- **MySQL/MariaDB** - Full support with JSON codec & prepared statement caching
 
 See [**Implementation Status**](docs/implementation-status.md) for detailed breakdown.
 
@@ -263,14 +270,17 @@ src/
   Dialects/          # Dialect implementations
     sqlite.jl        # SQLite SQL generation ✅
     postgresql.jl    # PostgreSQL SQL generation ✅
+    mysql.jl         # MySQL SQL generation ✅
     shared_helpers.jl # Shared helper functions ✅
   Drivers/           # Driver implementations
     sqlite.jl        # SQLite execution ✅
     postgresql.jl    # PostgreSQL execution ✅
+    mysql.jl         # MySQL execution ✅
   Codecs/            # Database-specific codecs
     postgresql.jl    # PostgreSQL-specific codecs (UUID, JSONB, Array) ✅
+    mysql.jl         # MySQL-specific codecs (JSON, BLOB, Date, DateTime) ✅
 
-test/                # Test suite (1712 tests)
+test/                # Test suite (2126 tests)
   core/
     expr_test.jl     # Expression tests ✅ (268)
     query_test.jl    # Query tests ✅ (232)
