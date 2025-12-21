@@ -1,15 +1,17 @@
 #!/usr/bin/env julia
 
-# Connection Pooling Benchmark
-# Measures the overhead reduction from connection pooling
+# Connection Pooling Benchmark - PostgreSQL
+# Measures the overhead reduction from connection pooling with real TCP connections
 # Expected: >80% reduction in connection overhead for short queries
 
-using SQLSketch
-using SQLSketch.Drivers: SQLiteDriver, SQLiteConnection
+include("setup.jl")
+
 using BenchmarkTools
+using SQLSketch
+using SQLSketch.Drivers: PostgreSQLDriver, PostgreSQLConnection
 
 println("=" ^ 80)
-println("Phase 13: Connection Pooling Benchmark")
+println("Phase 13: Connection Pooling Benchmark (PostgreSQL)")
 println("Testing: Connection Pool vs Direct Connection")
 println("=" ^ 80)
 println()
@@ -17,15 +19,21 @@ println()
 # Test configuration
 const N_QUERIES = 100  # Number of queries to execute
 
-function setup_database()
-    """Setup in-memory SQLite database with test data"""
-    driver = SQLiteDriver()
-    db = connect(driver, ":memory:")
+# Get PostgreSQL connection string from environment
+const PG_CONN = get(ENV, "SQLSKETCH_PG_CONN", "host=localhost dbname=sqlsketch_bench")
 
-    # Create schema
+println("PostgreSQL Connection: $PG_CONN")
+println()
+
+function setup_test_table(driver::PostgreSQLDriver, conninfo::String)
+    """Setup PostgreSQL database with test table"""
+    db = connect(driver, conninfo)
+
+    # Drop and recreate table
+    execute_sql(db, "DROP TABLE IF EXISTS pool_bench_users")
     execute_sql(db, """
-        CREATE TABLE users (
-            id INTEGER PRIMARY KEY,
+        CREATE TABLE pool_bench_users (
+            id SERIAL PRIMARY KEY,
             name TEXT NOT NULL,
             email TEXT NOT NULL
         )
@@ -34,16 +42,17 @@ function setup_database()
     # Insert test data
     for i in 1:500
         execute_sql(db,
-                    "INSERT INTO users (name, email) VALUES (?, ?)",
+                    "INSERT INTO pool_bench_users (name, email) VALUES (\$1, \$2)",
                     ["User $i", "user$i@example.com"])
     end
 
-    return db, driver
+    close(db)
 end
 
+driver = PostgreSQLDriver()
+
 println("Setting up test database...")
-test_db, driver = setup_database()
-close(test_db)
+setup_test_table(driver, PG_CONN)
 println("✓ Database setup complete")
 println()
 
@@ -55,28 +64,21 @@ println("Test 1: Direct Connection (No Pool)")
 println("=" ^ 80)
 println()
 
-function benchmark_no_pool(driver::SQLiteDriver, n_queries::Int)
-    """Execute queries without connection pooling"""
+function benchmark_no_pool(driver::PostgreSQLDriver, conninfo::String, n_queries::Int)
+    """Execute queries without connection pooling - each query creates new connection"""
     for _ in 1:n_queries
-        db = connect(driver, ":memory:")
-        execute_sql(db, """
-            CREATE TABLE users (
-                id INTEGER PRIMARY KEY,
-                name TEXT NOT NULL,
-                email TEXT NOT NULL
-            )
-        """)
-        execute_sql(db, "INSERT INTO users (name, email) VALUES (?, ?)",
-                    ["Test User", "test@example.com"])
-        result = execute_sql(db, "SELECT COUNT(*) as count FROM users")
+        db = connect(driver, conninfo)
+        result = execute_sql(db, "SELECT COUNT(*) as count FROM pool_bench_users")
         # Force iteration to consume result
-        [NamedTuple(row) for row in result]
+        for row in result
+        end
         close(db)
     end
 end
 
 println("Executing $N_QUERIES queries without connection pooling...")
-result_no_pool = @benchmark benchmark_no_pool($driver, $N_QUERIES) samples=10 seconds=30
+println("(Each query creates a new TCP connection)")
+result_no_pool = @benchmark benchmark_no_pool($driver, $PG_CONN, $N_QUERIES) samples=10 seconds=60
 println()
 println("Results (No Pool):")
 println("  Median time: $(BenchmarkTools.prettytime(median(result_no_pool).time))")
@@ -94,59 +96,25 @@ println("=" ^ 80)
 println()
 
 function benchmark_with_pool(pool::ConnectionPool, n_queries::Int)
-    """Execute queries with connection pooling"""
+    """Execute queries with connection pooling - reuses connections"""
     for _ in 1:n_queries
         with_connection(pool) do conn
-            # Database already has schema and data
-            result = execute_sql(conn, "SELECT COUNT(*) as count FROM users")
+            result = execute_sql(conn, "SELECT COUNT(*) as count FROM pool_bench_users")
             # Force iteration to consume result
-            [NamedTuple(row) for row in result]
+            for row in result
+            end
         end
     end
 end
 
-# Setup pool with persistent database
-pool_db = connect(driver, ":memory:")
-execute_sql(pool_db, """
-    CREATE TABLE users (
-        id INTEGER PRIMARY KEY,
-        name TEXT NOT NULL,
-        email TEXT NOT NULL
-    )
-""")
-execute_sql(pool_db, "INSERT INTO users (name, email) VALUES (?, ?)",
-            ["Test User", "test@example.com"])
-
-# Create pool (we'll use the same connection, but wrapped in pool)
-# Note: For fair comparison, we need to create a pool that reuses connections
-# Since SQLite in-memory is not ideal for pooling, we'll use a file-based DB
-close(pool_db)
-
-# Use temporary file for pooling test
-using Random
-temp_db_path = joinpath(tempdir(), "sqlsketch_pool_bench_$(randstring(8)).db")
-
 println("Creating connection pool (min_size=2, max_size=5)...")
-pool = ConnectionPool(driver, temp_db_path; min_size = 2, max_size = 5)
-
-# Setup database in pool
-with_connection(pool) do conn
-    execute_sql(conn, """
-        CREATE TABLE users (
-            id INTEGER PRIMARY KEY,
-            name TEXT NOT NULL,
-            email TEXT NOT NULL
-        )
-    """)
-    execute_sql(conn, "INSERT INTO users (name, email) VALUES (?, ?)",
-                ["Test User", "test@example.com"])
-end
-
+pool = ConnectionPool(driver, PG_CONN; min_size = 2, max_size = 5)
 println("✓ Connection pool ready")
 println()
 
 println("Executing $N_QUERIES queries with connection pooling...")
-result_with_pool = @benchmark benchmark_with_pool($pool, $N_QUERIES) samples=10 seconds=30
+println("(Queries reuse existing connections)")
+result_with_pool = @benchmark benchmark_with_pool($pool, $N_QUERIES) samples=10 seconds=60
 println()
 println("Results (With Pool):")
 println("  Median time: $(BenchmarkTools.prettytime(median(result_with_pool).time))")
@@ -175,12 +143,12 @@ allocs_with_pool = median(result_with_pool).allocs / N_QUERIES
 
 println("Per-Query Metrics:")
 println()
-println("No Pool:")
+println("No Pool (new connection each time):")
 println("  Time per query: $(BenchmarkTools.prettytime(time_no_pool))")
 println("  Mem per query:  $(BenchmarkTools.prettymemory(mem_no_pool))")
 println("  Allocs per query: $(round(allocs_no_pool, digits=1))")
 println()
-println("With Pool:")
+println("With Pool (connection reuse):")
 println("  Time per query: $(BenchmarkTools.prettytime(time_with_pool))")
 println("  Mem per query:  $(BenchmarkTools.prettymemory(mem_with_pool))")
 println("  Allocs per query: $(round(allocs_with_pool, digits=1))")
@@ -214,23 +182,23 @@ if time_improvement >= 80.0
 else
     println("⚠️  Target: >80% overhead reduction")
     println("   Actual: $(round(time_improvement, digits=2))%")
-    println("   Note: Results may vary based on query complexity and database setup")
 end
 println()
 
 # ============================================================================
-# Test 4: Comparison with Short vs Long Queries
+# Test 4: Short Query (connection overhead dominant)
 # ============================================================================
 println("=" ^ 80)
 println("Test 4: Short Query (connection overhead dominant)")
 println("=" ^ 80)
 println()
 
-function benchmark_short_query_no_pool(driver::SQLiteDriver, path::String)
+function benchmark_short_query_no_pool(driver::PostgreSQLDriver, conninfo::String)
     """Very short query - connection overhead dominates"""
-    db = connect(driver, path)
+    db = connect(driver, conninfo)
     result = execute_sql(db, "SELECT 1 as value")
-    [NamedTuple(row) for row in result]
+    for row in result
+    end
     close(db)
 end
 
@@ -238,17 +206,17 @@ function benchmark_short_query_with_pool(pool::ConnectionPool)
     """Very short query with pooling"""
     with_connection(pool) do conn
         result = execute_sql(conn, "SELECT 1 as value")
-        [NamedTuple(row) for row in result]
+        for row in result
+        end
     end
 end
 
-println("Short query without pool:")
-result_short_no_pool = @benchmark benchmark_short_query_no_pool($driver,
-                                                                $temp_db_path) samples=100
+println("Short query without pool (SELECT 1):")
+result_short_no_pool = @benchmark benchmark_short_query_no_pool($driver, $PG_CONN) samples=100
 println("  Median time: $(BenchmarkTools.prettytime(median(result_short_no_pool).time))")
 println()
 
-println("Short query with pool:")
+println("Short query with pool (SELECT 1):")
 result_short_with_pool = @benchmark benchmark_short_query_with_pool($pool) samples=100
 println("  Median time: $(BenchmarkTools.prettytime(median(result_short_with_pool).time))")
 println()
@@ -263,12 +231,110 @@ println("  Improvement: $(round(short_improvement, digits=2))% faster")
 println("  Speedup:     $(round(short_speedup, digits=2))x")
 println()
 
+if short_improvement >= 80.0
+    println("✅ Short query: >80% overhead reduction achieved")
+else
+    println("⚠️  Short query: $(round(short_improvement, digits=2))% overhead reduction")
+end
+println()
+
+# ============================================================================
+# Test 5: Query with Data (realistic workload)
+# ============================================================================
+println("=" ^ 80)
+println("Test 5: Realistic Query (SELECT with WHERE)")
+println("=" ^ 80)
+println()
+
+function benchmark_realistic_no_pool(driver::PostgreSQLDriver, conninfo::String)
+    db = connect(driver, conninfo)
+    result = execute_sql(db,
+                         "SELECT id, name, email FROM pool_bench_users WHERE id < \$1",
+                         [100])
+    for row in result
+    end
+    close(db)
+end
+
+function benchmark_realistic_with_pool(pool::ConnectionPool)
+    with_connection(pool) do conn
+        result = execute_sql(conn,
+                             "SELECT id, name, email FROM pool_bench_users WHERE id < \$1",
+                             [100])
+        for row in result
+        end
+    end
+end
+
+println("Realistic query without pool:")
+result_realistic_no_pool = @benchmark benchmark_realistic_no_pool($driver, $PG_CONN) samples=100
+println("  Median time: $(BenchmarkTools.prettytime(median(result_realistic_no_pool).time))")
+println()
+
+println("Realistic query with pool:")
+result_realistic_with_pool = @benchmark benchmark_realistic_with_pool($pool) samples=100
+println("  Median time: $(BenchmarkTools.prettytime(median(result_realistic_with_pool).time))")
+println()
+
+realistic_improvement = (median(result_realistic_no_pool).time -
+                         median(result_realistic_with_pool).time) /
+                        median(result_realistic_no_pool).time * 100
+realistic_speedup = median(result_realistic_no_pool).time /
+                    median(result_realistic_with_pool).time
+
+println("Realistic Query Results:")
+println("  Improvement: $(round(realistic_improvement, digits=2))% faster")
+println("  Speedup:     $(round(realistic_speedup, digits=2))x")
+println()
+
+# ============================================================================
+# Connection Overhead Breakdown
+# ============================================================================
+println("=" ^ 80)
+println("Test 6: Connection Overhead Breakdown")
+println("=" ^ 80)
+println()
+
+println("Measuring pure connection establishment time...")
+
+function benchmark_connection_only(driver::PostgreSQLDriver, conninfo::String)
+    """Measure just the connection establishment overhead"""
+    db = connect(driver, conninfo)
+    close(db)
+end
+
+result_conn_only = @benchmark benchmark_connection_only($driver, $PG_CONN) samples=100
+println("Connection establishment time:")
+println("  Median: $(BenchmarkTools.prettytime(median(result_conn_only).time))")
+println("  Mean:   $(BenchmarkTools.prettytime(mean(result_conn_only).time))")
+println()
+
+println("Connection overhead represents:")
+conn_overhead_pct = median(result_conn_only).time / median(result_short_no_pool).time * 100
+println("  $(round(conn_overhead_pct, digits=1))% of short query time (SELECT 1)")
+println()
+
 # ============================================================================
 # Cleanup
 # ============================================================================
 close(pool)
-rm(temp_db_path; force = true)
+
+# Cleanup test table
+cleanup_db = connect(driver, PG_CONN)
+execute_sql(cleanup_db, "DROP TABLE IF EXISTS pool_bench_users")
+close(cleanup_db)
 
 println("=" ^ 80)
 println("Benchmark Complete")
 println("=" ^ 80)
+println()
+
+# Print summary
+println("SUMMARY:")
+println("--------")
+println("1. Complex queries ($N_QUERIES iterations): $(round(time_improvement, digits=2))% faster with pooling")
+println("2. Short queries (SELECT 1):                $(round(short_improvement, digits=2))% faster with pooling")
+println("3. Realistic queries (SELECT with WHERE):   $(round(realistic_improvement, digits=2))% faster with pooling")
+println()
+println("Connection establishment overhead: $(BenchmarkTools.prettytime(median(result_conn_only).time))")
+println()
