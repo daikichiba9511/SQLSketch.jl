@@ -74,4 +74,12 @@ using Test
     @testset "Batch Operations (Core.batch)" begin
         include("core/batch_test.jl")
     end
+
+    @testset "Query Plan Cache (Core.query_plan_cache)" begin
+        include("core/query_plan_cache_test.jl")
+    end
+
+    @testset "Performance Profiling (Core.profiling)" begin
+        include("core/profiling_test.jl")
+    end
 end

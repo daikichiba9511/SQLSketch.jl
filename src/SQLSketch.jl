@@ -81,6 +81,15 @@ export execute_sql  # Low-level SQL execution (escape hatch)
 include("Core/cache.jl")
 # PreparedStatementCache and related APIs are internal, not exported
 
+# Query Plan Cache (Phase 13.5) - internal implementation
+include("Core/query_plan_cache.jl")
+# QueryPlanCache and related APIs are internal, not exported
+
+# Performance Profiling (Phase 13.6)
+include("Core/profiling.jl")
+export @timed_query, QueryTiming
+export analyze_query, analyze_explain, ExplainAnalysis
+
 # Metadata API (Phase 13)
 include("Core/metadata.jl")
 export ColumnInfo
@@ -235,6 +244,10 @@ export DateCodec, DateTimeCodec, UUIDCodec
 export fetch_all, fetch_one, fetch_maybe
 export sql, explain
 export execute, ExecResult  # Unified execution API
+
+# Performance profiling (Phase 13.6)
+export @timed_query, QueryTiming
+export analyze_query, analyze_explain, ExplainAnalysis
 
 # Transaction management (Phase 7)
 export TransactionHandle
