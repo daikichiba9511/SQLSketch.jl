@@ -300,7 +300,7 @@ db = connect(SQLiteDriver(), ":memory:")
 execute(db, "CREATE TABLE users (id INTEGER PRIMARY KEY, email TEXT)")
 
 # Insert
-q_insert = insert_into(:users, [:email]) |> values([param(String, :email)])
+q_insert = insert_into(:users, [:email]) |> insert_values([param(String, :email)])
 execute(db, q_insert, (email="test@example.com",))
 
 # Query

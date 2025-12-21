@@ -67,7 +67,7 @@ println("Simple query: $(timing1.total_time * 1000)ms")
 
 # Complex query with join
 q2 = from(:users) |>
-     leftjoin(:posts, col(:users, :id) == col(:posts, :user_id)) |>
+     left_join(:posts, col(:users, :id) == col(:posts, :user_id)) |>
      where(col(:posts, :published) == literal(true)) |>
      select(NamedTuple, col(:users, :name), col(:posts, :title))
 

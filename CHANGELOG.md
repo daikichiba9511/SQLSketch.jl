@@ -113,6 +113,78 @@ None (initial release)
 
 ---
 
+## [0.3.0] - TBD
+
+### Changed - BREAKING
+
+**API Naming Changes to Avoid Base Module Conflicts**
+
+To prevent naming conflicts with Julia's `Base` module and improve API clarity, the following functions have been renamed:
+
+#### Join Operations
+- `join(table, on; kind=:inner)` → `inner_join(table, on)`
+- `join(table, on; kind=:left)` → `left_join(table, on)`
+- `join(table, on; kind=:right)` → `right_join(table, on)`
+- `join(table, on; kind=:full)` → `full_join(table, on)`
+- `innerjoin` → `inner_join` (snake_case for consistency)
+- `leftjoin` → `left_join`
+- `rightjoin` → `right_join`
+- `fulljoin` → `full_join`
+
+#### INSERT Operations
+- `values(...)` → `insert_values(...)`
+
+#### UPDATE Operations
+- `set(...)` → `set_values(...)`
+
+#### Set Operations
+- `union(q1, q2; all=true)` → `union_all(q1, q2)`
+- `union(q1, q2; all=false)` or `union(q1, q2)` → `union_distinct(q1, q2)`
+- `intersect(q1, q2)` → `intersect_query(q1, q2)`
+- `except(q1, q2)` → `except_query(q1, q2)`
+
+### Migration Guide
+
+**Before (v0.2.x):**
+```julia
+q = from(:users) |>
+    join(:orders, col(:users, :id) == col(:orders, :user_id); kind=:left) |>
+    where(col(:users, :active) == true) |>
+    select(NamedTuple, col(:users, :name))
+
+insert_q = insert_into(:users, [:name, :email]) |>
+           values([[literal("Alice"), literal("alice@example.com")]])
+
+update_q = update(:users) |>
+           set(:active => literal(false)) |>
+           where(col(:users, :id) == param(Int, :id))
+
+union_q = q1 |> union(q2; all=true)
+```
+
+**After (v0.3.0):**
+```julia
+q = from(:users) |>
+    left_join(:orders, col(:users, :id) == col(:orders, :user_id)) |>
+    where(col(:users, :active) == true) |>
+    select(NamedTuple, col(:users, :name))
+
+insert_q = insert_into(:users, [:name, :email]) |>
+           insert_values([[literal("Alice"), literal("alice@example.com")]])
+
+update_q = update(:users) |>
+           set_values(:active => literal(false)) |>
+           where(col(:users, :id) == param(Int, :id))
+
+union_q = q1 |> union_all(q2)
+```
+
+### Rationale
+
+These changes eliminate conflicts with Julia's `Base` module functions (`Base.join`, `Base.values`, `Base.union`, `Base.intersect`) and adopt consistent snake_case naming across the entire API per the project's coding conventions.
+
+---
+
 ## [Unreleased]
 
 ### Planned Features
@@ -125,4 +197,5 @@ None (initial release)
 
 ---
 
+[0.3.0]: https://github.com/daikichiba9511/SQLSketch.jl/compare/v0.2.0...v0.3.0
 [0.2.0]: https://github.com/daikichiba9511/SQLSketch.jl/releases/tag/v0.2.0
