@@ -66,4 +66,8 @@ using Test
     @testset "Connection Pool (Core.pool)" begin
         include("core/pool_test.jl")
     end
+
+    @testset "Batch Operations (Core.batch)" begin
+        include("core/batch_test.jl")
+    end
 end

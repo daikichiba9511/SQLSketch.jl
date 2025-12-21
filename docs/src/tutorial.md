@@ -547,6 +547,57 @@ df = DataFrame(
 - ✅ CRUD operations
 - ✅ Row-by-row iteration
 
+## 11. High-Performance Batch Operations
+
+For bulk data insertion, SQLSketch provides `insert_batch` which automatically optimizes based on the database:
+
+```julia
+# Generate test data (simulating bulk import)
+test_users = [
+    (
+        id = uuid4(),
+        email = "user$(i)@example.com",
+        username = "user$(i)",
+        created_at = now()
+    )
+    for i in 1:10_000
+]
+
+# Batch insert - automatically uses PostgreSQL COPY for maximum performance
+result = insert_batch(conn, dialect, registry, :users,
+                      [:id, :email, :username, :created_at],
+                      test_users)
+
+println("Inserted $(result.rowcount) users in bulk")
+# → Inserted 10000 users in bulk
+```
+
+**Performance comparison:**
+
+```julia
+# ❌ Slow: Loop INSERT (10,000 rows = ~455ms on PostgreSQL)
+for user in test_users
+    q = insert_into(:users, [:id, :email, :username, :created_at]) |>
+        values(user)
+    execute(conn, dialect, registry, q)
+end
+
+# ✅ Fast: Batch INSERT (10,000 rows = ~0.2ms on PostgreSQL)
+result = insert_batch(conn, dialect, registry, :users,
+                      [:id, :email, :username, :created_at],
+                      test_users)
+# → 2016x faster!
+```
+
+**Key benefits:**
+
+- **Automatic optimization**: Uses PostgreSQL COPY when available, multi-row INSERT otherwise
+- **Massive speedup**: 4x-2016x faster depending on batch size
+- **Transactional**: Entire batch commits or rolls back atomically
+- **Type-safe**: Uses CodecRegistry for proper encoding
+
+See [benchmark results](../../benchmark/RESULTS.md) for detailed performance analysis.
+
 ## Summary
 
 This tutorial covered:
@@ -562,6 +613,7 @@ This tutorial covered:
 - ✅ Window functions for analytics
 - ✅ Subqueries for complex filtering
 - ✅ **High-performance columnar API**
+- ✅ **Batch operations for bulk data loading**
 
 ## Next Steps
 

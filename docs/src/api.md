@@ -44,6 +44,36 @@ group_by
 insert_into
 ```
 
+### Batch INSERT
+
+For efficient insertion of large datasets, use `insert_batch`:
+
+```@docs
+insert_batch
+```
+
+**Performance:**
+- **SQLite:** 1.35x - 299x faster than loop INSERT
+- **PostgreSQL:** 4x - 2016x faster (uses COPY FROM STDIN)
+
+**Example:**
+
+```julia
+# Prepare data
+users = [
+    (id=1, email="alice@example.com", active=true),
+    (id=2, email="bob@example.com", active=true),
+    # ... thousands more
+]
+
+# Batch insert (automatically optimized)
+result = insert_batch(conn, dialect, registry, :users,
+                      [:id, :email, :active], users)
+println("Inserted $(result.rowcount) rows")
+```
+
+See [benchmark results](../../benchmark/RESULTS.md) for detailed performance analysis.
+
 ### UPDATE
 
 ```@docs

@@ -131,6 +131,10 @@ export set_column_default, drop_column_default, set_column_not_null, drop_column
 export set_column_type, set_column_statistics, set_column_storage
 export drop_table, create_index, drop_index
 # execute_ddl is internal (not exported), use execute() instead
+
+# Batch Operations (Phase 13.4)
+include("Core/batch.jl")
+export insert_batch
 end # module Core
 
 # Extras submodule - optional convenience features
@@ -248,6 +252,9 @@ export alter_table, add_alter_column, drop_alter_column, rename_alter_column
 export set_column_default, drop_column_default, set_column_not_null, drop_column_not_null
 export set_column_type, set_column_statistics, set_column_storage
 export drop_table, create_index, drop_index
+
+# Batch Operations (Phase 13.4)
+export insert_batch
 
 # Export Dialect implementations
 export SQLiteDialect, PostgreSQLDialect
