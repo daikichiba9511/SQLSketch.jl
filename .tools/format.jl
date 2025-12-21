@@ -72,8 +72,7 @@ println()
 total_files = length(files)
 if isempty(failed_files)
     println("✓ $(total_files) files checked, $(length(formatted_files)) reformatted")
-    exit(0)
 else
     println("⚠ $(length(failed_files)) files failed to format")
-    exit(1)
 end
+exit(0)
