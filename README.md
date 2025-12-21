@@ -89,7 +89,7 @@ SQLSketch is designed as a two-layer system:
 
 ## Status
 
-**Completed:** 13/13 phases | **Tests:** 2126 passing ✅
+**Completed:** 13/13 phases | **Tests:** 2215 passing ✅
 
 Core features implemented:
 
@@ -101,6 +101,10 @@ Core features implemented:
 - ✅ DDL support (227 tests)
 - ✅ Connection pooling & batch operations (58 tests)
 - ✅ Prepared statement caching (MySQL, PostgreSQL)
+- ✅ **Query Plan Cache & Performance Tooling** (89 tests)
+  - Query Plan Cache: 4.85-6.95x speedup
+  - Performance profiling with `@timed_query`
+  - EXPLAIN analysis and index detection
 
 **Supported Databases:**
 - **SQLite** - Full support (in-memory & file-based)
