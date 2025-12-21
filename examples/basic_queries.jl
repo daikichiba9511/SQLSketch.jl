@@ -149,7 +149,7 @@ println("-"^80)
 
 # UPDATE
 update_q = update(:users) |>
-           set(:status => literal("inactive")) |>
+           set_values(:status => literal("inactive")) |>
            where(col(:users, :age) < literal(20))
 
 sql_update, _ = compile(dialect, update_q)

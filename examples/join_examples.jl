@@ -145,7 +145,7 @@ println("-"^80)
 println("Shows ALL users, including those without a department")
 
 q2 = from(:users) |>
-     leftjoin(:departments, col(:users, :department_id) == col(:departments, :id)) |>
+     left_join(:departments, col(:users, :department_id) == col(:departments, :id)) |>
      select(NamedTuple,
             col(:users, :name),
             col(:users, :email),
@@ -167,7 +167,7 @@ println("-"^80)
 println("Shows ALL departments, including those without users")
 
 q3 = from(:users) |>
-     rightjoin(:departments, col(:users, :department_id) == col(:departments, :id)) |>
+     right_join(:departments, col(:users, :department_id) == col(:departments, :id)) |>
      select(NamedTuple,
             col(:departments, :name),
             col(:departments, :budget),
@@ -183,7 +183,7 @@ if isempty(result3)
     println("  You can rewrite as LEFT JOIN with reversed tables:")
 
     q3_rewrite = from(:departments) |>
-                 leftjoin(:users, col(:users, :department_id) == col(:departments, :id)) |>
+                 left_join(:users, col(:users, :department_id) == col(:departments, :id)) |>
                  select(NamedTuple,
                         col(:departments, :name),
                         col(:departments, :budget),
@@ -281,7 +281,7 @@ println("-"^80)
 println("Find users and their active projects (including users with no active projects)")
 
 q7 = from(:users) |>
-     leftjoin(:projects,
+     left_join(:projects,
               col(:projects, :user_id) == col(:users, :id)) |>
      where((col(:projects, :status) == literal("active")) | col(:projects, :status) |>
            is_null) |>
