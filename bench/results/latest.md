@@ -1,36 +1,36 @@
 # SQLSketch Benchmark Suite
 
-**Generated:** 2025-12-21 13:18:29
+**Generated:** 2025-12-21 13:34:47
 
 ## Results
 
 | Benchmark | Median | Mean | Min | Max | Allocs | Memory |
 |-----------|--------|------|-----|-----|--------|--------|
-| Query Construction - filter_and_project | 292.00 ns | 313.98 ns | 250.00 ns | 6.71 μs | 7 | 272 B |
-| Query Construction - simple_select | 292.00 ns | 318.19 ns | 208.00 ns | 9.00 μs | 7 | 272 B |
-| Query Construction - complex_query | 334.00 ns | 364.86 ns | 250.00 ns | 6.38 μs | 16 | 640 B |
-| Query Construction - join_query | 292.00 ns | 300.20 ns | 208.00 ns | 9.50 μs | 8 | 320 B |
-| Query Construction - order_and_limit | 334.00 ns | 358.82 ns | 250.00 ns | 8.62 μs | 13 | 480 B |
-| SQL Compilation - filter_and_project | 2.46 μs | 2.61 μs | 2.25 μs | 39.08 μs | 60 | 2.34 KiB |
-| SQL Compilation - simple_select | 2.46 μs | 2.63 μs | 2.25 μs | 31.08 μs | 60 | 2.28 KiB |
-| SQL Compilation - complex_query | 6.62 μs | 6.95 μs | 6.33 μs | 70.46 μs | 144 | 6.52 KiB |
-| SQL Compilation - join_query | 3.92 μs | 3.97 μs | 3.75 μs | 32.29 μs | 84 | 3.69 KiB |
-| SQL Compilation - order_and_limit | 3.71 μs | 3.95 μs | 3.42 μs | 38.46 μs | 95 | 3.86 KiB |
-| Query Execution - filter_and_project | 3.40 ms | 3.47 ms | 3.12 ms | 8.95 ms | 40363 | 1.57 MiB |
-| Query Execution - simple_select | 1.00 ms | 1.03 ms | 908.08 μs | 6.54 ms | 11838 | 482.31 KiB |
-| Query Execution - complex_query | 836.67 μs | 837.92 μs | 762.38 μs | 5.39 ms | 3573 | 149.16 KiB |
-| Query Execution - join_query | 3.38 ms | 3.43 ms | 3.11 ms | 7.85 ms | 39624 | 1.54 MiB |
-| Query Execution - order_and_limit | 406.58 μs | 408.31 μs | 364.67 μs | 7.54 ms | 388 | 15.38 KiB |
-| Comparison (SQLSketch) - simple_select | 1.00 ms | 1.02 ms | 902.96 μs | 7.49 ms | 11838 | 482.31 KiB |
-| Comparison (Raw SQL) - simple_select | 59.62 μs | 64.48 μs | 47.67 μs | 6.73 ms | 1549 | 85.83 KiB |
-| Comparison (SQLSketch) - complex_query | 834.54 μs | 837.05 μs | 762.08 μs | 5.83 ms | 3573 | 149.16 KiB |
-| Comparison (Raw SQL) - complex_query | 554.96 μs | 553.53 μs | 504.67 μs | 9.23 ms | 386 | 20.09 KiB |
-| Comparison (SQLSketch) - order_and_limit | 406.29 μs | 405.85 μs | 366.00 μs | 4.79 ms | 388 | 15.38 KiB |
-| Comparison (Raw SQL) - order_and_limit | 382.46 μs | 382.74 μs | 344.79 μs | 1.11 ms | 76 | 3.59 KiB |
-| Comparison (SQLSketch) - join_query | 3.38 ms | 3.44 ms | 3.11 ms | 8.42 ms | 39624 | 1.54 MiB |
-| Comparison (Raw SQL) - join_query | 410.21 μs | 434.39 μs | 365.17 μs | 20.20 ms | 5067 | 304.11 KiB |
-| Comparison (SQLSketch) - filter_and_project | 3.38 ms | 3.45 ms | 3.08 ms | 9.46 ms | 40363 | 1.57 MiB |
-| Comparison (Raw SQL) - filter_and_project | 207.62 μs | 225.07 μs | 177.83 μs | 5.87 ms | 5051 | 303.58 KiB |
+| Query Construction - filter_and_project | 292.00 ns | 312.07 ns | 208.00 ns | 7.33 μs | 7 | 272 B |
+| Query Construction - simple_select | 292.00 ns | 317.35 ns | 208.00 ns | 6.54 μs | 7 | 272 B |
+| Query Construction - complex_query | 375.00 ns | 381.48 ns | 291.00 ns | 6.96 μs | 16 | 640 B |
+| Query Construction - join_query | 292.00 ns | 318.49 ns | 250.00 ns | 5.88 μs | 8 | 320 B |
+| Query Construction - order_and_limit | 333.00 ns | 337.29 ns | 250.00 ns | 7.17 μs | 13 | 480 B |
+| SQL Compilation - filter_and_project | 2.46 μs | 2.59 μs | 2.21 μs | 40.71 μs | 60 | 2.34 KiB |
+| SQL Compilation - simple_select | 2.46 μs | 2.58 μs | 2.21 μs | 53.58 μs | 60 | 2.28 KiB |
+| SQL Compilation - complex_query | 6.79 μs | 7.18 μs | 6.33 μs | 49.46 μs | 144 | 6.52 KiB |
+| SQL Compilation - join_query | 4.00 μs | 4.22 μs | 3.67 μs | 41.46 μs | 84 | 3.69 KiB |
+| SQL Compilation - order_and_limit | 3.62 μs | 3.68 μs | 3.42 μs | 50.25 μs | 95 | 3.86 KiB |
+| Query Execution - filter_and_project | 3.45 ms | 3.51 ms | 3.12 ms | 8.02 ms | 38696 | 1.55 MiB |
+| Query Execution - simple_select | 1.02 ms | 1.04 ms | 923.21 μs | 6.15 ms | 11337 | 477.83 KiB |
+| Query Execution - complex_query | 832.92 μs | 837.26 μs | 766.04 μs | 5.18 ms | 3470 | 146.89 KiB |
+| Query Execution - join_query | 3.50 ms | 3.54 ms | 3.21 ms | 7.83 ms | 37957 | 1.52 MiB |
+| Query Execution - order_and_limit | 400.42 μs | 399.89 μs | 360.42 μs | 4.00 ms | 376 | 15.66 KiB |
+| Comparison (SQLSketch) - simple_select | 1.02 ms | 1.04 ms | 919.92 μs | 7.20 ms | 11337 | 477.83 KiB |
+| Comparison (Raw SQL) - simple_select | 59.96 μs | 65.05 μs | 48.21 μs | 7.38 ms | 1549 | 85.83 KiB |
+| Comparison (SQLSketch) - complex_query | 833.83 μs | 835.76 μs | 768.25 μs | 6.09 ms | 3470 | 146.89 KiB |
+| Comparison (Raw SQL) - complex_query | 547.96 μs | 546.35 μs | 498.17 μs | 8.84 ms | 386 | 20.09 KiB |
+| Comparison (SQLSketch) - order_and_limit | 400.00 μs | 401.54 μs | 361.88 μs | 4.73 ms | 376 | 15.66 KiB |
+| Comparison (Raw SQL) - order_and_limit | 375.46 μs | 376.17 μs | 334.46 μs | 1.51 ms | 76 | 3.59 KiB |
+| Comparison (SQLSketch) - join_query | 3.45 ms | 3.50 ms | 3.17 ms | 8.59 ms | 37957 | 1.52 MiB |
+| Comparison (Raw SQL) - join_query | 405.65 μs | 424.41 μs | 352.92 μs | 4.68 ms | 5067 | 304.11 KiB |
+| Comparison (SQLSketch) - filter_and_project | 3.44 ms | 3.50 ms | 3.12 ms | 9.87 ms | 38696 | 1.55 MiB |
+| Comparison (Raw SQL) - filter_and_project | 207.71 μs | 227.16 μs | 179.12 μs | 6.05 ms | 5051 | 303.58 KiB |
 
 ---
 

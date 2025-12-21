@@ -79,6 +79,25 @@ This function is called when reading values from the database.
 function decode end
 
 """
+RowDecoder{T}
+
+Cached metadata for efficiently decoding database rows into type T.
+
+Pre-computes field names, types, and codecs to avoid repeated lookups.
+
+# Fields
+
+  - `field_names::Tuple` - Field names of type T
+  - `field_types::Tuple` - Field types of type T
+  - `codecs::Vector{Codec}` - Pre-fetched codecs for each field
+"""
+struct RowDecoder{T}
+    field_names::Tuple
+    field_types::Tuple
+    codecs::Vector{Codec}
+end
+
+"""
 The CodecRegistry maintains a mapping from Julia types to codecs.
 
 This centralizes all type conversion logic in a single, inspectable location.
@@ -86,9 +105,11 @@ This centralizes all type conversion logic in a single, inspectable location.
 # Fields
 
   - `codecs::Dict{Type, Codec}` - Mapping from Julia types to codecs
+  - `decoders::Dict{Type, RowDecoder}` - Cached row decoders for struct types
 """
-struct CodecRegistry
+mutable struct CodecRegistry
     codecs::Dict{Type, Codec}
+    decoders::Dict{Type, RowDecoder}
 end
 
 """
@@ -104,7 +125,7 @@ Default codecs include:
   - Missing (NULL policy)
 """
 function CodecRegistry()::CodecRegistry
-    registry = CodecRegistry(Dict{Type, Codec}())
+    registry = CodecRegistry(Dict{Type, Codec}(), Dict{Type, RowDecoder}())
 
     # Register default codecs
     register!(registry, Int, IntCodec())
@@ -170,6 +191,57 @@ function get_codec(registry::CodecRegistry, T::Type)::Codec
     end
 
     error("No codec registered for type: $T")
+end
+
+"""
+    get_or_create_decoder!(registry::CodecRegistry, ::Type{T}) -> RowDecoder{T}
+
+Get a cached row decoder for type T, or create and cache it if not present.
+
+This function pre-computes field metadata and codec lookups for efficient
+row decoding. The decoder is cached for reuse across multiple rows.
+
+# Arguments
+
+  - `registry`: The codec registry
+  - `T`: The struct type to decode into
+
+# Returns
+
+A `RowDecoder{T}` with pre-fetched metadata and codecs
+
+# Example
+
+```julia
+# First call creates and caches decoder
+decoder = get_or_create_decoder!(registry, User)
+
+# Subsequent calls return cached decoder (fast)
+decoder = get_or_create_decoder!(registry, User)
+```
+"""
+function get_or_create_decoder!(registry::CodecRegistry, ::Type{T})::RowDecoder{T} where {T}
+    # Check cache first
+    if haskey(registry.decoders, T)
+        return registry.decoders[T]::RowDecoder{T}
+    end
+
+    # Create new decoder
+    field_names = fieldnames(T)
+    field_types = fieldtypes(T)
+    n_fields = length(field_names)
+
+    # Pre-fetch all codecs
+    codecs = Vector{Codec}(undef, n_fields)
+    for i in 1:n_fields
+        codecs[i] = get_codec(registry, field_types[i])
+    end
+
+    # Create and cache decoder
+    decoder = RowDecoder{T}(field_names, field_types, codecs)
+    registry.decoders[T] = decoder
+
+    return decoder
 end
 
 #-------------------------------------------------------------------------------
@@ -320,6 +392,8 @@ end
 
 Map a database row to a struct of type T, applying type conversion via codecs.
 
+Optimized with cached RowDecoder to avoid repeated field/codec lookups.
+
 # Example
 
 ```julia
@@ -340,14 +414,21 @@ user = map_row(registry, User, row)
   - Fields are passed to the constructor in the order they are defined in the struct
 """
 function map_row(registry::CodecRegistry, ::Type{T}, row)::T where {T}
-    # Get field names and types from the target struct
-    field_names = fieldnames(T)
-    field_types = fieldtypes(T)
+    # Get or create cached decoder (amortized O(1))
+    decoder = get_or_create_decoder!(registry, T)
 
-    # Build a list of decoded values in the correct order
-    values = []
+    # Extract cached metadata
+    field_names = decoder.field_names
+    field_types = decoder.field_types
+    codecs = decoder.codecs
+    n_fields = length(field_names)
 
-    for (name, type) in zip(field_names, field_types)
+    # Build tuple using pre-fetched codecs (no repeated lookups)
+    values = ntuple(n_fields) do i
+        name = field_names[i]
+        type = field_types[i]
+        codec = codecs[i]  # Pre-fetched, no lookup needed
+
         # Get the raw value from the row
         if !haskey(row, name)
             error("Missing field '$name' in row for type $T")
@@ -355,17 +436,16 @@ function map_row(registry::CodecRegistry, ::Type{T}, row)::T where {T}
 
         raw_value = getproperty(row, name)
 
-        # Decode the value using the appropriate codec
+        # Decode the value using the pre-fetched codec
         if raw_value === missing
             # Handle missing values
             if type >: Missing
-                push!(values, missing)
+                return missing
             else
                 error("Field '$name' in type $T does not allow missing values, but received missing")
             end
         else
-            codec = get_codec(registry, type)
-            push!(values, decode(codec, raw_value))
+            return decode(codec, raw_value)
         end
     end
 

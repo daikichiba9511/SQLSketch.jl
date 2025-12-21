@@ -23,21 +23,32 @@ raw_sql_queries = get_raw_sql_queries()
 # Pre-build SQLSketch query ASTs
 query_asts = Dict(name => builder() for (name, builder) in sqlsketch_queries)
 
+# Pre-build raw SQL prepared statements (fair comparison with SQLSketch caching)
+raw_stmts = Dict(name => SQLite.Stmt(db_handle, sql) for (name, sql) in raw_sql_queries)
+
 # Benchmark suite
 suite = BenchmarkGroup()
 suite["sqlsketch"] = BenchmarkGroup()
 suite["raw_sql"] = BenchmarkGroup()
+suite["raw_sql_nocache"] = BenchmarkGroup()
 
-# Benchmark SQLSketch queries
+# Benchmark SQLSketch queries (with prepared statement caching)
 for (name, q) in query_asts
     suite["sqlsketch"][string(name)] = @benchmarkable fetch_all($conn, $dialect, $registry,
                                                                 $q)
 end
 
-# Benchmark raw SQL queries
-for (name, sql) in raw_sql_queries
-    # Use DBInterface for fair comparison
+# Benchmark raw SQL queries (WITH prepared statement caching - fair comparison)
+for (name, stmt) in raw_stmts
     suite["raw_sql"][string(name)] = @benchmarkable begin
+        rows = SQLite.DBInterface.execute($stmt) |> collect
+        rows
+    end
+end
+
+# Benchmark raw SQL queries (WITHOUT caching - shows statement preparation overhead)
+for (name, sql) in raw_sql_queries
+    suite["raw_sql_nocache"][string(name)] = @benchmarkable begin
         stmt = SQLite.Stmt($db_handle, $sql)
         rows = SQLite.DBInterface.execute(stmt) |> collect
         rows
@@ -54,7 +65,7 @@ results = run(suite; verbose = true)
 
 # Calculate and display comparison
 println()
-println("Performance Comparison:")
+println("Performance Comparison (with Prepared Statement Caching):")
 println("=" ^ 80)
 println()
 
@@ -63,17 +74,24 @@ for name in keys(raw_sql_queries)
     if haskey(results["sqlsketch"], name_str) && haskey(results["raw_sql"], name_str)
         sqlsketch_time = median(results["sqlsketch"][name_str]).time
         raw_sql_time = median(results["raw_sql"][name_str]).time
+        raw_sql_nocache_time = median(results["raw_sql_nocache"][name_str]).time
         overhead = ((sqlsketch_time - raw_sql_time) / raw_sql_time) * 100
+        cache_benefit = ((raw_sql_nocache_time - raw_sql_time) / raw_sql_nocache_time) * 100
 
         println("$name_str:")
-        println("  SQLSketch: $(BenchmarkTools.prettytime(sqlsketch_time))")
-        println("  Raw SQL:   $(BenchmarkTools.prettytime(raw_sql_time))")
-        println("  Overhead:  $(round(overhead, digits=2))%")
+        println("  SQLSketch:           $(BenchmarkTools.prettytime(sqlsketch_time))")
+        println("  Raw SQL (cached):    $(BenchmarkTools.prettytime(raw_sql_time))")
+        println("  Raw SQL (no cache):  $(BenchmarkTools.prettytime(raw_sql_nocache_time))")
+        println("  Overhead vs cached:  $(round(overhead, digits=2))%")
+        println("  Cache benefit:       $(round(cache_benefit, digits=2))%")
         println()
 
-        # Add to global suite
-        push!(SUITE, "Comparison (SQLSketch) - $name_str", results["sqlsketch"][name_str])
-        push!(SUITE, "Comparison (Raw SQL) - $name_str", results["raw_sql"][name_str])
+        # Add to global suite (if running from run_all.jl)
+        if @isdefined(SUITE)
+            push!(SUITE, "Comparison (SQLSketch) - $name_str", results["sqlsketch"][name_str])
+            push!(SUITE, "Comparison (Raw SQL Cached) - $name_str", results["raw_sql"][name_str])
+            push!(SUITE, "Comparison (Raw SQL No Cache) - $name_str", results["raw_sql_nocache"][name_str])
+        end
     end
 end
 

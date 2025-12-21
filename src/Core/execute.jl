@@ -149,8 +149,8 @@ end
 
 Execute a query and fetch all rows.
 
-Automatically uses prepared statements if the driver supports them.
-Prepared statements are cached at the driver level for improved performance.
+Automatically uses prepared statements with caching if the driver supports them.
+Prepared statements are cached to eliminate redundant parsing/planning overhead.
 
 # Arguments
 
@@ -174,7 +174,7 @@ q = from(:users) |>
 
 results = fetch_all(db, dialect, registry, q, (min_age = 25,))
 # → Vector{NamedTuple}
-# Automatically uses prepared statements if driver supports them
+# Automatically uses prepared statements with caching
 
 # Disable prepared statements for specific query
 results = fetch_all(db, dialect, registry, q, (min_age = 25,); use_prepared = false)
@@ -193,11 +193,11 @@ function fetch_all(conn::Connection,
     # Bind parameters
     param_values = bind_params(param_names, params)
 
-    # Execute query (use prepared statements if available and enabled)
+    # Execute query (use prepared statements if available)
     raw_result = if use_prepared
         stmt = prepare_statement(conn, sql)
         if stmt !== nothing
-            # Driver supports prepared statements - use them
+            # Driver supports prepared statements - use them (with caching)
             execute_prepared(conn, stmt, param_values)
         else
             # Fallback to direct execution
@@ -208,8 +208,9 @@ function fetch_all(conn::Connection,
         execute_sql(conn, sql, param_values)
     end
 
-    # Map rows to target type
+    # Map rows to target type (optimized: use sizehint! and push!)
     results = T[]
+    sizehint!(results, 100)  # Hint for initial capacity
     for row in raw_result
         mapped = map_row(registry, T, row)
         push!(results, mapped)
