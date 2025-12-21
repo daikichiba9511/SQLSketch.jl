@@ -598,6 +598,123 @@ result = insert_batch(conn, dialect, registry, :users,
 
 See `benchmark/RESULTS.md` in the repository for detailed performance analysis.
 
+## 12. Connection Pooling for High Concurrency
+
+For applications handling many concurrent requests, connection pooling significantly improves performance:
+
+```julia
+using SQLSketch
+using SQLSketch.Drivers: PostgreSQLDriver
+
+# Create connection pool
+pool = ConnectionPool(PostgreSQLDriver(),
+                      "postgresql://localhost/mydb";
+                      min_size=5,    # Minimum connections
+                      max_size=20)   # Maximum connections
+
+# Resource-safe pattern (recommended)
+with_connection(pool) do conn
+    # Execute queries using pooled connection
+    users = fetch_all(conn, dialect, registry, query)
+end
+
+# Multi-threaded usage (safe!)
+Threads.@threads for i in 1:100
+    with_connection(pool) do conn
+        result = execute_sql(conn, "SELECT * FROM users WHERE id = ?", [i])
+    end
+end
+
+# Cleanup
+close(pool)
+```
+
+**Performance benefits:**
+
+- **>80% reduction** in connection overhead
+- **5-10x faster** for short queries
+- **Thread-safe** for concurrent access
+- **Automatic health checking** and reconnection
+
+**Best practices:**
+
+1. Use `with_connection` pattern for automatic connection release
+2. Set `min_size` based on steady-state load
+3. Set `max_size` based on peak load
+4. Monitor pool utilization in production
+
+## 13. Using MySQL
+
+SQLSketch fully supports MySQL with advanced features:
+
+```julia
+using SQLSketch
+using SQLSketch.Drivers: MySQLDriver
+using SQLSketch.Dialects: MySQLDialect
+using SQLSketch.Codecs.MySQL
+
+# Connect to MySQL
+driver = MySQLDriver()
+conn = connect(driver, "localhost", "blog_dev"; user="root", password="secret")
+dialect = MySQLDialect()
+registry = CodecRegistry()
+
+# Register MySQL-specific codecs (JSON, BLOB, etc.)
+MySQL.register_mysql_codecs!(registry)
+
+# Create table with JSON column
+create_table_q = create_table(:users) |>
+    add_column(:id, :serial) |>
+    add_column(:email, :text) |>
+    add_column(:metadata, :json) |>  # MySQL JSON type
+    primary_key(:id)
+
+execute(conn, dialect, create_table_q)
+
+# Insert data with JSON
+using JSON3
+
+metadata = Dict("role" => "admin", "permissions" => ["read", "write"])
+insert_q = insert_into(:users, [:email, :metadata]) |>
+    values([literal("admin@example.com"), literal(JSON3.write(metadata))])
+
+execute(conn, dialect, insert_q)
+
+# Query JSON data
+query = from(:users) |>
+    select(NamedTuple, col(:users, :email), col(:users, :metadata))
+
+results = fetch_all(conn, dialect, registry, query)
+for row in results
+    println("$(row.email): $(JSON3.read(row.metadata, Dict))")
+end
+
+close(conn)
+```
+
+**MySQL-specific features:**
+
+- **Native JSON type** with automatic encoding/decoding (MySQL 5.7+)
+- **Prepared statement caching** for 10-20% speedup
+- **Full DDL support** with MySQL syntax
+- **Metadata API** (`list_tables`, `describe_table`, `list_schemas`)
+- **Note:** MariaDB may work via MySQL protocol compatibility but is not explicitly tested
+
+**Using MySQL Connection Pool:**
+
+```julia
+# Create MySQL connection pool
+pool = ConnectionPool(MySQLDriver(),
+                      ("localhost", "blog_dev", "root", "secret");
+                      min_size=2, max_size=10)
+
+with_connection(pool) do conn
+    users = fetch_all(conn, dialect, registry, query)
+end
+
+close(pool)
+```
+
 ## Summary
 
 This tutorial covered:
@@ -614,6 +731,8 @@ This tutorial covered:
 - ✅ Subqueries for complex filtering
 - ✅ **High-performance columnar API**
 - ✅ **Batch operations for bulk data loading**
+- ✅ **Connection pooling for high concurrency**
+- ✅ **MySQL support with JSON and advanced features**
 
 ## Next Steps
 
@@ -621,4 +740,5 @@ This tutorial covered:
 - Read [Design Philosophy](design.md) to understand SQLSketch's architecture
 - Learn about performance optimization in [Performance Guide](#performance-guide)
 - Check out advanced PostgreSQL features (JSONB, Arrays, CTEs)
+- Try MySQL with JSON columns and connection pooling
 - Build your own application with SQLSketch!

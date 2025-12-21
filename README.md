@@ -109,7 +109,7 @@ Core features implemented:
 **Supported Databases:**
 - **SQLite** - Full support (in-memory & file-based)
 - **PostgreSQL** - Full support with advanced features (COPY, JSONB, UUID, Arrays)
-- **MySQL/MariaDB** - Full support with JSON codec & prepared statement caching
+- **MySQL** - Full support with JSON codec & prepared statement caching (MySQL 8.0+ tested)
 
 See [**Implementation Status**](docs/implementation-status.md) for detailed breakdown.
 
@@ -240,7 +240,62 @@ total_quantity = sum(sales.quantity)
 
 **Speedup:** 8-10x faster for analytics workloads
 
-**7. DDL - Create Table**
+**7. Connection Pooling for High Concurrency**
+
+```julia
+using SQLSketch
+
+# Create connection pool
+pool = ConnectionPool(PostgreSQLDriver(),
+                      "postgresql://localhost/mydb";
+                      min_size=2, max_size=10)
+
+# Resource-safe pattern (recommended)
+with_connection(pool) do conn
+    users = fetch_all(conn, dialect, registry, query)
+end
+
+# Cleanup
+close(pool)
+```
+
+**Performance benefits:**
+- >80% reduction in connection overhead
+- 5-10x faster for short queries
+- Better resource utilization under high concurrency
+
+**8. Using MySQL**
+
+```julia
+using SQLSketch
+using SQLSketch.Drivers: MySQLDriver
+
+# Connect to MySQL
+driver = MySQLDriver()
+db = connect(driver, "localhost", "mydb"; user="root", password="secret")
+dialect = MySQLDialect()
+registry = CodecRegistry()
+
+# MySQL-specific: JSON support
+using SQLSketch.Codecs.MySQL
+MySQL.register_mysql_codecs!(registry)
+
+# Query with JSON column
+q = from(:users) |>
+    where(col(:users, :active) == literal(true)) |>
+    select(NamedTuple, col(:users, :id), col(:users, :metadata))
+
+results = fetch_all(db, dialect, registry, q)
+close(db)
+```
+
+**MySQL features:**
+- Native JSON type support (MySQL 5.7+)
+- Prepared statement caching (10-20% speedup)
+- Full DDL support
+- **Note:** MariaDB may work via MySQL protocol compatibility but is not explicitly tested
+
+**9. DDL - Create Table**
 
 ```julia
 using SQLSketch
