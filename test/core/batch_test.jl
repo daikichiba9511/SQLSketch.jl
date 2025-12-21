@@ -93,18 +93,16 @@ using UUIDs
         end
 
         @testset "Mismatched columns error" begin
-            rows = [
-                (id = 1, email = "alice@example.com", active = 1),
-                (id = 2, email = "bob@example.com"),  # Missing 'active'
-            ]
+            rows = [(id = 1, email = "alice@example.com", active = 1),
+                    (id = 2, email = "bob@example.com")]
             @test_throws ErrorException insert_batch(conn, dialect, registry, :users,
-                                                      [:id, :email, :active], rows)
+                                                     [:id, :email, :active], rows)
         end
 
         @testset "Empty columns error" begin
             rows = [(id = 1, email = "alice@example.com", active = 1)]
             @test_throws ErrorException insert_batch(conn, dialect, registry, :users,
-                                                      Symbol[], rows)
+                                                     Symbol[], rows)
         end
 
         @testset "Missing values (NULL)" begin
@@ -122,11 +120,9 @@ using UUIDs
                         """,
                         [])
 
-            rows = [
-                (id = 1, title = "Post 1", body = "Content 1"),
-                (id = 2, title = "Post 2", body = missing),
-                (id = 3, title = "Post 3", body = "Content 3"),
-            ]
+            rows = [(id = 1, title = "Post 1", body = "Content 1"),
+                    (id = 2, title = "Post 2", body = missing),
+                    (id = 3, title = "Post 3", body = "Content 3")]
 
             result = insert_batch(conn, dialect, registry, :posts, [:id, :title, :body],
                                   rows)
@@ -140,11 +136,9 @@ using UUIDs
         @testset "Special characters in strings" begin
             execute_sql(conn, "DELETE FROM users", [])
 
-            rows = [
-                (id = 1, email = "test'quote@example.com", active = 1),
-                (id = 2, email = "test\"double@example.com", active = 1),
-                (id = 3, email = "test,comma@example.com", active = 1),
-            ]
+            rows = [(id = 1, email = "test'quote@example.com", active = 1),
+                    (id = 2, email = "test\"double@example.com", active = 1),
+                    (id = 3, email = "test,comma@example.com", active = 1)]
 
             result = insert_batch(conn, dialect, registry, :users, [:id, :email, :active],
                                   rows)
@@ -218,7 +212,8 @@ using UUIDs
         @testset "PostgreSQL - Large batch (10K rows)" begin
             execute_sql(conn, "DELETE FROM batch_test_users", [])
 
-            rows = [(id = i, email = "user$(i)@example.com", active = true) for i in 1:10_000]
+            rows = [(id = i, email = "user$(i)@example.com", active = true)
+                    for i in 1:10_000]
             result = insert_batch(conn, dialect, registry, :batch_test_users,
                                   [:id, :email, :active], rows)
             @test result.rowcount == 10_000
@@ -256,11 +251,9 @@ using UUIDs
                         """,
                         [])
 
-            rows = [
-                (id = 1, title = "Post 1", body = "Content 1"),
-                (id = 2, title = "Post 2", body = missing),
-                (id = 3, title = "Post 3", body = "Content 3"),
-            ]
+            rows = [(id = 1, title = "Post 1", body = "Content 1"),
+                    (id = 2, title = "Post 2", body = missing),
+                    (id = 3, title = "Post 3", body = "Content 3")]
 
             result = insert_batch(conn, dialect, registry, :batch_test_posts,
                                   [:id, :title, :body], rows)
@@ -274,12 +267,10 @@ using UUIDs
         @testset "PostgreSQL - Special characters" begin
             execute_sql(conn, "DELETE FROM batch_test_users", [])
 
-            rows = [
-                (id = 1, email = "test'quote@example.com", active = true),
-                (id = 2, email = "test\"double@example.com", active = true),
-                (id = 3, email = "test,comma@example.com", active = true),
-                (id = 4, email = "test\nnewline@example.com", active = true),
-            ]
+            rows = [(id = 1, email = "test'quote@example.com", active = true),
+                    (id = 2, email = "test\"double@example.com", active = true),
+                    (id = 3, email = "test,comma@example.com", active = true),
+                    (id = 4, email = "test\nnewline@example.com", active = true)]
 
             result = insert_batch(conn, dialect, registry, :batch_test_users,
                                   [:id, :email, :active], rows)
@@ -302,12 +293,10 @@ using UUIDs
                         """,
                         [])
 
-            rows = [
-                (id = uuid4(), created_at = DateTime(2025, 1, 20, 10, 30, 0),
-                 event_date = Date(2025, 1, 20)),
-                (id = uuid4(), created_at = DateTime(2025, 1, 21, 11, 30, 0),
-                 event_date = Date(2025, 1, 21)),
-            ]
+            rows = [(id = uuid4(), created_at = DateTime(2025, 1, 20, 10, 30, 0),
+                     event_date = Date(2025, 1, 20)),
+                    (id = uuid4(), created_at = DateTime(2025, 1, 21, 11, 30, 0),
+                     event_date = Date(2025, 1, 21))]
 
             result = insert_batch(conn, dialect, registry, :batch_test_events,
                                   [:id, :created_at, :event_date], rows)
@@ -329,10 +318,8 @@ using UUIDs
         @testset "_encode_rows_to_csv - Basic types" begin
             registry = CodecRegistry()
             columns = [:id, :name, :active]
-            rows = [
-                (id = 1, name = "Alice", active = true),
-                (id = 2, name = "Bob", active = false),
-            ]
+            rows = [(id = 1, name = "Alice", active = true),
+                    (id = 2, name = "Bob", active = false)]
 
             csv = SQLSketch.Core._encode_rows_to_csv(registry, columns, rows)
 
@@ -349,10 +336,8 @@ using UUIDs
         @testset "_encode_rows_to_csv - Special characters" begin
             registry = CodecRegistry()
             columns = [:id, :email]
-            rows = [
-                (id = 1, email = "test,comma@example.com"),
-                (id = 2, email = "test\"quote@example.com"),
-            ]
+            rows = [(id = 1, email = "test,comma@example.com"),
+                    (id = 2, email = "test\"quote@example.com")]
 
             csv = SQLSketch.Core._encode_rows_to_csv(registry, columns, rows)
 
@@ -364,10 +349,8 @@ using UUIDs
         @testset "_encode_rows_to_csv - NULL/missing" begin
             registry = CodecRegistry()
             columns = [:id, :body]
-            rows = [
-                (id = 1, body = "Content"),
-                (id = 2, body = missing),
-            ]
+            rows = [(id = 1, body = "Content"),
+                    (id = 2, body = missing)]
 
             csv = SQLSketch.Core._encode_rows_to_csv(registry, columns, rows)
 
@@ -386,13 +369,11 @@ using UUIDs
             table_name = "users"
             column_list = "id, email"
             columns = [:id, :email]
-            rows = [
-                (id = 1, email = "alice@example.com"),
-                (id = 2, email = "bob@example.com"),
-            ]
+            rows = [(id = 1, email = "alice@example.com"),
+                    (id = 2, email = "bob@example.com")]
 
             sql = SQLSketch.Core._build_multirow_insert(dialect, registry, table_name,
-                                                         column_list, columns, rows)
+                                                        column_list, columns, rows)
 
             @test occursin("INSERT INTO users (id, email) VALUES", sql)
             @test occursin("(1, 'alice@example.com')", sql)
@@ -408,7 +389,7 @@ using UUIDs
             rows = [(id = 1, email = "test'quote@example.com")]
 
             sql = SQLSketch.Core._build_multirow_insert(dialect, registry, table_name,
-                                                         column_list, columns, rows)
+                                                        column_list, columns, rows)
 
             # Single quotes should be escaped
             @test occursin("test''quote", sql)
@@ -420,13 +401,11 @@ using UUIDs
             table_name = "posts"
             column_list = "id, body"
             columns = [:id, :body]
-            rows = [
-                (id = 1, body = "Content"),
-                (id = 2, body = missing),
-            ]
+            rows = [(id = 1, body = "Content"),
+                    (id = 2, body = missing)]
 
             sql = SQLSketch.Core._build_multirow_insert(dialect, registry, table_name,
-                                                         column_list, columns, rows)
+                                                        column_list, columns, rows)
 
             @test occursin("(2, NULL)", sql)
         end
