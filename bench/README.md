@@ -13,13 +13,15 @@ The benchmark suite measures:
 
 ## Running Benchmarks
 
-### Run All Benchmarks
+### SQLite Benchmarks (Default)
+
+**Run All Benchmarks**
 
 ```bash
 julia --project=. bench/run_all.jl
 ```
 
-### Run Individual Benchmarks
+**Run Individual Benchmarks**
 
 ```bash
 # Query construction only
@@ -37,6 +39,22 @@ julia --project=. bench/comparison.jl
 # Prepared statements only
 julia --project=. bench/prepared_statements.jl
 ```
+
+### PostgreSQL Benchmarks
+
+**Prerequisites:** PostgreSQL server required. See `bench/postgresql/README.md` for setup.
+
+```bash
+# Start PostgreSQL (Docker)
+docker run --name sqlsketch-pg -e POSTGRES_PASSWORD=postgres -e POSTGRES_DB=sqlsketch_bench -p 5432:5432 -d postgres:15
+
+# Run PostgreSQL benchmarks
+julia --project=. bench/postgresql/basic.jl           # Basic performance
+julia --project=. bench/postgresql/types.jl           # Type-specific (UUID, JSONB, Arrays)
+julia --project=. bench/postgresql/comparison.jl      # SQLite vs PostgreSQL
+```
+
+See [`bench/postgresql/README.md`](postgresql/README.md) for detailed PostgreSQL benchmark documentation.
 
 ## Benchmark Files
 

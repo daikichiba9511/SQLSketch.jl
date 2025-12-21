@@ -39,6 +39,8 @@ using .Core: SQLExpr, ColRef, Literal, Param, RawExpr, BinaryOp, UnaryOp, FuncCa
              BetweenOp, InOp, Cast, Subquery, CaseExpr, WindowFunc, Over, WindowFrame
 import .Core: compile, compile_expr, quote_identifier, placeholder, supports
 using Dates
+using UUIDs
+using JSON3
 
 # Shared helper functions (resolve_placeholders, contains_placeholder, get_primary_table)
 # are included in the main SQLSketch module before dialects
@@ -181,6 +183,22 @@ function compile_expr(dialect::PostgreSQLDialect, expr::Literal,
         # PostgreSQL DATE format: 'YYYY-MM-DD'
         formatted = Dates.format(value, "yyyy-mm-dd")
         return "'$formatted'"
+    elseif value isa UUIDs.UUID
+        # PostgreSQL UUID format: 'xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx'::uuid
+        return "'$(string(value))'::uuid"
+    elseif value isa Dict
+        # PostgreSQL JSONB format: '{"key": "value"}'::jsonb
+        json_str = JSON3.write(value)
+        escaped = replace(json_str, "'" => "''")
+        return "'$escaped'::jsonb"
+    elseif value isa Vector
+        # PostgreSQL ARRAY format: ARRAY['elem1', 'elem2']
+        if isempty(value)
+            return "ARRAY[]"
+        end
+        # Convert elements to SQL literals
+        elements = [compile_expr(dialect, Literal(v), Symbol[]) for v in value]
+        return "ARRAY[$(Base.join(elements, ", "))]"
     else
         error("Unsupported literal type: $(typeof(value))")
     end

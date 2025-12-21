@@ -5,7 +5,7 @@ Common utility functions used by multiple dialect implementations.
 These include placeholder resolution and primary table extraction.
 """
 
-using .Core: SQLExpr, ColRef, Literal, Param, BinaryOp, UnaryOp,
+using .Core: SQLExpr, ColRef, Literal, Param, RawExpr, BinaryOp, UnaryOp,
              FuncCall,
              BetweenOp, InOp, Cast, Subquery, CaseExpr, WindowFunc, Over
 using .Core: Query, From, Where, Select, OrderBy, Limit, Offset, Distinct, GroupBy, Having,
@@ -36,6 +36,10 @@ function resolve_placeholders(expr::Literal, table::Symbol)::Literal
 end
 
 function resolve_placeholders(expr::Param, table::Symbol)::Param
+    return expr
+end
+
+function resolve_placeholders(expr::RawExpr, table::Symbol)::RawExpr
     return expr
 end
 
@@ -120,6 +124,10 @@ function contains_placeholder(expr::Literal)::Bool
 end
 
 function contains_placeholder(expr::Param)::Bool
+    return false
+end
+
+function contains_placeholder(expr::RawExpr)::Bool
     return false
 end
 

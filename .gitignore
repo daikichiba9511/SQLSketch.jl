@@ -36,5 +36,10 @@ examples/*.db-*
 !/bench/results/latest.json
 !/bench/results/latest.md
 
+# Environment files (never commit credentials)
+.env
+.env.local
+.env.*.local
+
 CLAUDE.md
 .tools/Manifest.toml
