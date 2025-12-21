@@ -1,6 +1,6 @@
 name = "SQLSketch"
 uuid = "b3e6e9d0-8c4e-4f3a-9d8e-9f5e6d7c8b9a"
-version = "0.2.0"
+version = "0.3.0"
 authors = ["daikichbia9511 <daikichiba.tech.ml@gmail.com>"]
 
 [deps]

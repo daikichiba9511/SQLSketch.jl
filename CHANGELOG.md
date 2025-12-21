@@ -113,7 +113,7 @@ None (initial release)
 
 ---
 
-## [0.3.0] - TBD
+## [0.3.0] - 2025-12-22
 
 ### Changed - BREAKING
 
