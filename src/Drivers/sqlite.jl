@@ -34,6 +34,8 @@ using SQLite
 using DBInterface
 import ..Core: Driver, Connection, connect, execute_sql
 import ..Core: TransactionHandle, transaction, savepoint
+import ..Core: prepare_statement, execute_prepared, supports_prepared_statements
+import ..Core: list_tables, describe_table, list_schemas, ColumnInfo
 
 """
     SQLiteDriver()
@@ -58,9 +60,13 @@ SQLite database connection wrapper.
 # Fields
 
   - `db`: The underlying SQLite.DB instance
+  - `stmt_cache`: Cache for prepared statements (Dict{String, SQLite.Stmt})
 """
-struct SQLiteConnection <: Connection
+mutable struct SQLiteConnection <: Connection
     db::SQLite.DB
+    stmt_cache::Dict{String,SQLite.Stmt}
+
+    SQLiteConnection(db::SQLite.DB)::SQLiteConnection = new(db, Dict{String,SQLite.Stmt}())
 end
 
 #
@@ -147,8 +153,240 @@ close(db)
 ```
 """
 function Base.close(conn::SQLiteConnection)::Nothing
+    # Finalize all cached statements
+    for (_, stmt) in conn.stmt_cache
+        try
+            DBInterface.close!(stmt)
+        catch e
+            @warn "Failed to close prepared statement" exception = e
+        end
+    end
+    empty!(conn.stmt_cache)
+
+    # Close database connection
     DBInterface.close!(conn.db)
     return nothing
+end
+
+#
+# Prepared Statement Support
+#
+
+"""
+    supports_prepared_statements(driver::SQLiteDriver) -> Bool
+
+SQLite driver supports prepared statements.
+
+# Returns
+
+Always returns `true` for SQLiteDriver.
+
+# Example
+
+```julia
+driver = SQLiteDriver()
+@assert supports_prepared_statements(driver)
+```
+"""
+function supports_prepared_statements(driver::SQLiteDriver)::Bool
+    return true
+end
+
+"""
+    prepare_statement(conn::SQLiteConnection, sql::String) -> SQLite.Stmt
+
+Prepare a SQL statement for SQLite.
+
+Creates a SQLite.Stmt that can be executed multiple times with different parameters.
+
+# Arguments
+
+  - `conn`: Active SQLite connection
+  - `sql`: SQL statement to prepare (with `?` placeholders)
+
+# Returns
+
+  - SQLite.Stmt handle
+
+# Example
+
+```julia
+stmt = prepare_statement(conn, "SELECT * FROM users WHERE id = ?")
+result = execute_prepared(conn, stmt, [42])
+```
+"""
+function prepare_statement(conn::SQLiteConnection, sql::String)::SQLite.Stmt
+    # Check if already in cache
+    if haskey(conn.stmt_cache, sql)
+        return conn.stmt_cache[sql]
+    end
+
+    # Prepare new statement
+    stmt = SQLite.Stmt(conn.db, sql)
+
+    # Cache it (connection-level cache, separate from PreparedStatementCache)
+    conn.stmt_cache[sql] = stmt
+
+    return stmt
+end
+
+"""
+    execute_prepared(conn::SQLiteConnection, stmt::SQLite.Stmt,
+                     params::Vector) -> SQLite.Query
+
+Execute a prepared SQLite statement with parameters.
+
+# Arguments
+
+  - `conn`: Active SQLite connection
+  - `stmt`: Prepared statement handle (from `prepare_statement`)
+  - `params`: Vector of parameter values
+
+# Returns
+
+  - SQLite.Query object
+
+# Example
+
+```julia
+stmt = prepare_statement(conn, "SELECT * FROM users WHERE id = ?")
+result = execute_prepared(conn, stmt, [42])
+for row in result
+    println(row)
+end
+```
+"""
+function execute_prepared(conn::SQLiteConnection,
+                          stmt::SQLite.Stmt,
+                          params::Vector)::SQLite.Query
+    return DBInterface.execute(stmt, params)
+end
+
+#
+# Metadata API
+#
+
+"""
+    list_tables(conn::SQLiteConnection) -> Vector{String}
+
+List all tables in the SQLite database.
+
+Queries the `sqlite_master` system table.
+
+# Arguments
+
+- `conn`: Active SQLite connection
+
+# Returns
+
+Vector of table names (excluding SQLite internal tables like sqlite_sequence)
+
+# Example
+
+```julia
+conn = connect(SQLiteDriver(), "mydb.sqlite")
+tables = list_tables(conn)
+# → ["users", "posts", "comments"]
+```
+"""
+function list_tables(conn::SQLiteConnection)::Vector{String}
+    result = execute_sql(conn,
+                         """
+                         SELECT name FROM sqlite_master
+                         WHERE type='table'
+                           AND name NOT LIKE 'sqlite_%'
+                         ORDER BY name
+                         """,
+                         [])
+
+    tables = String[]
+    for row in result
+        push!(tables, row.name)
+    end
+
+    return tables
+end
+
+"""
+    describe_table(conn::SQLiteConnection, table::Symbol) -> Vector{ColumnInfo}
+
+Describe the structure of a SQLite table.
+
+Uses `PRAGMA table_info` to get column information.
+
+# Arguments
+
+- `conn`: Active SQLite connection
+- `table`: Table name as a symbol
+
+# Returns
+
+Vector of `ColumnInfo` structs describing each column
+
+# Example
+
+```julia
+conn = connect(SQLiteDriver(), "mydb.sqlite")
+columns = describe_table(conn, :users)
+for col in columns
+    println("\$(col.name): \$(col.type)")
+end
+```
+"""
+function describe_table(conn::SQLiteConnection, table::Symbol)::Vector{ColumnInfo}
+    table_name = String(table)
+
+    # PRAGMA table_info returns:
+    # cid, name, type, notnull, dflt_value, pk
+    result = execute_sql(conn, "PRAGMA table_info($table_name)", [])
+
+    columns = ColumnInfo[]
+    for row in result
+        # Convert Missing to Nothing for default value
+        default_val = row.dflt_value isa Missing ? nothing : row.dflt_value
+
+        is_pk = row.pk > 0
+        # PRIMARY KEY columns are implicitly NOT NULL in SQLite
+        is_nullable = is_pk ? false : (row.notnull == 0)
+
+        col = ColumnInfo(row.name,                      # name
+                         row.type,                      # type
+                         is_nullable,                   # nullable
+                         default_val,                   # default value
+                         is_pk)                         # primary_key
+        push!(columns, col)
+    end
+
+    return columns
+end
+
+"""
+    list_schemas(conn::SQLiteConnection) -> Vector{String}
+
+List schemas in SQLite.
+
+SQLite does not have schemas in the same sense as PostgreSQL.
+Returns a single default schema name for compatibility.
+
+# Arguments
+
+- `conn`: Active SQLite connection
+
+# Returns
+
+Vector with single element ["main"]
+
+# Example
+
+```julia
+conn = connect(SQLiteDriver(), "mydb.sqlite")
+schemas = list_schemas(conn)
+# → ["main"]
+```
+"""
+function list_schemas(conn::SQLiteConnection)::Vector{String}
+    # SQLite doesn't have schemas, return default
+    return ["main"]
 end
 
 #

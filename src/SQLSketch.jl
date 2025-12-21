@@ -75,6 +75,16 @@ include("Core/driver.jl")
 export Driver, Connection
 export connect
 export execute_sql  # Low-level SQL execution (escape hatch)
+# Prepared statements (Phase 13) - internal implementation, not exported
+
+# Prepared Statement Cache (Phase 13) - internal implementation
+include("Core/cache.jl")
+# PreparedStatementCache and related APIs are internal, not exported
+
+# Metadata API (Phase 13)
+include("Core/metadata.jl")
+export ColumnInfo
+export list_tables, describe_table, list_schemas
 
 # CodecRegistry (Phase 5)
 include("Core/codec.jl")
@@ -193,6 +203,9 @@ export compile, compile_expr, quote_identifier, placeholder, supports
 export Driver, Connection
 export connect
 export execute_sql  # Low-level SQL execution (escape hatch)
+# Prepared statements are internal implementation, not part of public API
+export ColumnInfo
+export list_tables, describe_table, list_schemas
 export Codec, CodecRegistry
 export encode, decode
 export register!, get_codec

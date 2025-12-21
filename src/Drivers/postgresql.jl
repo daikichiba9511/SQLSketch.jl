@@ -35,6 +35,8 @@ using LibPQ
 using DBInterface
 import ..Core: Driver, Connection, connect, execute_sql
 import ..Core: TransactionHandle, transaction, savepoint
+import ..Core: prepare_statement, execute_prepared, supports_prepared_statements
+import ..Core: list_tables, describe_table, list_schemas, ColumnInfo
 
 """
     PostgreSQLDriver()
@@ -59,9 +61,15 @@ PostgreSQL database connection wrapper.
 # Fields
 
   - `conn`: The underlying LibPQ.Connection instance
+  - `stmt_counter`: Counter for generating unique prepared statement names
 """
-struct PostgreSQLConnection <: Connection
+mutable struct PostgreSQLConnection <: Connection
     conn::LibPQ.Connection
+    stmt_counter::Int
+
+    function PostgreSQLConnection(conn::LibPQ.Connection)::PostgreSQLConnection
+        return new(conn, 0)
+    end
 end
 
 #
@@ -163,6 +171,277 @@ close(db)
 function Base.close(conn::PostgreSQLConnection)::Nothing
     close(conn.conn)
     return nothing
+end
+
+#
+# Prepared Statement Support
+#
+
+"""
+    supports_prepared_statements(driver::PostgreSQLDriver) -> Bool
+
+PostgreSQL driver supports prepared statements.
+
+# Returns
+
+Always returns `true` for PostgreSQLDriver.
+
+# Example
+
+```julia
+driver = PostgreSQLDriver()
+@assert supports_prepared_statements(driver)
+```
+"""
+function supports_prepared_statements(driver::PostgreSQLDriver)::Bool
+    return true
+end
+
+"""
+    prepare_statement(conn::PostgreSQLConnection, sql::String) -> String
+
+Prepare a SQL statement for PostgreSQL.
+
+PostgreSQL uses named prepared statements. This function generates a unique
+name and prepares the statement on the server.
+
+# Arguments
+
+  - `conn`: Active PostgreSQL connection
+  - `sql`: SQL statement to prepare (with \$1, \$2, etc. placeholders)
+
+# Returns
+
+  - Prepared statement name (String)
+
+# Example
+
+```julia
+stmt_name = prepare_statement(conn, "SELECT * FROM users WHERE id = \$1")
+result = execute_prepared(conn, stmt_name, [42])
+```
+
+# Note
+
+PostgreSQL's PREPARE command creates a server-side prepared statement.
+The statement name is auto-generated and managed internally.
+"""
+function prepare_statement(conn::PostgreSQLConnection, sql::String)::String
+    # Generate unique statement name
+    conn.stmt_counter += 1
+    stmt_name = "sqlsketch_stmt_$(conn.stmt_counter)"
+
+    # PREPARE statement on PostgreSQL server
+    prepare_sql = "PREPARE $stmt_name AS $sql"
+    LibPQ.execute(conn.conn, prepare_sql)
+
+    return stmt_name
+end
+
+"""
+    execute_prepared(conn::PostgreSQLConnection, stmt_name::String,
+                     params::Vector) -> LibPQ.Result
+
+Execute a prepared PostgreSQL statement with parameters.
+
+# Arguments
+
+  - `conn`: Active PostgreSQL connection
+  - `stmt_name`: Prepared statement name (from `prepare_statement`)
+  - `params`: Vector of parameter values
+
+# Returns
+
+  - LibPQ.Result object
+
+# Example
+
+```julia
+stmt_name = prepare_statement(conn, "SELECT * FROM users WHERE id = \$1")
+result = execute_prepared(conn, stmt_name, [42])
+for row in result
+    println(row)
+end
+```
+"""
+function execute_prepared(conn::PostgreSQLConnection,
+                          stmt_name::String,
+                          params::Vector)::LibPQ.Result
+    # Build EXECUTE statement
+    # PostgreSQL's EXECUTE needs parameter values passed as string interpolation
+    # But LibPQ.execute handles parameter binding for us
+    param_placeholders = join(["\$$i" for i in 1:length(params)], ", ")
+    execute_sql_str = if isempty(params)
+        "EXECUTE $stmt_name"
+    else
+        "EXECUTE $stmt_name($param_placeholders)"
+    end
+
+    return LibPQ.execute(conn.conn, execute_sql_str, params)
+end
+
+#
+# Metadata API
+#
+
+"""
+    list_tables(conn::PostgreSQLConnection; schema::String="public") -> Vector{String}
+
+List all tables in a PostgreSQL database schema.
+
+Queries the `information_schema.tables` catalog.
+
+# Arguments
+
+- `conn`: Active PostgreSQL connection
+- `schema`: Schema name (default: "public")
+
+# Returns
+
+Vector of table names in the specified schema
+
+# Example
+
+```julia
+conn = connect(PostgreSQLDriver(), "postgresql://localhost/mydb")
+tables = list_tables(conn)
+# → ["users", "posts", "comments"]
+
+# List tables in specific schema
+tables = list_tables(conn; schema="analytics")
+```
+"""
+function list_tables(conn::PostgreSQLConnection; schema::String = "public")::Vector{String}
+    result = execute_sql(conn,
+                         """
+                         SELECT table_name
+                         FROM information_schema.tables
+                         WHERE table_schema = \$1
+                           AND table_type = 'BASE TABLE'
+                         ORDER BY table_name
+                         """,
+                         [schema])
+
+    tables = String[]
+    for row in result
+        push!(tables, row[1])  # First column is table_name
+    end
+
+    return tables
+end
+
+"""
+    describe_table(conn::PostgreSQLConnection, table::Symbol;
+                   schema::String="public") -> Vector{ColumnInfo}
+
+Describe the structure of a PostgreSQL table.
+
+Queries `information_schema.columns` and `information_schema.key_column_usage`.
+
+# Arguments
+
+- `conn`: Active PostgreSQL connection
+- `table`: Table name as a symbol
+- `schema`: Schema name (default: "public")
+
+# Returns
+
+Vector of `ColumnInfo` structs describing each column
+
+# Example
+
+```julia
+conn = connect(PostgreSQLDriver(), "postgresql://localhost/mydb")
+columns = describe_table(conn, :users)
+for col in columns
+    println("\$(col.name): \$(col.type)")
+end
+```
+"""
+function describe_table(conn::PostgreSQLConnection,
+                        table::Symbol;
+                        schema::String = "public")::Vector{ColumnInfo}
+    table_name = String(table)
+
+    # Get column information
+    result = execute_sql(conn,
+                         """
+                         SELECT
+                             c.column_name,
+                             c.data_type,
+                             c.is_nullable,
+                             c.column_default,
+                             CASE WHEN pk.column_name IS NOT NULL THEN true ELSE false END as is_primary_key
+                         FROM information_schema.columns c
+                         LEFT JOIN (
+                             SELECT ku.column_name
+                             FROM information_schema.table_constraints tc
+                             JOIN information_schema.key_column_usage ku
+                                 ON tc.constraint_name = ku.constraint_name
+                                 AND tc.table_schema = ku.table_schema
+                             WHERE tc.constraint_type = 'PRIMARY KEY'
+                                 AND tc.table_schema = \$1
+                                 AND tc.table_name = \$2
+                         ) pk ON c.column_name = pk.column_name
+                         WHERE c.table_schema = \$1
+                             AND c.table_name = \$2
+                         ORDER BY c.ordinal_position
+                         """,
+                         [schema, table_name])
+
+    columns = ColumnInfo[]
+    for row in result
+        col = ColumnInfo(row[1],                                 # column_name
+                         row[2],                                 # data_type
+                         row[3] == "YES",                        # is_nullable
+                         row[4],                                 # column_default
+                         row[5])                                 # is_primary_key
+        push!(columns, col)
+    end
+
+    return columns
+end
+
+"""
+    list_schemas(conn::PostgreSQLConnection) -> Vector{String}
+
+List all schemas in a PostgreSQL database.
+
+Queries `information_schema.schemata`, excluding system schemas.
+
+# Arguments
+
+- `conn`: Active PostgreSQL connection
+
+# Returns
+
+Vector of schema names (excluding pg_* and information_schema)
+
+# Example
+
+```julia
+conn = connect(PostgreSQLDriver(), "postgresql://localhost/mydb")
+schemas = list_schemas(conn)
+# → ["public", "myapp", "analytics"]
+```
+"""
+function list_schemas(conn::PostgreSQLConnection)::Vector{String}
+    result = execute_sql(conn,
+                         """
+                         SELECT schema_name
+                         FROM information_schema.schemata
+                         WHERE schema_name NOT LIKE 'pg_%'
+                           AND schema_name != 'information_schema'
+                         ORDER BY schema_name
+                         """,
+                         [])
+
+    schemas = String[]
+    for row in result
+        push!(schemas, row[1])  # First column is schema_name
+    end
+
+    return schemas
 end
 
 #

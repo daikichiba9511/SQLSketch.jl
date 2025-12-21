@@ -33,6 +33,9 @@ julia --project=. bench/execution.jl
 
 # Comparison only
 julia --project=. bench/comparison.jl
+
+# Prepared statements only
+julia --project=. bench/prepared_statements.jl
 ```
 
 ## Benchmark Files
@@ -63,6 +66,11 @@ julia --project=. bench/comparison.jl
   - Overhead calculation
   - Side-by-side performance metrics
   - Summary statistics (avg, min, max overhead)
+
+- **`prepared_statements.jl`** - Prepared statement performance
+  - Driver-level statement caching
+  - Prepared vs direct execution comparison
+  - Cache effectiveness metrics
 
 - **`run_all.jl`** - Master script to run all benchmarks sequentially
 

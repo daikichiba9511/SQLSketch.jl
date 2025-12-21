@@ -144,9 +144,13 @@ end
 
 """
     fetch_all(conn::Connection, dialect::Dialect, registry::CodecRegistry,
-              query::Query{T}, params::NamedTuple = NamedTuple()) -> Vector{T}
+              query::Query{T}, params::NamedTuple = NamedTuple();
+              use_prepared::Bool = true) -> Vector{T}
 
 Execute a query and fetch all rows.
+
+Automatically uses prepared statements if the driver supports them.
+Prepared statements are cached at the driver level for improved performance.
 
 # Arguments
 
@@ -155,6 +159,7 @@ Execute a query and fetch all rows.
   - `registry`: Codec registry for type conversion
   - `query`: Query AST to execute
   - `params`: Named parameters for the query (default: empty NamedTuple)
+  - `use_prepared`: Whether to use prepared statements if available (default: true)
 
 # Returns
 
@@ -169,21 +174,39 @@ q = from(:users) |>
 
 results = fetch_all(db, dialect, registry, q, (min_age = 25,))
 # → Vector{NamedTuple}
+# Automatically uses prepared statements if driver supports them
+
+# Disable prepared statements for specific query
+results = fetch_all(db, dialect, registry, q, (min_age = 25,); use_prepared=false)
+# → Uses direct SQL execution
 ```
 """
 function fetch_all(conn::Connection,
                    dialect::Dialect,
                    registry::CodecRegistry,
                    query::Query{T},
-                   params::NamedTuple = NamedTuple())::Vector{T} where {T}
+                   params::NamedTuple = NamedTuple();
+                   use_prepared::Bool = true)::Vector{T} where {T}
     # Compile query to SQL
     sql, param_names = compile(dialect, query)
 
     # Bind parameters
     param_values = bind_params(param_names, params)
 
-    # Execute query
-    raw_result = execute_sql(conn, sql, param_values)
+    # Execute query (use prepared statements if available and enabled)
+    raw_result = if use_prepared
+        stmt = prepare_statement(conn, sql)
+        if stmt !== nothing
+            # Driver supports prepared statements - use them
+            execute_prepared(conn, stmt, param_values)
+        else
+            # Fallback to direct execution
+            execute_sql(conn, sql, param_values)
+        end
+    else
+        # Direct execution (no prepared statements)
+        execute_sql(conn, sql, param_values)
+    end
 
     # Map rows to target type
     results = T[]

@@ -43,6 +43,10 @@ using Test
         include("core/codec_test.jl")
     end
 
+    @testset "Metadata API (Core.metadata)" begin
+        include("core/metadata_test.jl")
+    end
+
     @testset "End-to-End Integration (integration)" begin
         include("integration/end_to_end_test.jl")
     end

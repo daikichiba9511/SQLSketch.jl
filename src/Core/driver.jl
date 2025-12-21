@@ -136,3 +136,107 @@ close(db)
 function Base.close(conn::Connection)::Nothing
     error("close not implemented for $(typeof(conn))")
 end
+
+#
+# Prepared Statement Interface (Optional)
+#
+# Drivers that support prepared statements should implement these methods.
+# If not implemented, SQLSketch will fall back to execute_sql() without caching.
+#
+
+"""
+    prepare_statement(conn::Connection, sql::String) -> Any
+
+Prepare a SQL statement and return a prepared statement handle.
+
+This is an optional driver method. If implemented, SQLSketch will cache
+prepared statements for improved performance on repeated queries.
+
+# Arguments
+
+  - `conn`: An active database connection
+  - `sql`: The SQL statement to prepare (with placeholders)
+
+# Returns
+
+  - A prepared statement handle (driver-specific type)
+
+# Example
+
+```julia
+# SQLite example
+stmt = prepare_statement(conn, "SELECT * FROM users WHERE id = ?")
+
+# PostgreSQL example
+stmt = prepare_statement(conn, "SELECT * FROM users WHERE id = \$1")
+```
+
+# Note
+
+If not implemented for a driver, SQLSketch will use `execute_sql()` directly
+without prepared statement caching.
+"""
+function prepare_statement(conn::Connection, sql::String)
+    # Default implementation: not supported
+    # Drivers that support prepared statements should override this
+    return nothing
+end
+
+"""
+    execute_prepared(conn::Connection, stmt, params::Vector) -> result
+
+Execute a prepared statement with parameters.
+
+This is an optional driver method. Must be implemented if `prepare_statement`
+is implemented.
+
+# Arguments
+
+  - `conn`: An active database connection
+  - `stmt`: A prepared statement handle (from `prepare_statement`)
+  - `params`: Vector of parameter values
+
+# Returns
+
+  - Raw database result (driver-specific type)
+
+# Example
+
+```julia
+stmt = prepare_statement(conn, "SELECT * FROM users WHERE id = ?")
+result = execute_prepared(conn, stmt, [42])
+```
+"""
+function execute_prepared(conn::Connection, stmt, params::Vector)
+    # Default implementation: not supported
+    error("execute_prepared not implemented for $(typeof(conn))")
+end
+
+"""
+    supports_prepared_statements(driver::Driver) -> Bool
+
+Check if a driver supports prepared statements.
+
+# Arguments
+
+  - `driver`: The database driver
+
+# Returns
+
+  - `true` if the driver implements `prepare_statement` and `execute_prepared`
+  - `false` otherwise
+
+# Example
+
+```julia
+driver = SQLiteDriver()
+if supports_prepared_statements(driver)
+    println("Prepared statements supported")
+end
+```
+"""
+function supports_prepared_statements(driver::Driver)::Bool
+    # Default: not supported
+    # Drivers should override this if they support prepared statements
+    return false
+end
