@@ -35,6 +35,10 @@ using Test
         include("dialects/postgresql_test.jl")
     end
 
+    @testset "MySQL Dialect (Dialects.mysql)" begin
+        include("dialects/mysql_test.jl")
+    end
+
     @testset "SQLite Driver (Drivers.sqlite)" begin
         include("drivers/sqlite_test.jl")
     end

@@ -27,5 +27,31 @@ services:
       -c log_destination=stderr
       -c logging_collector=off
 
+  mysql:
+    image: mysql:8.0
+    container_name: sqlsketch_test_mysql
+    environment:
+      MYSQL_DATABASE: sqlsketch_test
+      MYSQL_USER: test_user
+      MYSQL_PASSWORD: test_password
+      MYSQL_ROOT_PASSWORD: root_password
+    ports:
+      - "3307:3306"  # Use 3307 on host to avoid conflict with existing MySQL
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "test_user", "-ptest_password"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    volumes:
+      - mysql_data:/var/lib/mysql
+    command: >
+      --default-authentication-plugin=mysql_native_password
+      --character-set-server=utf8mb4
+      --collation-server=utf8mb4_unicode_ci
+      --max-connections=100
+      --general-log=1
+      --general-log-file=/var/lib/mysql/query.log
+
 volumes:
   postgres_data:
+  mysql_data:

@@ -158,19 +158,25 @@ end # module Extras
 include("Dialects/shared_helpers.jl")
 include("Dialects/sqlite.jl")
 include("Dialects/postgresql.jl")
+include("Dialects/mysql.jl")
 
 # Driver implementations
 module Drivers
 include("Drivers/sqlite.jl")
 include("Drivers/postgresql.jl")
+include("Drivers/mysql.jl")
 export SQLiteDriver, SQLiteConnection
 export PostgreSQLDriver, PostgreSQLConnection
+export MySQLDriver, MySQLConnection
 end
 
-# PostgreSQL-specific codecs
+# Database-specific codecs
 module Codecs
 module PostgreSQL
 include("Codecs/postgresql.jl")
+end
+module MySQL
+include("Codecs/mysql.jl")
 end
 end
 
@@ -257,12 +263,13 @@ export drop_table, create_index, drop_index
 export insert_batch
 
 # Export Dialect implementations
-export SQLiteDialect, PostgreSQLDialect
+export SQLiteDialect, PostgreSQLDialect, MySQLDialect
 
 # Re-export Driver implementations
 using .Drivers
 export SQLiteDriver, SQLiteConnection
 export PostgreSQLDriver, PostgreSQLConnection
+export MySQLDriver, MySQLConnection
 
 # Export PostgreSQL codecs module (users can access via SQLSketch.Codecs.PostgreSQL)
 # Do not re-export individual codec types to avoid namespace pollution
