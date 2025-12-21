@@ -6,6 +6,7 @@
 using BenchmarkTools
 using JSON3
 using Dates
+using Printf
 
 """
     BenchmarkResult

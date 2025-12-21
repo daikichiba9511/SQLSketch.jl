@@ -25,7 +25,7 @@ println()
 
 # JOIN query
 q_join = from(:users) |>
-         innerjoin(:posts, col(:users, :id) == col(:posts, :user_id)) |>
+         inner_join(:posts, col(:users, :id) == col(:posts, :user_id)) |>
          where(col(:posts, :published) == literal(true)) |>
          select(NamedTuple,
                 col(:users, :name),

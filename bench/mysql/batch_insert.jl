@@ -124,7 +124,7 @@ for n in batch_sizes
     t_individual = @benchmark begin
         for row in $data
             q = insert_into(:bench_batch, [:email, :name, :age, :active]) |>
-                values([[literal(row.email), literal(row.name),
+                insert_values([[literal(row.email), literal(row.name),
                          literal(row.age), literal(row.active)]])
             execute($conn, $dialect, q)
         end

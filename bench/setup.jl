@@ -96,7 +96,7 @@ function get_sample_queries()::Dict{Symbol, Function}
                 end,
                 :join_query => () -> begin
                     from(:users) |>
-                    innerjoin(:posts, col(:users, :id) == col(:posts, :user_id)) |>
+                    inner_join(:posts, col(:users, :id) == col(:posts, :user_id)) |>
                     where(col(:posts, :published) == literal(1)) |>
                     select(NamedTuple,
                            col(:users, :name),
@@ -112,7 +112,7 @@ function get_sample_queries()::Dict{Symbol, Function}
                 end,
                 :complex_query => () -> begin
                     from(:users) |>
-                    leftjoin(:posts, col(:users, :id) == col(:posts, :user_id)) |>
+                    left_join(:posts, col(:users, :id) == col(:posts, :user_id)) |>
                     where((col(:users, :active) == literal(1)) &
                           (col(:posts, :published) == literal(1))) |>
                     order_by(col(:posts, :created_at); desc = true) |>
