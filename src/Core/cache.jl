@@ -54,9 +54,9 @@ A single entry in the prepared statement cache.
 
 # Fields
 
-- `statement::Any`: The prepared statement handle (driver-specific)
-- `sql::String`: The SQL string for this statement
-- `access_count::Int`: Number of times this entry has been accessed
+  - `statement::Any`: The prepared statement handle (driver-specific)
+  - `sql::String`: The SQL string for this statement
+  - `access_count::Int`: Number of times this entry has been accessed
 """
 mutable struct CacheEntry
     statement::Any
@@ -71,9 +71,9 @@ Statistics for cache performance monitoring.
 
 # Fields
 
-- `hits::Int`: Number of cache hits
-- `misses::Int`: Number of cache misses
-- `evictions::Int`: Number of LRU evictions
+  - `hits::Int`: Number of cache hits
+  - `misses::Int`: Number of cache misses
+  - `evictions::Int`: Number of LRU evictions
 """
 mutable struct CacheStats
     hits::Int
@@ -90,15 +90,15 @@ Thread-safe LRU cache for prepared statements.
 
 # Fields
 
-- `cache::OrderedDict{UInt64, CacheEntry}`: Ordered cache (LRU order)
-- `max_size::Int`: Maximum number of entries
-- `lock::ReentrantLock`: Lock for thread-safe access
-- `stats::CacheStats`: Cache statistics
+  - `cache::OrderedDict{UInt64, CacheEntry}`: Ordered cache (LRU order)
+  - `max_size::Int`: Maximum number of entries
+  - `lock::ReentrantLock`: Lock for thread-safe access
+  - `stats::CacheStats`: Cache statistics
 
 # Example
 
 ```julia
-cache = PreparedStatementCache(; max_size=100)
+cache = PreparedStatementCache(; max_size = 100)
 key = hash_query(query)
 
 # Get from cache
@@ -113,7 +113,7 @@ println("Hit rate: \$(stats.hits / (stats.hits + stats.misses))")
 ```
 """
 mutable struct PreparedStatementCache
-    cache::OrderedDict{UInt64,CacheEntry}
+    cache::OrderedDict{UInt64, CacheEntry}
     max_size::Int
     lock::ReentrantLock
     stats::CacheStats
@@ -126,7 +126,7 @@ Create a new prepared statement cache with the specified maximum size.
 
 # Arguments
 
-- `max_size`: Maximum number of entries to cache (default: 100)
+  - `max_size`: Maximum number of entries to cache (default: 100)
 
 # Returns
 
@@ -135,11 +135,11 @@ A new `PreparedStatementCache` instance
 # Example
 
 ```julia
-cache = PreparedStatementCache(; max_size=100)
+cache = PreparedStatementCache(; max_size = 100)
 ```
 """
 function PreparedStatementCache(; max_size::Int = 100)::PreparedStatementCache
-    return PreparedStatementCache(OrderedDict{UInt64,CacheEntry}(),
+    return PreparedStatementCache(OrderedDict{UInt64, CacheEntry}(),
                                   max_size,
                                   ReentrantLock(),
                                   CacheStats())
@@ -155,7 +155,7 @@ This ensures that structurally identical queries produce the same key.
 
 # Arguments
 
-- `query`: The Query AST to hash
+  - `query`: The Query AST to hash
 
 # Returns
 
@@ -192,13 +192,13 @@ Thread-safe. Updates access order for LRU tracking.
 
 # Arguments
 
-- `cache`: The cache to query
-- `key`: The cache key (from `hash_query`)
+  - `cache`: The cache to query
+  - `key`: The cache key (from `hash_query`)
 
 # Returns
 
-- `CacheEntry` if found (cache hit)
-- `Nothing` if not found (cache miss)
+  - `CacheEntry` if found (cache hit)
+  - `Nothing` if not found (cache miss)
 
 # Example
 
@@ -216,7 +216,7 @@ end
 ```
 """
 function get_cached(cache::PreparedStatementCache,
-                    key::UInt64)::Union{CacheEntry,Nothing}
+                    key::UInt64)::Union{CacheEntry, Nothing}
     lock(cache.lock) do
         if haskey(cache.cache, key)
             # Cache hit - move to end (most recently used)
@@ -244,10 +244,10 @@ Thread-safe. Evicts least recently used entry if cache is full.
 
 # Arguments
 
-- `cache`: The cache to update
-- `key`: The cache key (from `hash_query`)
-- `statement`: The prepared statement handle
-- `sql`: The SQL string for this statement
+  - `cache`: The cache to update
+  - `key`: The cache key (from `hash_query`)
+  - `statement`: The prepared statement handle
+  - `sql`: The SQL string for this statement
 
 # Example
 
@@ -286,7 +286,7 @@ Thread-safe.
 
 # Arguments
 
-- `cache`: The cache to clear
+  - `cache`: The cache to clear
 
 # Example
 
@@ -310,7 +310,7 @@ Returns a copy of the current stats (thread-safe).
 
 # Arguments
 
-- `cache`: The cache to query
+  - `cache`: The cache to query
 
 # Returns
 
@@ -341,7 +341,7 @@ Thread-safe.
 
 # Arguments
 
-- `cache`: The cache to query
+  - `cache`: The cache to query
 
 # Returns
 

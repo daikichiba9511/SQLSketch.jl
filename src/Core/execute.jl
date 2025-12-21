@@ -177,7 +177,7 @@ results = fetch_all(db, dialect, registry, q, (min_age = 25,))
 # Automatically uses prepared statements if driver supports them
 
 # Disable prepared statements for specific query
-results = fetch_all(db, dialect, registry, q, (min_age = 25,); use_prepared=false)
+results = fetch_all(db, dialect, registry, q, (min_age = 25,); use_prepared = false)
 # → Uses direct SQL execution
 ```
 """

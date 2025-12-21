@@ -46,11 +46,11 @@ Information about a database column.
 
 # Fields
 
-- `name::String`: Column name
-- `type::String`: Column type (database-specific, e.g. "INTEGER", "TEXT", "VARCHAR(255)")
-- `nullable::Bool`: Whether the column accepts NULL values
-- `default::Union{String, Nothing}`: Default value expression (as string), or nothing
-- `primary_key::Bool`: Whether this column is part of the primary key
+  - `name::String`: Column name
+  - `type::String`: Column type (database-specific, e.g. "INTEGER", "TEXT", "VARCHAR(255)")
+  - `nullable::Bool`: Whether the column accepts NULL values
+  - `default::Union{String, Nothing}`: Default value expression (as string), or nothing
+  - `primary_key::Bool`: Whether this column is part of the primary key
 
 # Example
 
@@ -66,7 +66,7 @@ struct ColumnInfo
     name::String
     type::String
     nullable::Bool
-    default::Union{String,Nothing}
+    default::Union{String, Nothing}
     primary_key::Bool
 end
 
@@ -88,7 +88,7 @@ Returns a vector of table names as strings.
 
 # Arguments
 
-- `conn`: Active database connection
+  - `conn`: Active database connection
 
 # Returns
 
@@ -120,8 +120,8 @@ Returns information about all columns in the specified table.
 
 # Arguments
 
-- `conn`: Active database connection
-- `table`: Table name as a symbol
+  - `conn`: Active database connection
+  - `table`: Table name as a symbol
 
 # Returns
 
@@ -156,7 +156,7 @@ and MySQL uses "databases" instead of schemas.
 
 # Arguments
 
-- `conn`: Active database connection
+  - `conn`: Active database connection
 
 # Returns
 

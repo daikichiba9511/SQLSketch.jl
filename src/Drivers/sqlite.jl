@@ -64,9 +64,9 @@ SQLite database connection wrapper.
 """
 mutable struct SQLiteConnection <: Connection
     db::SQLite.DB
-    stmt_cache::Dict{String,SQLite.Stmt}
+    stmt_cache::Dict{String, SQLite.Stmt}
 
-    SQLiteConnection(db::SQLite.DB)::SQLiteConnection = new(db, Dict{String,SQLite.Stmt}())
+    SQLiteConnection(db::SQLite.DB)::SQLiteConnection = new(db, Dict{String, SQLite.Stmt}())
 end
 
 #
@@ -275,7 +275,7 @@ Queries the `sqlite_master` system table.
 
 # Arguments
 
-- `conn`: Active SQLite connection
+  - `conn`: Active SQLite connection
 
 # Returns
 
@@ -316,8 +316,8 @@ Uses `PRAGMA table_info` to get column information.
 
 # Arguments
 
-- `conn`: Active SQLite connection
-- `table`: Table name as a symbol
+  - `conn`: Active SQLite connection
+  - `table`: Table name as a symbol
 
 # Returns
 
@@ -370,7 +370,7 @@ Returns a single default schema name for compatibility.
 
 # Arguments
 
-- `conn`: Active SQLite connection
+  - `conn`: Active SQLite connection
 
 # Returns
 

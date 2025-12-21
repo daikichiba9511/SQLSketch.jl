@@ -293,8 +293,8 @@ Queries the `information_schema.tables` catalog.
 
 # Arguments
 
-- `conn`: Active PostgreSQL connection
-- `schema`: Schema name (default: "public")
+  - `conn`: Active PostgreSQL connection
+  - `schema`: Schema name (default: "public")
 
 # Returns
 
@@ -308,7 +308,7 @@ tables = list_tables(conn)
 # → ["users", "posts", "comments"]
 
 # List tables in specific schema
-tables = list_tables(conn; schema="analytics")
+tables = list_tables(conn; schema = "analytics")
 ```
 """
 function list_tables(conn::PostgreSQLConnection; schema::String = "public")::Vector{String}
@@ -340,9 +340,9 @@ Queries `information_schema.columns` and `information_schema.key_column_usage`.
 
 # Arguments
 
-- `conn`: Active PostgreSQL connection
-- `table`: Table name as a symbol
-- `schema`: Schema name (default: "public")
+  - `conn`: Active PostgreSQL connection
+  - `table`: Table name as a symbol
+  - `schema`: Schema name (default: "public")
 
 # Returns
 
@@ -411,7 +411,7 @@ Queries `information_schema.schemata`, excluding system schemas.
 
 # Arguments
 
-- `conn`: Active PostgreSQL connection
+  - `conn`: Active PostgreSQL connection
 
 # Returns
 

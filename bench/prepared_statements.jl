@@ -37,18 +37,18 @@ println()
 println("Benchmarking direct execution (no prepared statements)...")
 for (name, q) in query_asts
     suite["direct_execution"][string(name)] = @benchmarkable fetch_all($conn,
-                                                                        $dialect,
-                                                                        $registry, $q;
-                                                                        use_prepared = false)
+                                                                       $dialect,
+                                                                       $registry, $q;
+                                                                       use_prepared = false)
 end
 
 println("Benchmarking with prepared statements (driver-level cache)...")
 for (name, q) in query_asts
     suite["prepared_statements"][string(name)] = @benchmarkable fetch_all($conn,
-                                                                           $dialect,
-                                                                           $registry,
-                                                                           $q;
-                                                                           use_prepared = true)
+                                                                          $dialect,
+                                                                          $registry,
+                                                                          $q;
+                                                                          use_prepared = true)
 end
 
 # Run benchmarks
