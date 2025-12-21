@@ -25,7 +25,7 @@ lint:
 
 # Format all Julia files (using .tools environment)
 format:
-	julia --project=.tools -e 'using JuliaFormatter; format(".")'
+	julia --project=.tools .tools/format.jl
 
 # Check formatting (for CI, using .tools environment)
 format-check:
