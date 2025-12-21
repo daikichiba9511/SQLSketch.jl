@@ -62,4 +62,8 @@ using Test
     @testset "DDL (Core.ddl)" begin
         include("core/ddl_test.jl")
     end
+
+    @testset "Connection Pool (Core.pool)" begin
+        include("core/pool_test.jl")
+    end
 end

@@ -86,6 +86,10 @@ include("Core/metadata.jl")
 export ColumnInfo
 export list_tables, describe_table, list_schemas
 
+# Connection Pool (Phase 13)
+include("Core/pool.jl")
+export ConnectionPool, acquire, release, with_connection
+
 # CodecRegistry (Phase 5)
 include("Core/codec.jl")
 export Codec, CodecRegistry
@@ -206,6 +210,10 @@ export execute_sql  # Low-level SQL execution (escape hatch)
 # Prepared statements are internal implementation, not part of public API
 export ColumnInfo
 export list_tables, describe_table, list_schemas
+
+# Connection Pool (Phase 13)
+export ConnectionPool, acquire, release, with_connection
+
 export Codec, CodecRegistry
 export encode, decode
 export register!, get_codec
