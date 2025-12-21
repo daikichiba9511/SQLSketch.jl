@@ -447,4 +447,4 @@ println("Inserted $(result.rowcount) rows")
 ❌ **Small datasets** (<100 rows) - Overhead not worth it
 ❌ **Real-time inserts** - Use regular `execute()` for single records
 
-See [benchmark results](../../bench/mysql/RESULTS.md) for detailed performance analysis.
+See `benchmark/RESULTS.md` in the repository for detailed performance analysis.

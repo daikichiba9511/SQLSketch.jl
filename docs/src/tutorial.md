@@ -596,7 +596,7 @@ result = insert_batch(conn, dialect, registry, :users,
 - **Transactional**: Entire batch commits or rolls back atomically
 - **Type-safe**: Uses CodecRegistry for proper encoding
 
-See [benchmark results](../../benchmark/RESULTS.md) for detailed performance analysis.
+See `benchmark/RESULTS.md` in the repository for detailed performance analysis.
 
 ## Summary
 

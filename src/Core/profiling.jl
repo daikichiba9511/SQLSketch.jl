@@ -19,11 +19,12 @@ export analyze_query, analyze_explain
 Detailed timing breakdown for query execution.
 
 # Fields
-- `compile_time::Float64`: Time spent compiling SQL (seconds)
-- `execute_time::Float64`: Time spent executing SQL (seconds)
-- `decode_time::Float64`: Time spent decoding results (seconds)
-- `total_time::Float64`: Total execution time (seconds)
-- `row_count::Int`: Number of rows returned
+
+  - `compile_time::Float64`: Time spent compiling SQL (seconds)
+  - `execute_time::Float64`: Time spent executing SQL (seconds)
+  - `decode_time::Float64`: Time spent decoding results (seconds)
+  - `total_time::Float64`: Total execution time (seconds)
+  - `row_count::Int`: Number of rows returned
 """
 struct QueryTiming
     compile_time::Float64
@@ -39,12 +40,14 @@ end
 Execute a query with detailed timing breakdown.
 
 # Arguments
-- `f::Function`: Execution function (conn, sql, params) -> result
-- `dialect::Dialect`: SQL dialect
-- `query::Query`: Query to execute
+
+  - `f::Function`: Execution function (conn, sql, params) -> result
+  - `dialect::Dialect`: SQL dialect
+  - `query::Query`: Query to execute
 
 # Returns
-- `(result, timing::QueryTiming)`: Query result and timing breakdown
+
+  - `(result, timing::QueryTiming)`: Query result and timing breakdown
 
 # Example
 
@@ -58,7 +61,7 @@ println("Execute: \$(timing.execute_time * 1000)ms")
 println("Total: \$(timing.total_time * 1000)ms")
 ```
 """
-function timed_query(f::Function, dialect::Dialect, query::Query)::Tuple{Any,QueryTiming}
+function timed_query(f::Function, dialect::Dialect, query::Query)::Tuple{Any, QueryTiming}
     # Compile timing
     compile_start = time()
     sql, params = compile(dialect, query)
@@ -114,13 +117,11 @@ macro timed_query(expr)
             0
         end
 
-        timing = QueryTiming(
-            0.0,  # compile time (not measured in macro)
-            total_time,  # execute time
-            0.0,  # decode time (not measured separately)
-            total_time,
-            row_count
-        )
+        timing = QueryTiming(0.0,  # compile time (not measured in macro)
+                             total_time,  # execute time
+                             0.0,  # decode time (not measured separately)
+                             total_time,
+                             row_count)
 
         (result, timing)
     end
@@ -132,10 +133,11 @@ end
 Results from EXPLAIN QUERY PLAN analysis.
 
 # Fields
-- `plan::String`: Full EXPLAIN output
-- `uses_index::Bool`: Whether the query uses an index
-- `has_full_scan::Bool`: Whether the query has a full table scan
-- `warnings::Vector{String}`: Performance warnings
+
+  - `plan::String`: Full EXPLAIN output
+  - `uses_index::Bool`: Whether the query uses an index
+  - `has_full_scan::Bool`: Whether the query has a full table scan
+  - `warnings::Vector{String}`: Performance warnings
 """
 struct ExplainAnalysis
     plan::String
@@ -150,12 +152,14 @@ end
 Analyze query performance using EXPLAIN QUERY PLAN.
 
 # Arguments
-- `conn::Connection`: Database connection
-- `dialect::Dialect`: SQL dialect
-- `query::Query`: Query to analyze
+
+  - `conn::Connection`: Database connection
+  - `dialect::Dialect`: SQL dialect
+  - `query::Query`: Query to analyze
 
 # Returns
-- `ExplainAnalysis`: Query plan analysis with performance warnings
+
+  - `ExplainAnalysis`: Query plan analysis with performance warnings
 
 # Example
 
@@ -172,11 +176,9 @@ for warning in analysis.warnings
 end
 ```
 """
-function analyze_query(
-    conn::Connection,
-    dialect::Dialect,
-    query::Query
-)::ExplainAnalysis
+function analyze_query(conn::Connection,
+                       dialect::Dialect,
+                       query::Query)::ExplainAnalysis
     # Compile query
     sql, params = compile(dialect, query)
 
@@ -239,25 +241,19 @@ end
 
 Generate performance warnings based on query plan analysis.
 """
-function generate_warnings(
-    plan::String,
-    uses_index::Bool,
-    has_full_scan::Bool
-)::Vector{String}
+function generate_warnings(plan::String,
+                           uses_index::Bool,
+                           has_full_scan::Bool)::Vector{String}
     warnings = String[]
 
     if has_full_scan && !uses_index
-        push!(
-            warnings,
-            "Full table scan detected. Consider adding an index on filter columns."
-        )
+        push!(warnings,
+              "Full table scan detected. Consider adding an index on filter columns.")
     end
 
     if contains(lowercase(plan), "temp")
-        push!(
-            warnings,
-            "Temporary table/b-tree created. Query may benefit from optimization."
-        )
+        push!(warnings,
+              "Temporary table/b-tree created. Query may benefit from optimization.")
     end
 
     return warnings
@@ -269,13 +265,16 @@ end
 Parse EXPLAIN output into structured information.
 
 # Arguments
-- `explain_output::String`: Raw EXPLAIN output
+
+  - `explain_output::String`: Raw EXPLAIN output
 
 # Returns
-- `Dict{Symbol, Any}`: Parsed explain information with keys:
-  - `:uses_index` - Whether an index is used
-  - `:scan_type` - Type of scan (index, table, etc.)
-  - `:warnings` - List of performance warnings
+
+  - `Dict{Symbol, Any}`: Parsed explain information with keys:
+
+      + `:uses_index` - Whether an index is used
+      + `:scan_type` - Type of scan (index, table, etc.)
+      + `:warnings` - List of performance warnings
 
 # Example
 
@@ -288,7 +287,7 @@ else
 end
 ```
 """
-function analyze_explain(explain_output::String)::Dict{Symbol,Any}
+function analyze_explain(explain_output::String)::Dict{Symbol, Any}
     uses_index = contains_index_usage(explain_output)
     has_full_scan = contains_full_scan(explain_output)
 
@@ -302,10 +301,8 @@ function analyze_explain(explain_output::String)::Dict{Symbol,Any}
 
     warnings = generate_warnings(explain_output, uses_index, has_full_scan)
 
-    return Dict{Symbol,Any}(
-        :uses_index => uses_index,
-        :scan_type => scan_type,
-        :has_full_scan => has_full_scan,
-        :warnings => warnings
-    )
+    return Dict{Symbol, Any}(:uses_index => uses_index,
+                             :scan_type => scan_type,
+                             :has_full_scan => has_full_scan,
+                             :warnings => warnings)
 end

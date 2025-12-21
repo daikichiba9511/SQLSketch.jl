@@ -78,7 +78,7 @@ function complex_join_query()
            leftjoin(:posts, col(:users, :id) == col(:posts, :user_id)) |>
            where(col(:posts, :published) == literal(true)) |>
            select(NamedTuple, col(:users, :name), col(:posts, :title)) |>
-           order_by(col(:posts, :created_at); desc=true) |>
+           order_by(col(:posts, :created_at); desc = true) |>
            limit(10)
 end
 
@@ -98,13 +98,11 @@ Query with window function.
 """
 function window_function_query()
     return from(:employees) |>
-           select(
-               NamedTuple,
-               col(:employees, :name),
-               col(:employees, :department),
-               row_number(over(partition_by=[col(:employees, :department)],
-                              order_by=[(col(:employees, :salary), true)]))
-           )
+           select(NamedTuple,
+                  col(:employees, :name),
+                  col(:employees, :department),
+                  row_number(over(; partition_by = [col(:employees, :department)],
+                                  order_by = [(col(:employees, :salary), true)])))
 end
 
 """
@@ -137,7 +135,7 @@ function benchmark_without_cache(query_fn, n::Int)
 
     # Benchmark
     return @benchmark begin
-        for _ in 1:$n
+        for _ in 1:($n)
             compile($dialect, $query_fn())
         end
     end samples=10 evals=1
@@ -148,15 +146,15 @@ Benchmark compilation with cache.
 """
 function benchmark_with_cache(query_fn, n::Int)
     dialect = SQLiteDialect()
-    cache = QueryPlanCache(max_size=100)
+    cache = QueryPlanCache(; max_size = 100)
 
     # Warmup
     compile_with_cache(cache, dialect, query_fn())
 
     # Benchmark
     return @benchmark begin
-        cache = QueryPlanCache(max_size=100)
-        for _ in 1:$n
+        cache = QueryPlanCache(max_size = 100)
+        for _ in 1:($n)
             compile_with_cache(cache, $dialect, $query_fn())
         end
     end samples=10 evals=1
@@ -186,26 +184,25 @@ function benchmark_query_type(name::String, query_fn::Function)
 
         # Get cache stats after benchmark
         dialect = SQLiteDialect()
-        cache = QueryPlanCache(max_size=100)
+        cache = QueryPlanCache(; max_size = 100)
         for _ in 1:n
             compile_with_cache(cache, dialect, query_fn())
         end
         stats = cache_stats(cache)
 
-        push!(results, (
-            iterations = n,
-            without_cache_time = without_time,
-            with_cache_time = with_time,
-            speedup = ratio,
-            hit_rate = stats.hit_rate
-        ))
+        push!(results,
+              (iterations = n,
+               without_cache_time = without_time,
+               with_cache_time = with_time,
+               speedup = ratio,
+               hit_rate = stats.hit_rate))
 
         println(@sprintf("  %5d iterations: %12s (no cache) → %12s (cached) | %.2fx speedup | %.1f%% hit rate",
-                        n,
-                        format_time(without_time),
-                        format_time(with_time),
-                        ratio,
-                        stats.hit_rate * 100))
+                         n,
+                         format_time(without_time),
+                         format_time(with_time),
+                         ratio,
+                         stats.hit_rate * 100))
     end
 
     return results
@@ -231,13 +228,16 @@ function run_benchmarks()
     all_results["Complex JOIN"] = benchmark_query_type("Complex JOIN", complex_join_query)
 
     # Multi-filter query
-    all_results["Multiple Filters"] = benchmark_query_type("Multiple Filters", multi_filter_query)
+    all_results["Multiple Filters"] = benchmark_query_type("Multiple Filters",
+                                                           multi_filter_query)
 
     # Window function query
-    all_results["Window Function"] = benchmark_query_type("Window Function", window_function_query)
+    all_results["Window Function"] = benchmark_query_type("Window Function",
+                                                          window_function_query)
 
     # Set operation query
-    all_results["Set Operation (UNION)"] = benchmark_query_type("Set Operation (UNION)", set_operation_query)
+    all_results["Set Operation (UNION)"] = benchmark_query_type("Set Operation (UNION)",
+                                                                set_operation_query)
 
     # Summary
     println("\n" * "="^80)
@@ -250,7 +250,7 @@ function run_benchmarks()
         best_hit_rate = results[end].hit_rate
 
         println(@sprintf("%-25s: %.2fx speedup (%.1f%% cache hit rate)",
-                        query_type, best, best_hit_rate * 100))
+                         query_type, best, best_hit_rate * 100))
     end
 
     println("\n" * "="^80)

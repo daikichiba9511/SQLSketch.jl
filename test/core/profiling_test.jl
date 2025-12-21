@@ -15,10 +15,14 @@ using SQLSketch.Drivers
 
     try
         # Create test table with some data
-        execute_sql(conn, "CREATE TABLE users (id INTEGER PRIMARY KEY, name TEXT, age INTEGER, email TEXT)")
-        execute_sql(conn, "INSERT INTO users (name, age, email) VALUES ('Alice', 30, 'alice@example.com')")
-        execute_sql(conn, "INSERT INTO users (name, age, email) VALUES ('Bob', 25, 'bob@example.com')")
-        execute_sql(conn, "INSERT INTO users (name, age, email) VALUES ('Charlie', 35, 'charlie@example.com')")
+        execute_sql(conn,
+                    "CREATE TABLE users (id INTEGER PRIMARY KEY, name TEXT, age INTEGER, email TEXT)")
+        execute_sql(conn,
+                    "INSERT INTO users (name, age, email) VALUES ('Alice', 30, 'alice@example.com')")
+        execute_sql(conn,
+                    "INSERT INTO users (name, age, email) VALUES ('Bob', 25, 'bob@example.com')")
+        execute_sql(conn,
+                    "INSERT INTO users (name, age, email) VALUES ('Charlie', 35, 'charlie@example.com')")
 
         @testset "@timed_query macro" begin
             query = from(:users)
@@ -81,7 +85,8 @@ using SQLSketch.Drivers
             analysis = analyze_query(conn, dialect, query)
 
             # Should use index
-            @test contains(lowercase(analysis.plan), "index") || contains(lowercase(analysis.plan), "idx_users_age")
+            @test contains(lowercase(analysis.plan), "index") ||
+                  contains(lowercase(analysis.plan), "idx_users_age")
         end
 
         @testset "analyze_explain" begin
@@ -91,7 +96,7 @@ using SQLSketch.Drivers
 
             info = analyze_explain(explain_output)
 
-            @test info isa Dict{Symbol,Any}
+            @test info isa Dict{Symbol, Any}
             @test haskey(info, :uses_index)
             @test haskey(info, :scan_type)
             @test haskey(info, :has_full_scan)
@@ -128,7 +133,8 @@ using SQLSketch.Drivers
 
         @testset "Complex query analysis" begin
             # Create posts table for JOIN test
-            execute_sql(conn, "CREATE TABLE IF NOT EXISTS posts (id INTEGER PRIMARY KEY, user_id INTEGER, title TEXT)")
+            execute_sql(conn,
+                        "CREATE TABLE IF NOT EXISTS posts (id INTEGER PRIMARY KEY, user_id INTEGER, title TEXT)")
             execute_sql(conn, "INSERT INTO posts (user_id, title) VALUES (1, 'Post 1')")
 
             # Query with JOIN
@@ -169,7 +175,8 @@ using SQLSketch.Drivers
 
             # INSERT (using execute)
             q_insert = insert_into(:users, [:name, :age, :email]) |>
-                       insert_values([[literal("David"), literal(40), literal("david@example.com")]])
+                       insert_values([[literal("David"), literal(40),
+                                       literal("david@example.com")]])
             result, timing = @timed_query execute(conn, dialect, q_insert)
             @test timing.total_time >= 0.0
 

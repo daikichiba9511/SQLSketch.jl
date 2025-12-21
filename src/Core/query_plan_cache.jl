@@ -34,16 +34,17 @@ end
 Thread-safe LRU cache for compiled query plans.
 
 # Fields
-- `max_size::Int`: Maximum number of cached plans
-- `cache::Dict{UInt64, CacheEntry}`: Cache storage (keyed by AST hash)
-- `hits::Ref{Int}`: Cache hit counter
-- `misses::Ref{Int}`: Cache miss counter
-- `lock::ReentrantLock`: Thread safety lock
+
+  - `max_size::Int`: Maximum number of cached plans
+  - `cache::Dict{UInt64, CacheEntry}`: Cache storage (keyed by AST hash)
+  - `hits::Ref{Int}`: Cache hit counter
+  - `misses::Ref{Int}`: Cache miss counter
+  - `lock::ReentrantLock`: Thread safety lock
 
 # Example
 
 ```julia
-cache = QueryPlanCache(max_size=100)
+cache = QueryPlanCache(; max_size = 100)
 sql, params = compile_with_cache(cache, dialect, query)
 ```
 """
@@ -54,7 +55,7 @@ mutable struct QueryPlanCache
     misses::Ref{Int}
     lock::ReentrantLock
 
-    function QueryPlanCache(; max_size::Int=200)
+    function QueryPlanCache(; max_size::Int = 200)
         @assert max_size > 0 "max_size must be positive"
         new(max_size, Dict{UInt64, CacheEntry}(), Ref(0), Ref(0), ReentrantLock())
     end
@@ -81,12 +82,14 @@ If the query has been compiled before, returns the cached result (cache hit).
 Otherwise, compiles the query and stores it in the cache (cache miss).
 
 # Arguments
-- `cache::QueryPlanCache`: The query plan cache
-- `dialect::Dialect`: The SQL dialect to use for compilation
-- `query::Query`: The query to compile
+
+  - `cache::QueryPlanCache`: The query plan cache
+  - `dialect::Dialect`: The SQL dialect to use for compilation
+  - `query::Query`: The query to compile
 
 # Returns
-- `(sql::String, param_order::Vector{Symbol})`: Compiled SQL and parameter order
+
+  - `(sql::String, param_order::Vector{Symbol})`: Compiled SQL and parameter order
 
 # Example
 
@@ -99,7 +102,8 @@ sql, params = compile_with_cache(cache, dialect, query)
 # → ("SELECT * FROM `users` WHERE `users`.`id` = ?", [:id])
 ```
 """
-function compile_with_cache(cache::QueryPlanCache, dialect::Dialect, query::Query)::Tuple{String, Vector{Symbol}}
+function compile_with_cache(cache::QueryPlanCache, dialect::Dialect,
+                            query::Query)::Tuple{String, Vector{Symbol}}
     key = cache_key(query)
 
     @lock cache.lock begin
@@ -188,7 +192,8 @@ end
 Get cache statistics.
 
 # Returns
-- `(hits::Int, misses::Int, size::Int, max_size::Int, hit_rate::Float64)`
+
+  - `(hits::Int, misses::Int, size::Int, max_size::Int, hit_rate::Float64)`
 
 # Example
 
@@ -204,13 +209,11 @@ function cache_stats(cache::QueryPlanCache)::NamedTuple
         total = hits + misses
         hit_rate = total > 0 ? hits / total : 0.0
 
-        return (
-            hits = hits,
-            misses = misses,
-            size = length(cache.cache),
-            max_size = cache.max_size,
-            hit_rate = hit_rate
-        )
+        return (hits = hits,
+                misses = misses,
+                size = length(cache.cache),
+                max_size = cache.max_size,
+                hit_rate = hit_rate)
     end
 end
 

@@ -14,7 +14,7 @@ const SQ = SQLSketch
 
 @testset "Query Plan Cache" begin
     @testset "Basic cache operations" begin
-        cache = QueryPlanCache(max_size=10)
+        cache = QueryPlanCache(max_size = 10)
         dialect = SQLiteDialect()
 
         # Simple query
@@ -44,7 +44,7 @@ const SQ = SQLSketch
     end
 
     @testset "Different queries cache separately" begin
-        cache = QueryPlanCache(max_size=10)
+        cache = QueryPlanCache(max_size = 10)
         dialect = SQLiteDialect()
 
         # Query 1
@@ -63,7 +63,7 @@ const SQ = SQLSketch
     end
 
     @testset "Same structure with different parameter values reuses cache" begin
-        cache = QueryPlanCache(max_size=10)
+        cache = QueryPlanCache(max_size = 10)
         dialect = SQLiteDialect()
 
         # Same query structure, different parameter names
@@ -84,7 +84,7 @@ const SQ = SQLSketch
     end
 
     @testset "LRU eviction when cache is full" begin
-        cache = QueryPlanCache(max_size=3)
+        cache = QueryPlanCache(max_size = 3)
         dialect = SQLiteDialect()
 
         # Fill cache with 3 queries
@@ -125,7 +125,7 @@ const SQ = SQLSketch
     end
 
     @testset "Complex queries cache correctly" begin
-        cache = QueryPlanCache(max_size=10)
+        cache = QueryPlanCache(max_size = 10)
         dialect = SQLiteDialect()
 
         # Complex query with join
@@ -133,7 +133,7 @@ const SQ = SQLSketch
                 leftjoin(:posts, col(:users, :id) == col(:posts, :user_id)) |>
                 where(col(:posts, :published) == literal(true)) |>
                 select(NamedTuple, col(:users, :name), col(:posts, :title)) |>
-                order_by(col(:posts, :created_at); desc=true) |>
+                order_by(col(:posts, :created_at); desc = true) |>
                 limit(10)
 
         # First compilation
@@ -151,14 +151,12 @@ const SQ = SQLSketch
     end
 
     @testset "CTE queries cache correctly" begin
-        cache = QueryPlanCache(max_size=10)
+        cache = QueryPlanCache(max_size = 10)
         dialect = SQLiteDialect()
 
         # Query with CTE
-        active_users = cte(
-            :active_users,
-            from(:users) |> where(col(:users, :active) == literal(true))
-        )
+        active_users = cte(:active_users,
+                           from(:users) |> where(col(:users, :active) == literal(true)))
 
         query = with([active_users], from(:active_users))
 
@@ -176,7 +174,7 @@ const SQ = SQLSketch
     end
 
     @testset "clear_cache! resets everything" begin
-        cache = QueryPlanCache(max_size=10)
+        cache = QueryPlanCache(max_size = 10)
         dialect = SQLiteDialect()
 
         # Add some queries
@@ -203,7 +201,7 @@ const SQ = SQLSketch
     end
 
     @testset "Cache key generation for different query types" begin
-        cache = QueryPlanCache(max_size=20)
+        cache = QueryPlanCache(max_size = 20)
         dialect = SQLiteDialect()
 
         # SELECT query
@@ -230,24 +228,20 @@ const SQ = SQLSketch
     end
 
     @testset "Thread safety (basic test)" begin
-        cache = QueryPlanCache(max_size=100)
+        cache = QueryPlanCache(max_size = 100)
         dialect = SQLiteDialect()
 
         # Create multiple queries
-        queries = [
-            from(:users) |> where(col(:users, :id) == literal(i))
-            for i in 1:10
-        ]
+        queries = [from(:users) |> where(col(:users, :id) == literal(i))
+                   for i in 1:10]
 
         # Access cache from multiple tasks concurrently
-        tasks = [
-            Threads.@spawn begin
-                for query in queries
-                    compile_with_cache(cache, dialect, query)
-                end
-            end
-            for _ in 1:4
-        ]
+        tasks = [Threads.@spawn begin
+                     for query in queries
+                         compile_with_cache(cache, dialect, query)
+                     end
+                 end
+                 for _ in 1:4]
 
         # Wait for all tasks
         for task in tasks
@@ -261,7 +255,7 @@ const SQ = SQLSketch
     end
 
     @testset "Hit rate calculation" begin
-        cache = QueryPlanCache(max_size=10)
+        cache = QueryPlanCache(max_size = 10)
         dialect = SQLiteDialect()
 
         q = from(:users)
@@ -279,15 +273,13 @@ const SQ = SQLSketch
     end
 
     @testset "Cache with window functions" begin
-        cache = QueryPlanCache(max_size=10)
+        cache = QueryPlanCache(max_size = 10)
         dialect = SQLiteDialect()
 
         query = from(:employees) |>
-                select(
-                    NamedTuple,
-                    col(:employees, :name),
-                    row_number(over(partition_by=[col(:employees, :department)]))
-                )
+                select(NamedTuple,
+                       col(:employees, :name),
+                       row_number(over(partition_by = [col(:employees, :department)])))
 
         sql1, _ = compile_with_cache(cache, dialect, query)
         sql2, _ = compile_with_cache(cache, dialect, query)
@@ -297,7 +289,7 @@ const SQ = SQLSketch
     end
 
     @testset "Cache with set operations" begin
-        cache = QueryPlanCache(max_size=10)
+        cache = QueryPlanCache(max_size = 10)
         dialect = SQLiteDialect()
 
         q1 = from(:users) |> select(NamedTuple, col(:users, :email))

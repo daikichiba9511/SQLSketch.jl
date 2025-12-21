@@ -28,10 +28,14 @@ register!(registry, DateTime, MySQL.DateTimeCodec())
 ```
 """
 
-using Dates: Date, DateTime
+import Dates
 using UUIDs: UUID
 using JSON3
 import ...Core: Codec, encode, decode, register!
+
+# Re-export Dates types for convenience
+const Date = Dates.Date
+const DateTime = Dates.DateTime
 
 """
     BoolCodec()

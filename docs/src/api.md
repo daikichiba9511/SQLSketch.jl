@@ -72,7 +72,7 @@ result = insert_batch(conn, dialect, registry, :users,
 println("Inserted $(result.rowcount) rows")
 ```
 
-See [benchmark results](../../benchmark/RESULTS.md) for detailed performance analysis.
+See `benchmark/RESULTS.md` in the repository for detailed performance analysis.
 
 ### UPDATE
 
@@ -189,11 +189,9 @@ fetch_maybe
 - ✅ Small to medium result sets (<10,000 rows)
 - ✅ Row-by-row processing is natural
 
-#### Columnar API
+#### Columnar API (PostgreSQL Only)
 
-```@docs
-fetch_all_columnar
-```
+**Note:** `fetch_all_columnar` is a PostgreSQL-specific optimization. See PostgreSQL driver documentation for details.
 
 **Performance characteristics (PostgreSQL):**
 
