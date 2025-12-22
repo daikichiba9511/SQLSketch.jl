@@ -239,13 +239,24 @@ Represents a single waiting thread with its deadline and timeout state.
 # Fields
 
   - `deadline`: Absolute time when this waiter should timeout
-  - `condition`: The condition to notify when timeout occurs
   - `timed_out`: Atomic flag indicating if timeout occurred
+  - `cancelled`: Atomic flag indicating if this waiter was cancelled (lazy deletion)
+
+# Note
+
+The condition to notify is managed centrally by TimeoutManager, not per-waiter.
+This simplifies the design and enables efficient batch notifications.
 """
 mutable struct WaiterEntry
     deadline::Float64
-    condition::Base.GenericCondition{ReentrantLock}
-    timed_out::Ref{Bool}
+    timed_out::Threads.Atomic{Bool}
+    cancelled::Threads.Atomic{Bool}
+
+    function WaiterEntry(deadline::Float64)
+        return new(deadline,
+                   Threads.Atomic{Bool}(false),
+                   Threads.Atomic{Bool}(false))
+    end
 end
 
 # Min-heap ordering: earliest deadline first
@@ -270,11 +281,12 @@ operations and dynamic sleep intervals.
   - `monitor_task`: Background task that checks for timeouts
   - `running`: Flag to stop the monitor task on pool close
   - `max_check_interval`: Maximum sleep interval between checks (seconds)
+  - `condition`: The pool condition to notify when timeouts occur (all waiters share this)
 
 # Performance
 
   - Register: O(log n) heap insert
-  - Unregister: O(n) search + O(log n) delete
+  - Unregister: O(1) lazy deletion (just set cancelled flag)
   - Check timeouts: O(k log n) where k = expired waiters
   - Dynamic sleep: wakes only when next timeout is due
 """
@@ -289,14 +301,20 @@ mutable struct TimeoutManager
     last_activity_time::Float64
     shutdown_timeout::Float64
 
-    function TimeoutManager(max_check_interval::Float64=0.1, shutdown_timeout::Float64=5.0)
+    # All waiters belong to the same pool condition
+    condition::Base.GenericCondition{ReentrantLock}
+
+    function TimeoutManager(condition::Base.GenericCondition{ReentrantLock};
+                            max_check_interval::Float64=0.1,
+                            shutdown_timeout::Float64=5.0)
         return new(ReentrantLock(),
                    BinaryMinHeap{WaiterEntry}(),  # Empty min-heap
                    nothing,
                    Threads.Atomic{Bool}(true),
                    max_check_interval,
                    0.0,  # last_activity_time
-                   shutdown_timeout)
+                   shutdown_timeout,
+                   condition)
     end
 end
 
@@ -309,6 +327,7 @@ Uses a min-heap (priority queue) to efficiently process timeouts:
 - O(1) peek at next deadline
 - O(log n) pop for each expired waiter
 - Dynamic sleep: wakes only when next timeout is due
+- Lazy deletion: cleans cancelled entries at the top
 
 This eliminates O(n) linear scans and reduces lock contention.
 """
@@ -316,69 +335,69 @@ function _timeout_monitor_loop(mgr::TimeoutManager)::Nothing
     mgr.last_activity_time = time()
 
     while mgr.running[]
-        # Determine sleep time based on next deadline
+        # Decide sleep interval based on the earliest active deadline.
         sleep_time = lock(mgr.lock) do
+            # Clean cancelled entries at the top (lazy deletion)
+            while !isempty(mgr.waiters) && first(mgr.waiters).cancelled[]
+                pop!(mgr.waiters)
+            end
+
             if isempty(mgr.waiters)
-                # No waiters - check for shutdown after idle period
+                # Idle: check for auto-shutdown
                 elapsed = time() - mgr.last_activity_time
                 if elapsed >= mgr.shutdown_timeout
-                    # Idle timeout reached - stop monitor
                     mgr.monitor_task = nothing
-                    Threads.atomic_xchg!(mgr.running, false)
-                    return 0.0  # Signal to exit
+                    return 0.0  # signal exit
                 end
-
-                # Continue waiting, check again after max_check_interval
                 return mgr.max_check_interval
             else
-                # Active waiters - sleep until next deadline
                 mgr.last_activity_time = time()
-                next_deadline = first(mgr.waiters).deadline  # O(1) peek min
+                next_deadline = first(mgr.waiters).deadline
                 now = time()
-
-                # Sleep until next deadline (bounded by max_check_interval)
-                sleep_until = max(next_deadline - now, 0.001)  # Min 1ms
+                sleep_until = max(next_deadline - now, 0.001) # >= 1ms
                 return min(sleep_until, mgr.max_check_interval)
             end
         end
 
-        # Exit if shutdown requested
         if sleep_time <= 0.0
             break
         end
 
         sleep(sleep_time)
 
-        # Process expired waiters - OPTIMIZED: Batch + Single Notify
-        # Phase 1: Pop expired waiters and set flags (hold mgr.lock briefly)
         now = time()
-        expired_waiters = lock(mgr.lock) do
-            expired = WaiterEntry[]
-            while !isempty(mgr.waiters)
-                # Peek at minimum deadline (O(1))
-                next_waiter = first(mgr.waiters)
+        expired_count = 0
 
-                if next_waiter.deadline <= now
-                    # Expired - pop from heap (O(log n))
-                    waiter = pop!(mgr.waiters)
-                    # Set timeout flag
-                    waiter.timed_out[] = true
-                    # Collect for batch notification
-                    push!(expired, waiter)
+        # Pop expired waiters and set flags quickly under mgr.lock
+        lock(mgr.lock) do
+            # Clean cancelled at the top again
+            while !isempty(mgr.waiters) && first(mgr.waiters).cancelled[]
+                pop!(mgr.waiters)
+            end
+
+            while !isempty(mgr.waiters)
+                w = first(mgr.waiters)
+
+                if w.deadline <= now
+                    w = pop!(mgr.waiters)
+
+                    # Skip cancelled
+                    if w.cancelled[]
+                        continue
+                    end
+
+                    Threads.atomic_xchg!(w.timed_out, true)
+                    expired_count += 1
                 else
-                    # Heap is ordered - no more expired waiters
                     break
                 end
             end
-            return expired
         end
 
-        # Phase 2: Notify ONCE outside mgr.lock (no nested locking!)
-        # All waiters share the same pool.condition, so one notify wakes all
-        if !isempty(expired_waiters)
-            condition = expired_waiters[1].condition
-            lock(condition.lock) do
-                notify(condition, :all)  # Single notify for all expired waiters
+        # Notify once if any timeouts fired
+        if expired_count > 0
+            lock(mgr.condition.lock) do
+                notify(mgr.condition, :all)
             end
         end
     end
@@ -391,11 +410,15 @@ end
     _start_timeout_monitor!(mgr::TimeoutManager)
 
 Start the timeout monitoring task if not already running.
+
+Uses lock to prevent race conditions during startup.
 """
 function _start_timeout_monitor!(mgr::TimeoutManager)::Nothing
-    if mgr.monitor_task === nothing || istaskdone(mgr.monitor_task)
-        mgr.running[] = true
-        mgr.monitor_task = @async _timeout_monitor_loop(mgr)
+    lock(mgr.lock) do
+        if mgr.monitor_task === nothing || istaskdone(mgr.monitor_task)
+            mgr.running[] = true
+            mgr.monitor_task = @async _timeout_monitor_loop(mgr)
+        end
     end
     return nothing
 end
@@ -405,24 +428,18 @@ end
 
 Remove a waiter from the timeout manager's heap.
 
-This is O(n) search + O(log n) delete, but occurs infrequently
-(only in finally block when acquire completes).
+This uses lazy deletion: just set the cancelled flag.
+The monitor loop will clean it up later.
 
-# Implementation Note
+# Performance
 
-BinaryMinHeap doesn't support delete-by-value, so we:
-1. Reconstruct heap without the target entry (O(n))
-2. This is acceptable since unregister is rare compared to timeout checks
+O(1) - just set atomic flag, no heap manipulation
 """
 function _unregister_waiter!(mgr::TimeoutManager, entry::WaiterEntry)::Nothing
+    # Lazy deletion: just mark as cancelled
+    # The monitor loop will clean it up later.
+    Threads.atomic_xchg!(entry.cancelled, true)
     lock(mgr.lock) do
-        # Rebuild heap without target entry
-        # O(n) but happens only on acquire completion (rare)
-        remaining = filter(w -> w !== entry, mgr.waiters.valtree)
-        mgr.waiters = BinaryMinHeap{WaiterEntry}()
-        for w in remaining
-            push!(mgr.waiters, w)
-        end
         mgr.last_activity_time = time()
     end
     return nothing
@@ -564,7 +581,7 @@ mutable struct ConnectionPool{D <: Driver, C <: Connection}
 
         lock = ReentrantLock()
         cond = Base.GenericCondition(lock)  # Condition bound to lock
-        timeout_mgr = TimeoutManager()  # Centralized timeout manager
+        timeout_mgr = TimeoutManager(cond)  # Centralized timeout manager bound to pool.condition
 
         pool = new{D, C}(driver,
                          config,
@@ -830,16 +847,17 @@ function acquire(pool::ConnectionPool{D, C}; timeout::Float64 = 30.0)::C where {
 
                         if timeout_entry === nothing
                             deadline = start_time + timeout
-                            timed_out = Ref(false)
-                            timeout_entry = WaiterEntry(deadline, pool.condition, timed_out)
+                            timeout_entry = WaiterEntry(deadline)
 
-                            lock(pool.timeout_mgr.lock) do
-                                # Start monitor if first waiter
-                                if isempty(pool.timeout_mgr.waiters)
-                                    _start_timeout_monitor!(pool.timeout_mgr)
-                                end
+                            was_empty = lock(pool.timeout_mgr.lock) do
+                                empty_before = isempty(pool.timeout_mgr.waiters)
                                 push!(pool.timeout_mgr.waiters, timeout_entry)
                                 pool.timeout_mgr.last_activity_time = time()
+                                return empty_before
+                            end
+
+                            if was_empty
+                                _start_timeout_monitor!(pool.timeout_mgr)
                             end
                         end
 
@@ -1074,7 +1092,7 @@ function _is_connection_healthy(conn::Connection)::Bool
         # Simple ping query - works for both PostgreSQL and SQLite
         execute_sql(conn, "SELECT 1", [])
         return true
-    catch e
+    catch
         # Any exception means connection is unhealthy
         return false
     end
