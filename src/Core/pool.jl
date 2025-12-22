@@ -415,7 +415,13 @@ Uses lock to prevent race conditions during startup.
 """
 function _start_timeout_monitor!(mgr::TimeoutManager)::Nothing
     lock(mgr.lock) do
-        if mgr.monitor_task === nothing || istaskdone(mgr.monitor_task)
+        task = mgr.monitor_task
+        should_start = if task === nothing
+            true
+        else
+            istaskdone(task::Task)
+        end
+        if should_start
             mgr.running[] = true
             mgr.monitor_task = @async _timeout_monitor_loop(mgr)
         end
@@ -452,8 +458,9 @@ Stop the timeout monitoring task.
 """
 function _stop_timeout_monitor!(mgr::TimeoutManager)::Nothing
     Threads.atomic_xchg!(mgr.running, false)
-    if mgr.monitor_task !== nothing
-        wait(mgr.monitor_task)
+    task = mgr.monitor_task
+    if task !== nothing
+        wait(task)
     end
     return nothing
 end
