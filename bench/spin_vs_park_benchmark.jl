@@ -57,11 +57,9 @@ function benchmark_low_contention(num_runs = 3)
 
         metrics = get_metrics(pool)
 
-        push!(results, (
-            elapsed = elapsed,
-            throughput = throughput,
-            metrics = metrics
-        ))
+        push!(results, (elapsed = elapsed,
+                        throughput = throughput,
+                        metrics = metrics))
 
         println("  Run $run:")
         println("    Time: $(round(elapsed, digits=2))s")
@@ -70,7 +68,8 @@ function benchmark_low_contention(num_runs = 3)
         println("    Spin waits: $(metrics.spin_waits)")
         println("    Park waits: $(metrics.park_waits)")
         if metrics.spin_waits + metrics.park_waits > 0
-            spin_ratio = metrics.spin_waits / (metrics.spin_waits + metrics.park_waits) * 100
+            spin_ratio = metrics.spin_waits / (metrics.spin_waits + metrics.park_waits) *
+                         100
             println("    Spin ratio: $(round(spin_ratio, digits=1))%")
         end
 
@@ -135,11 +134,9 @@ function benchmark_high_contention(num_runs = 3)
 
         metrics = get_metrics(pool)
 
-        push!(results, (
-            elapsed = elapsed,
-            throughput = throughput,
-            metrics = metrics
-        ))
+        push!(results, (elapsed = elapsed,
+                        throughput = throughput,
+                        metrics = metrics))
 
         println("  Run $run:")
         println("    Time: $(round(elapsed, digits=2))s")
@@ -148,8 +145,10 @@ function benchmark_high_contention(num_runs = 3)
         println("    Spin waits: $(metrics.spin_waits)")
         println("    Park waits: $(metrics.park_waits)")
         if metrics.spin_waits + metrics.park_waits > 0
-            spin_ratio = metrics.spin_waits / (metrics.spin_waits + metrics.park_waits) * 100
-            park_ratio = metrics.park_waits / (metrics.spin_waits + metrics.park_waits) * 100
+            spin_ratio = metrics.spin_waits / (metrics.spin_waits + metrics.park_waits) *
+                         100
+            park_ratio = metrics.park_waits / (metrics.spin_waits + metrics.park_waits) *
+                         100
             println("    Spin ratio: $(round(spin_ratio, digits=1))%")
             println("    Park ratio: $(round(park_ratio, digits=1))%")
         end
@@ -204,16 +203,16 @@ println("│ Spin waits              │ $(lpad(round(Int, low_spin), 16)) │ $
 println("│ Park waits              │ $(lpad(round(Int, low_park), 16)) │ $(lpad(round(Int, high_park), 16)) │")
 
 if low_spin + low_park > 0
-    low_spin_pct = round(low_spin / (low_spin + low_park) * 100, digits=1)
+    low_spin_pct = round(low_spin / (low_spin + low_park) * 100; digits = 1)
     if high_spin + high_park > 0
-        high_spin_pct = round(high_spin / (high_spin + high_park) * 100, digits=1)
+        high_spin_pct = round(high_spin / (high_spin + high_park) * 100; digits = 1)
         println("│ Spin %                  │ $(lpad(low_spin_pct, 15))% │ $(lpad(high_spin_pct, 15))% │")
     else
         println("│ Spin %                  │ $(lpad(low_spin_pct, 15))% │ $(lpad("N/A", 16)) │")
     end
 else
     if high_spin + high_park > 0
-        high_spin_pct = round(high_spin / (high_spin + high_park) * 100, digits=1)
+        high_spin_pct = round(high_spin / (high_spin + high_park) * 100; digits = 1)
         println("│ Spin %                  │ $(lpad("N/A", 16)) │ $(lpad(high_spin_pct, 15))% │")
     else
         println("│ Spin %                  │ $(lpad("N/A", 16)) │ $(lpad("N/A", 16)) │")

@@ -293,7 +293,7 @@ operations and dynamic sleep intervals.
 mutable struct TimeoutManager
     lock::ReentrantLock
     waiters::BinaryMinHeap{WaiterEntry}  # Min-heap ordered by deadline
-    monitor_task::Union{Task,Nothing}
+    monitor_task::Union{Task, Nothing}
     running::Threads.Atomic{Bool}
     max_check_interval::Float64  # Maximum sleep interval
 
@@ -305,8 +305,8 @@ mutable struct TimeoutManager
     condition::Base.GenericCondition{ReentrantLock}
 
     function TimeoutManager(condition::Base.GenericCondition{ReentrantLock};
-                            max_check_interval::Float64=0.1,
-                            shutdown_timeout::Float64=5.0)
+                            max_check_interval::Float64 = 0.1,
+                            shutdown_timeout::Float64 = 5.0)
         return new(ReentrantLock(),
                    BinaryMinHeap{WaiterEntry}(),  # Empty min-heap
                    nothing,
@@ -324,10 +324,11 @@ end
 Background task that checks for timed-out waiters.
 
 Uses a min-heap (priority queue) to efficiently process timeouts:
-- O(1) peek at next deadline
-- O(log n) pop for each expired waiter
-- Dynamic sleep: wakes only when next timeout is due
-- Lazy deletion: cleans cancelled entries at the top
+
+  - O(1) peek at next deadline
+  - O(log n) pop for each expired waiter
+  - Dynamic sleep: wakes only when next timeout is due
+  - Lazy deletion: cleans cancelled entries at the top
 
 This eliminates O(n) linear scans and reduces lock contention.
 """
@@ -1111,12 +1112,13 @@ end
 Get current performance metrics for the connection pool.
 
 This function returns a snapshot of pool metrics including:
-- Acquire/release counts
-- Wait statistics
-- Timeout counts
-- Health check failures
-- Reconnections
-- Peak usage
+
+  - Acquire/release counts
+  - Wait statistics
+  - Timeout counts
+  - Health check failures
+  - Reconnections
+  - Peak usage
 
 # Arguments
 

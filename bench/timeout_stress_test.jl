@@ -28,11 +28,11 @@ println()
 # ============================================================================
 
 function run_timeout_scenario(;
-                               num_threads::Int,
-                               timeout_ms::Float64,
-                               hold_time_ms::Float64,
-                               pool_size::Int = 1,
-                               runs::Int = 3)
+                              num_threads::Int,
+                              timeout_ms::Float64,
+                              hold_time_ms::Float64,
+                              pool_size::Int = 1,
+                              runs::Int = 3)
     """
     Force timeouts by having threads hold connections longer than timeout.
 
@@ -53,10 +53,10 @@ function run_timeout_scenario(;
 
         # Thread 1: Holder (acquires and holds)
         push!(tasks, @async begin
-                 conn = acquire(pool; timeout = 60.0)  # Long timeout
-                 sleep(hold_time_ms / 1000.0)  # Hold connection
-                 release(pool, conn)
-             end)
+                  conn = acquire(pool; timeout = 60.0)  # Long timeout
+                  sleep(hold_time_ms / 1000.0)  # Hold connection
+                  release(pool, conn)
+              end)
 
         # Small delay to ensure holder acquires first
         sleep(0.01)
@@ -64,17 +64,17 @@ function run_timeout_scenario(;
         # Threads 2-N: Waiters (will timeout)
         for i in 2:num_threads
             push!(tasks, @async begin
-                     try
-                         conn = acquire(pool; timeout = timeout_ms / 1000.0)
-                         release(pool, conn)
-                         error("Should have timed out!")
-                     catch e
-                         if !occursin("timeout", lowercase(string(e)))
-                             rethrow(e)
-                         end
-                         # Expected timeout - success!
-                     end
-                 end)
+                      try
+                          conn = acquire(pool; timeout = timeout_ms / 1000.0)
+                          release(pool, conn)
+                          error("Should have timed out!")
+                      catch e
+                          if !occursin("timeout", lowercase(string(e)))
+                              rethrow(e)
+                          end
+                          # Expected timeout - success!
+                      end
+                  end)
         end
 
         # Wait for all threads
@@ -85,10 +85,8 @@ function run_timeout_scenario(;
         elapsed = time() - start_time
         metrics = get_metrics(pool)
 
-        push!(results, (
-            elapsed = elapsed,
-            metrics = metrics
-        ))
+        push!(results, (elapsed = elapsed,
+                        metrics = metrics))
 
         close(pool)
 
@@ -114,10 +112,10 @@ println("  Hold time: 100ms (forces timeout)")
 println("  Expected: 9 threads timeout simultaneously")
 println()
 
-results_10 = run_timeout_scenario(num_threads = 10,
-                                   timeout_ms = 50.0,
-                                   hold_time_ms = 100.0,
-                                   runs = 5)
+results_10 = run_timeout_scenario(; num_threads = 10,
+                                  timeout_ms = 50.0,
+                                  hold_time_ms = 100.0,
+                                  runs = 5)
 
 println("Results (10 concurrent timeouts):")
 for (i, r) in enumerate(results_10)
@@ -150,10 +148,10 @@ println("  Hold time: 100ms (forces timeout)")
 println("  Expected: 49 threads timeout simultaneously")
 println()
 
-results_50 = run_timeout_scenario(num_threads = 50,
-                                   timeout_ms = 50.0,
-                                   hold_time_ms = 100.0,
-                                   runs = 5)
+results_50 = run_timeout_scenario(; num_threads = 50,
+                                  timeout_ms = 50.0,
+                                  hold_time_ms = 100.0,
+                                  runs = 5)
 
 println("Results (50 concurrent timeouts):")
 for (i, r) in enumerate(results_50)
@@ -186,10 +184,10 @@ println("  Hold time: 100ms (forces timeout)")
 println("  Expected: 99 threads timeout simultaneously")
 println()
 
-results_100 = run_timeout_scenario(num_threads = 100,
-                                    timeout_ms = 50.0,
-                                    hold_time_ms = 100.0,
-                                    runs = 5)
+results_100 = run_timeout_scenario(; num_threads = 100,
+                                   timeout_ms = 50.0,
+                                   hold_time_ms = 100.0,
+                                   runs = 5)
 
 println("Results (100 concurrent timeouts):")
 for (i, r) in enumerate(results_100)

@@ -38,10 +38,10 @@ println()
 # ============================================================================
 
 function run_high_churn_scenario(;
-                                  pool_size::Int,
-                                  num_threads::Int,
-                                  operations_per_thread::Int,
-                                  hold_time_ms::Float64)
+                                 pool_size::Int,
+                                 num_threads::Int,
+                                 operations_per_thread::Int,
+                                 hold_time_ms::Float64)
     """
     High churn scenario:
     - Small pool (forces waiting)
@@ -59,19 +59,19 @@ function run_high_churn_scenario(;
 
     for i in 1:num_threads
         push!(tasks, @async begin
-            for j in 1:operations_per_thread
-                try
-                    conn = acquire(pool; timeout = 30.0)
-                    sleep(hold_time_ms / 1000.0)
-                    release(pool, conn)
-                catch e
-                    # Timeout is possible under extreme contention
-                    if !occursin("timeout", lowercase(string(e)))
-                        rethrow(e)
-                    end
-                end
-            end
-        end)
+                  for j in 1:operations_per_thread
+                      try
+                          conn = acquire(pool; timeout = 30.0)
+                          sleep(hold_time_ms / 1000.0)
+                          release(pool, conn)
+                      catch e
+                          # Timeout is possible under extreme contention
+                          if !occursin("timeout", lowercase(string(e)))
+                              rethrow(e)
+                          end
+                      end
+                  end
+              end)
     end
 
     # Wait for all threads
@@ -84,12 +84,10 @@ function run_high_churn_scenario(;
 
     close(pool)
 
-    return (
-        elapsed = elapsed,
-        metrics = metrics,
-        throughput = (num_threads * operations_per_thread) / elapsed,
-        avg_time_per_op_ms = (elapsed / (num_threads * operations_per_thread)) * 1000
-    )
+    return (elapsed = elapsed,
+            metrics = metrics,
+            throughput = (num_threads * operations_per_thread) / elapsed,
+            avg_time_per_op_ms = (elapsed / (num_threads * operations_per_thread)) * 1000)
 end
 
 # ============================================================================
@@ -108,12 +106,10 @@ println("  Hold time: 1ms")
 println("  Expected: No waiting, fast path only")
 println()
 
-result_baseline = run_high_churn_scenario(
-    pool_size = 10,
-    num_threads = 10,
-    operations_per_thread = 100,
-    hold_time_ms = 1.0
-)
+result_baseline = run_high_churn_scenario(; pool_size = 10,
+                                          num_threads = 10,
+                                          operations_per_thread = 100,
+                                          hold_time_ms = 1.0)
 
 println("Results (Baseline):")
 println("  Total time: $(round(result_baseline.elapsed, digits=2))s")
@@ -140,12 +136,10 @@ println("  Hold time: 1ms")
 println("  Expected: ~20 waiters in heap → O(n) unregister impact")
 println()
 
-result_moderate = run_high_churn_scenario(
-    pool_size = 5,
-    num_threads = 25,
-    operations_per_thread = 100,
-    hold_time_ms = 1.0
-)
+result_moderate = run_high_churn_scenario(; pool_size = 5,
+                                          num_threads = 25,
+                                          operations_per_thread = 100,
+                                          hold_time_ms = 1.0)
 
 println("Results (Moderate Contention):")
 println("  Total time: $(round(result_moderate.elapsed, digits=2))s")
@@ -179,12 +173,10 @@ println("⚠️  Old implementation would have O(n=48) heap rebuild per acquire!
 println("⚠️  New implementation: O(1) lazy deletion")
 println()
 
-result_high = run_high_churn_scenario(
-    pool_size = 2,
-    num_threads = 50,
-    operations_per_thread = 50,
-    hold_time_ms = 1.0
-)
+result_high = run_high_churn_scenario(; pool_size = 2,
+                                      num_threads = 50,
+                                      operations_per_thread = 50,
+                                      hold_time_ms = 1.0)
 
 println("Results (High Contention):")
 println("  Total time: $(round(result_high.elapsed, digits=2))s")
@@ -218,12 +210,10 @@ println("⚠️  Old implementation: O(99) heap rebuild × 2000 operations = dis
 println("✅  New implementation: O(1) lazy deletion × 2000 operations = fast")
 println()
 
-result_extreme = run_high_churn_scenario(
-    pool_size = 1,
-    num_threads = 100,
-    operations_per_thread = 20,
-    hold_time_ms = 1.0
-)
+result_extreme = run_high_churn_scenario(; pool_size = 1,
+                                         num_threads = 100,
+                                         operations_per_thread = 20,
+                                         hold_time_ms = 1.0)
 
 println("Results (Extreme Contention):")
 println("  Total time: $(round(result_extreme.elapsed, digits=2))s")
