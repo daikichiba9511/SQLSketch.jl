@@ -741,32 +741,80 @@ It is recommended to use `with_connection()` instead of manual acquire/release
 to ensure connections are always released, even if an exception occurs.
 """
 function acquire(pool::ConnectionPool{D, C}; timeout::Float64 = 30.0)::C where {D, C}
-    start_time = time()
-    waited = Ref(false)
-    iteration = 0
-    timeout_entry = nothing
+    # ============================================================================
+    # OVERVIEW: Connection Acquisition Algorithm
+    # ============================================================================
+    # This function implements a predicate-based wait loop following Mesa semantics:
+    #
+    # 1. Check predicates under lock (timeout/available/can_create)
+    # 2. If resource available → return immediately
+    # 3. If not available → wait (with spin-then-park optimization)
+    # 4. When woken up → re-check ALL predicates (spurious wakeups, race conditions)
+    #
+    # COORDINATION with other components:
+    # - TimeoutManager: Monitors timeout_entry.timed_out[] flag (Predicate 1)
+    # - release(): Notifies pool.condition to wake waiters (triggers re-check)
+    # - Health checker: Validates/recreates connections (integrated in Predicate 2)
+    # - Metrics: Tracks acquire/wait/timeout/health_check statistics
+    # ============================================================================
 
+    start_time = time()
+    waited = Ref(false)          # Track if we entered wait state (for metrics)
+    iteration = 0                # Count wait iterations (for spin-then-park)
+    timeout_entry = nothing      # Registered with TimeoutManager (if parking)
+
+    # Record acquisition attempt (regardless of success/failure)
     Threads.atomic_add!(pool.metrics.total_acquires, 1)
 
     try
         conn = lock(pool.lock) do
-            # Check if pool is closed
+            # ========================================================================
+            # PRE-CONDITION: Pool must be open
+            # ========================================================================
             if pool.closed
                 error("Cannot acquire connection from closed pool")
             end
 
-            # Main acquisition loop with predicate checks
+            # ========================================================================
+            # MAIN LOOP: Predicate-based wait (Mesa semantics)
+            # ========================================================================
+            # We re-check ALL predicates after each wake-up because:
+            # - Spurious wakeups can occur (OS/Julia scheduler)
+            # - Multiple waiters race for the same resource (thundering herd)
+            # - Timeouts can fire while we're waiting
+            #
+            # The loop exits ONLY when a connection is successfully acquired.
+            # ========================================================================
             while true
-                # === Predicate 1: Timeout check ===
+                # ====================================================================
+                # PREDICATE 1: Has timeout fired?
+                # ====================================================================
+                # COORDINATION: TimeoutManager monitors deadline and sets timed_out[]
+                # WHY HERE: Must check timeout BEFORE attempting acquisition to avoid
+                #           returning a connection after timeout expired
+                # ====================================================================
                 if timeout_entry !== nothing && timeout_entry.timed_out[]
                     Threads.atomic_add!(pool.metrics.total_timeouts, 1)
                     error("Connection acquisition timeout after $(round(time() - start_time, digits=2))s (pool exhausted: $(length(pool.connections))/$(pool.max_size) connections in use)")
                 end
 
-                # === Predicate 2: Available connection ===
+                # ====================================================================
+                # PREDICATE 2: Is there an available (idle) connection?
+                # ====================================================================
+                # COORDINATION: release() sets pc.in_use = false and notifies waiters
+                # WHY HERE: Reuse existing connections before creating new ones
+                #           (reduces connection overhead, respects pool.max_size)
+                # ====================================================================
                 for pc in pool.connections
                     if !pc.in_use
-                        # Health check if needed
+                        # ------------------------------------------------------------
+                        # HEALTH CHECK: Validate connection if idle too long
+                        # ------------------------------------------------------------
+                        # REASON: Idle connections may be closed by server/network
+                        # COORDINATION: _is_connection_healthy() checks driver-specific
+                        #               connection validity (e.g., ping for PostgreSQL)
+                        # ACTION: If unhealthy → close + reconnect transparently
+                        # ------------------------------------------------------------
                         if pool.health_check_interval > 0.0 &&
                            (time() - pc.last_used) > pool.health_check_interval
                             if !_is_connection_healthy(pc.conn)
@@ -774,7 +822,9 @@ function acquire(pool::ConnectionPool{D, C}; timeout::Float64 = 30.0)::C where {
                                 try
                                     close(pc.conn)
                                 catch
+                                    # Ignore close errors (connection already dead)
                                 end
+                                # Recreate connection in-place
                                 pc.conn = connect(pool.driver, pool.config)::C
                                 pc.error_count = 0
                                 pc.last_used = time()
@@ -782,18 +832,22 @@ function acquire(pool::ConnectionPool{D, C}; timeout::Float64 = 30.0)::C where {
                             end
                         end
 
-                        # Mark as in use and return
+                        # ------------------------------------------------------------
+                        # ACQUIRE: Mark connection as in-use and return
+                        # ------------------------------------------------------------
                         pc.in_use = true
                         pc.last_used = time()
 
-                        # Update peak usage
+                        # Update peak usage metric (lock-free atomic CAS)
+                        # REASON: Track maximum concurrent usage for capacity planning
                         current_usage = count(p -> p.in_use, pool.connections)
                         old_peak = pool.metrics.peak_usage[]
                         while current_usage > old_peak
                             if Threads.atomic_cas!(pool.metrics.peak_usage, old_peak,
                                                    current_usage) == old_peak
-                                break
+                                break  # Successfully updated peak
                             end
+                            # CAS failed (another thread updated) → retry
                             old_peak = pool.metrics.peak_usage[]
                         end
 
@@ -801,14 +855,20 @@ function acquire(pool::ConnectionPool{D, C}; timeout::Float64 = 30.0)::C where {
                     end
                 end
 
-                # === Predicate 3: Can create new connection ===
+                # ====================================================================
+                # PREDICATE 3: Can we create a new connection?
+                # ====================================================================
+                # COORDINATION: Only if pool size < max_size (capacity limit)
+                # WHY HERE: Checked after reuse attempt to prefer existing connections
+                # ====================================================================
                 if length(pool.connections) < pool.max_size
+                    # Create new connection and add to pool
                     conn = connect(pool.driver, pool.config)::C
                     pc = PooledConnection{C}(conn)
                     pc.in_use = true
                     push!(pool.connections, pc)
 
-                    # Update peak usage
+                    # Update peak usage metric (same as above)
                     current_usage = count(p -> p.in_use, pool.connections)
                     old_peak = pool.metrics.peak_usage[]
                     while current_usage > old_peak
@@ -822,9 +882,14 @@ function acquire(pool::ConnectionPool{D, C}; timeout::Float64 = 30.0)::C where {
                     return conn
                 end
 
-                # === No resource available, must wait ===
+                # ====================================================================
+                # NO RESOURCE AVAILABLE: Must wait for release()
+                # ====================================================================
+                # REASON: All connections are in-use AND pool is at max capacity
+                # STRATEGY: Use spin-then-park to balance latency vs. CPU usage
+                # ====================================================================
 
-                # Track that we're waiting
+                # Track first entry into wait state (for metrics)
                 if !waited[]
                     waited[] = true
                     Threads.atomic_add!(pool.metrics.total_waits, 1)
@@ -832,31 +897,55 @@ function acquire(pool::ConnectionPool{D, C}; timeout::Float64 = 30.0)::C where {
 
                 iteration += 1
 
-                # Spin-then-park pattern
+                # ====================================================================
+                # SPIN-THEN-PARK: Adaptive waiting strategy
+                # ====================================================================
+                # PHASE 1 (iterations 1-10): SPIN
+                #   - unlock → yield() → re-lock
+                #   - Low latency for short waits (connection released quickly)
+                #   - Avoids syscall overhead of condition variable
+                #
+                # PHASE 2 (iterations 11+): PARK
+                #   - Register with TimeoutManager (deadline monitoring)
+                #   - Park on condition variable (OS scheduler handles wake-up)
+                #   - Low CPU usage for long waits (connection pool exhausted)
+                #
+                # COORDINATION:
+                #   - TimeoutManager: Sets timeout_entry.timed_out[] at deadline
+                #   - release(): Calls notify(pool.condition) to wake one waiter
+                # ====================================================================
                 if !isinf(timeout)
                     elapsed = time() - start_time
                     remaining = timeout - elapsed
 
-                    # Immediate timeout check
+                    # Fast-path timeout check before entering wait
                     if remaining <= 0
                         Threads.atomic_add!(pool.metrics.total_timeouts, 1)
                         error("Connection acquisition timeout after $(round(elapsed, digits=2))s (pool exhausted: $(length(pool.connections))/$(pool.max_size) connections in use)")
                     end
 
                     if iteration <= 10
-                        # Spin phase
+                        # ============================================================
+                        # SPIN PHASE: Brief yield to check if connection released
+                        # ============================================================
                         Threads.atomic_add!(pool.metrics.spin_waits, 1)
                         unlock(pool.lock)
-                        yield()
+                        yield()  # Let other tasks run (including release())
                         lock(pool.lock)
+                        # → Loop back to re-check predicates
                     else
-                        # Park phase - register for timeout monitoring
+                        # ============================================================
+                        # PARK PHASE: Register for timeout monitoring and sleep
+                        # ============================================================
                         Threads.atomic_add!(pool.metrics.park_waits, 1)
 
+                        # Register timeout entry on first park (idempotent)
                         if timeout_entry === nothing
                             deadline = start_time + timeout
                             timeout_entry = WaiterEntry(deadline)
 
+                            # Add to TimeoutManager's min-heap (under separate lock)
+                            # COORDINATION: TimeoutManager monitors this entry
                             was_empty = lock(pool.timeout_mgr.lock) do
                                 empty_before = isempty(pool.timeout_mgr.waiters)
                                 push!(pool.timeout_mgr.waiters, timeout_entry)
@@ -864,33 +953,48 @@ function acquire(pool::ConnectionPool{D, C}; timeout::Float64 = 30.0)::C where {
                                 return empty_before
                             end
 
+                            # Start monitor task if this is the first waiter
+                            # REASON: Monitor auto-stops when idle (hybrid shutdown)
                             if was_empty
                                 _start_timeout_monitor!(pool.timeout_mgr)
                             end
                         end
 
-                        # Wait for release() to notify
+                        # Park on condition variable
+                        # WAKE-UP TRIGGERS:
+                        #   1. release() calls notify(pool.condition)
+                        #   2. Spurious wake-up (OS/Julia scheduler)
+                        # → Must re-check ALL predicates after wake-up
                         wait(pool.condition)
                     end
                 else
-                    # Infinite timeout
+                    # ================================================================
+                    # INFINITE TIMEOUT: Park without deadline monitoring
+                    # ================================================================
                     Threads.atomic_add!(pool.metrics.park_waits, 1)
                     wait(pool.condition)
                 end
 
-                # Loop back to re-check predicates
+                # Loop back to re-check predicates (Mesa semantics)
+                # IMPORTANT: Do NOT assume resource is available just because we woke up!
             end
         end
 
         return conn
 
     finally
-        # Cleanup timeout registration
+        # ========================================================================
+        # CLEANUP: Unregister timeout and record wait time
+        # ========================================================================
+        # REASON: Must cleanup even on error/timeout to avoid:
+        #   - Memory leak in TimeoutManager's min-heap
+        #   - Ghost timeouts firing for already-completed acquisitions
+        # ========================================================================
         if timeout_entry !== nothing
             _unregister_waiter!(pool.timeout_mgr, timeout_entry)
         end
 
-        # Record wait time if we waited
+        # Record total wait time for performance analysis
         if waited[]
             wait_time_ms = (time() - start_time) * 1000.0
             Threads.atomic_add!(pool.metrics.total_wait_time_ms, wait_time_ms)
