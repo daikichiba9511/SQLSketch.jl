@@ -115,6 +115,109 @@ See [**Implementation Status**](docs/implementation-status.md) for detailed brea
 
 ---
 
+## Features at a Glance
+
+### Query Building
+| Feature | SQLite | PostgreSQL | MySQL | Description |
+|---------|--------|------------|-------|-------------|
+| **SELECT** | ✅ | ✅ | ✅ | Basic and complex projections |
+| **WHERE** | ✅ | ✅ | ✅ | Filtering with expressions |
+| **JOIN** | ✅ | ✅ | ✅ | INNER, LEFT, RIGHT, FULL |
+| **GROUP BY** | ✅ | ✅ | ✅ | Aggregation grouping |
+| **HAVING** | ✅ | ✅ | ✅ | Post-aggregation filtering |
+| **ORDER BY** | ✅ | ✅ | ✅ | ASC/DESC sorting |
+| **LIMIT/OFFSET** | ✅ | ✅ | ✅ | Result pagination |
+| **DISTINCT** | ✅ | ✅ | ✅ | Remove duplicates |
+| **Subqueries** | ✅ | ✅ | ✅ | Nested SELECT expressions |
+| **CTE (WITH)** | ✅ | ✅ | ✅ | Common Table Expressions |
+
+### SQL Expressions & Operators
+| Feature | SQLite | PostgreSQL | MySQL | Description |
+|---------|--------|------------|-------|-------------|
+| **Aggregate Functions** | ✅ | ✅ | ✅ | COUNT, SUM, AVG, MIN, MAX |
+| **CASE Expressions** | ✅ | ✅ | ✅ | Conditional logic (CASE WHEN) |
+| **CAST** | ✅ | ✅ | ✅ | Type conversion |
+| **COALESCE** | ✅ | ✅ | ✅ | NULL handling (via func()) |
+| **LIKE/ILIKE** | ✅ | ✅ | ✅ | Pattern matching |
+| **IN/NOT IN** | ✅ | ✅ | ✅ | List membership |
+| **BETWEEN** | ✅ | ✅ | ✅ | Range queries |
+| **IS NULL/IS NOT NULL** | ✅ | ✅ | ✅ | NULL checking |
+| **Arithmetic Operators** | ✅ | ✅ | ✅ | +, -, *, /, % |
+| **Comparison Operators** | ✅ | ✅ | ✅ | =, !=, <, >, <=, >= |
+| **Logical Operators** | ✅ | ✅ | ✅ | AND, OR, NOT |
+| **String Functions** | ✅ | ✅ | ✅ | CONCAT, UPPER, LOWER, etc. (via func()) |
+| **Math Functions** | ✅ | ✅ | ✅ | ROUND, ABS, POW, etc. (via func()) |
+| **Date/Time Functions** | ✅ | ✅ | ✅ | NOW, DATE, etc. (via func()) |
+
+### Data Manipulation
+| Feature | SQLite | PostgreSQL | MySQL | Description |
+|---------|--------|------------|-------|-------------|
+| **INSERT** | ✅ | ✅ | ✅ | Single and multi-row |
+| **UPDATE** | ✅ | ✅ | ✅ | Conditional updates |
+| **DELETE** | ✅ | ✅ | ✅ | Conditional deletes |
+| **UPSERT** | ✅ | ✅ | ✅ | ON CONFLICT (INSERT...ON DUPLICATE KEY) |
+| **RETURNING** | ✅ | ✅ | ❌ | Return modified rows |
+| **Batch INSERT** | ✅ | ✅ (COPY) | ✅ | High-performance bulk inserts |
+
+### Advanced Features
+| Feature | SQLite | PostgreSQL | MySQL | Description |
+|---------|--------|------------|-------|-------------|
+| **Window Functions** | ✅ | ✅ | ✅ | OVER, PARTITION BY, ROW_NUMBER, RANK, etc. |
+| **Set Operations** | ✅ | ✅ | ✅ | UNION, INTERSECT, EXCEPT |
+| **Transactions** | ✅ | ✅ | ✅ | BEGIN, COMMIT, ROLLBACK |
+| **Savepoints** | ✅ | ✅ | ✅ | Nested transactions |
+| **Prepared Statements** | ❌ | ✅ | ✅ | Statement caching (10-20% speedup) |
+| **Connection Pooling** | ❌ | ✅ | ✅ | Thread-safe connection reuse |
+
+### DDL (Schema Management)
+| Feature | SQLite | PostgreSQL | MySQL | Description |
+|---------|--------|------------|-------|-------------|
+| **CREATE TABLE** | ✅ | ✅ | ✅ | Table creation with constraints |
+| **ALTER TABLE** | ✅ | ✅ | ✅ | Add/drop columns |
+| **DROP TABLE** | ✅ | ✅ | ✅ | Table deletion |
+| **CREATE INDEX** | ✅ | ✅ | ✅ | Index creation (UNIQUE, multi-column) |
+| **DROP INDEX** | ✅ | ✅ | ✅ | Index deletion |
+| **PRIMARY KEY** | ✅ | ✅ | ✅ | Column and table constraints |
+| **FOREIGN KEY** | ✅ | ✅ | ✅ | Referential integrity |
+| **UNIQUE** | ✅ | ✅ | ✅ | Uniqueness constraints |
+| **NOT NULL** | ✅ | ✅ | ✅ | Non-null constraints |
+| **DEFAULT** | ✅ | ✅ | ✅ | Default values |
+| **CHECK** | ✅ | ✅ | ✅ | Custom validation |
+| **AUTO_INCREMENT** | ✅ | ✅ (SERIAL) | ✅ | Auto-incrementing IDs |
+| **Migrations** | ✅ | ✅ | ✅ | Version-based schema migrations |
+| **CREATE VIEW** | ❌ | ❌ | ❌ | Not yet supported |
+| **Triggers** | ❌ | ❌ | ❌ | Not yet supported |
+| **Stored Procedures** | ❌ | ❌ | ❌ | Not yet supported |
+
+### Type Support
+| Feature | SQLite | PostgreSQL | MySQL | Description |
+|---------|--------|------------|-------|-------------|
+| **Integer, Float, String** | ✅ | ✅ | ✅ | Basic types |
+| **Boolean** | ✅ | ✅ | ✅ | Native or emulated |
+| **Date, DateTime** | ✅ | ✅ | ✅ | Temporal types |
+| **UUID** | ✅ | ✅ (native) | ✅ | Universally unique identifiers |
+| **JSON** | ✅ | ✅ (JSONB) | ✅ | JSON documents |
+| **Arrays** | ❌ | ✅ (native) | ❌ | Native array support |
+| **NULL/Missing** | ✅ | ✅ | ✅ | Null handling |
+
+### Performance Optimizations
+| Feature | SQLite | PostgreSQL | MySQL | Description |
+|---------|--------|------------|-------|-------------|
+| **Query Plan Cache** | ✅ | ✅ | ✅ | 4.85-6.95x compilation speedup |
+| **Prepared Stmt Cache** | ❌ | ✅ | ✅ | 10-20% execution speedup |
+| **Connection Pool** | ❌ | ✅ | ✅ | 4-5x speedup (concurrent) |
+| **Batch INSERT** | ✅ | ✅ (COPY) | ✅ | 1.35x-2016x speedup |
+| **Columnar Fetch** | ✅ | ✅ | ✅ | 8-10x faster for analytics |
+| **@timed_query** | ✅ | ✅ | ✅ | Performance profiling |
+| **EXPLAIN analysis** | ✅ | ✅ | ✅ | Query plan inspection |
+
+**Legend:**
+- ✅ Fully supported
+- ❌ Not supported
+- 🔶 Partial support
+
+---
+
 ## Example
 
 ### Quick Start
